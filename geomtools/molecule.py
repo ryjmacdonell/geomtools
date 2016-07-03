@@ -4,7 +4,8 @@ The Molecule object and tools for generating and querying molecular geometries.
 Input and output in XYZ, COLUMBUS or ZMAT formats. Creates a saved copy of the 
 geometry after input for reversion after an operation.
 
-TODO: Finish ZMAT I/O. Add custom formats and support for internal coordinates.
+TODO: Add support for input files with multiple geometries. Finish ZMAT I/O. 
+Add custom formats and support for internal coordinates.
 """
 import sys
 import numpy as np
@@ -16,7 +17,7 @@ class Molecule(object):
     getting geometric properties.
     """
     def __init__(self, natm=0, elem=np.array([], dtype=str),
-                 xyz=np.array([], dtype=float).reshape(0, 3)):
+                 xyz=np.empty((0, 3))):
         self.natm = natm
         self.elem = elem
         self.xyz = xyz
@@ -35,7 +36,6 @@ class Molecule(object):
                         'P':30.97376340, 'S':31.97207180, 'Cl':34.96885273, 
                         'Ar':39.96238310}
 
-
     def _check(self):
         """Checks that natm = len(elem) = len(xyz)."""
         natm = self.natm
@@ -52,13 +52,11 @@ class Molecule(object):
             raise ValueError('Number of cartesian vectors ({:d}) not equal to '
                              'number of atoms ({:d}).'.format(natm, len_xyz))
 
-
     def copy(self):
         """Creates a copy of the Molecule object."""
         self._check()
         return Molecule(np.copy(self.natm), np.copy(self.elem), 
                         np.copy(self.xyz))
-
 
     def save(self):
         """Saves molecular properties to 'orig' variables."""
@@ -68,14 +66,12 @@ class Molecule(object):
         self.orig_xyz = np.copy(self.xyz)
         self.saved = True
 
-
     def revert(self):
         """Reverts properties to 'orig' variables."""
         self.natm = np.copy(self.orig_natm)
         self.elem = np.copy(self.orig_elem)
         self.xyz = np.copy(self.orig_xyz)
         self.saved = True
-
 
     def add_atoms(self, new_elem, new_xyz):
         """Adds atoms(s) to molecule."""
@@ -85,7 +81,6 @@ class Molecule(object):
         self._check()
         self.saved = False
 
-
     def rm_atoms(self, ind):
         """Removes atom(s) from molecule based on index."""
         self.natm -= 1 if isinstance(ind, int) else len(ind)
@@ -93,7 +88,6 @@ class Molecule(object):
         self.xyz = np.delete(self.xyz, ind, axis=0)
         self._check()
         self.saved = False
-
 
     def read_xyz(self, fname):
         """Reads input file in XYZ format."""
@@ -106,7 +100,6 @@ class Molecule(object):
         self.xyz = data[:self.natm, 1:].astype(float)
         self.save()
 
-
     def read_col(self, fname):
         """Reads input file in COLUMBUS format."""
         with open(fname, 'r') as fin:
@@ -117,11 +110,9 @@ class Molecule(object):
         self.xyz = data[:, 2:-1].astype(float) * self.a0
         self.save()
 
-
     def read_zmat(self, fname):
         """Reads input file in ZMAT format."""
         pass # this might require importing the displacement module
-
 
     def write_xyz(self, outfile, comment=''):
         """Writes geometry to an output file in XYZ format."""
@@ -129,7 +120,6 @@ class Molecule(object):
 
         for a, pos in zip(self.elem, self.xyz):
             outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(a, *pos))
-
 
     def write_col(self, outfile, comment=''):
         """Writes geometry to an output file in COLUMBUS format."""
@@ -140,26 +130,37 @@ class Molecule(object):
             outfile.write(' {:<2}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'
                           '\n'.format(a, self.atmnum[a], *pos, self.atmmass[a]))
 
-
     def write_zmat(self, outfile, comment=''):
         """Writes geometry to an output file in ZMAT format."""
         pass # this is relatively easy
 
-
     def get_stre(self, ind):
         return stre(self.xyz, ind)
 
-    
     def get_bend(self, ind):
         return bend(self.xyz, ind)
-
 
     def get_tors(self, ind):
         return tors(self.xyz, ind)
 
-
     def get_oop(self, ind):
         return oop(self.xyz, ind)
+
+
+def import_xyz(fname):
+    """Imports geometry in XYZ format to Molecule object."""
+    mol = Molecule()
+    mol.read_xyz(fname)
+
+    return mol
+
+
+def import_col(fname):
+    """Imports geometry in COLUMBUS format to Molecule object."""
+    mol = Molecule()
+    mol.read_col(fname)
+
+    return mol
 
 
 def stre(xyz, ind):
