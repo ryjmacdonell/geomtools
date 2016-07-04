@@ -1,14 +1,12 @@
 """
 The Molecule object and tools for generating and querying molecular geometries.
 
-Input and output in XYZ, COLUMBUS or ZMAT formats. Creates a saved copy of the 
-geometry after input for reversion after an operation.
-
-TODO: Add support for input files with multiple geometries. Finish ZMAT I/O. 
-Add custom formats and support for internal coordinates.
+Creates a saved copy of the geometry after input for reversion after an 
+operation. Can add/remove individual atoms or groups or set the full geometry.
 """
 import sys
 import numpy as np
+import fileio
 
 
 class Molecule(object):
@@ -22,19 +20,6 @@ class Molecule(object):
         self.elem = elem
         self.xyz = xyz
         self.save()
-
-        # constants
-        self.a0 = 0.52917721092
-        self.atmnum = {'X':0, 'H':1, 'He':2, 'Li':3, 'Be':4, 'B':5, 'C':6,
-                       'N':7, 'O':8, 'F':9, 'Ne':10, 'Na':11, 'Mg':12, 'Al':13,
-                       'Si':14, 'P':15, 'S':16, 'Cl':17, 'Ar':18}
-        self.atmmass = {'X':0.00000000, 'H':1.00782504, 'He':4.00260325,
-                        'Li':7.01600450, 'Be':9.01218250, 'B':11.00930530,
-                        'C':12.00000000, 'N':14.00307401, 'O':15.99491464,
-                        'F':18.99840325, 'Ne':19.99243910, 'Na':22.98976970,
-                        'Mg':23.98504500, 'Al':26.98154130, 'Si':27.97692840,
-                        'P':30.97376340, 'S':31.97207180, 'Cl':34.96885273, 
-                        'Ar':39.96238310}
 
     def _check(self):
         """Checks that natm = len(elem) = len(xyz)."""
@@ -73,6 +58,14 @@ class Molecule(object):
         self.xyz = np.copy(self.orig_xyz)
         self.saved = True
 
+    def set_geom(self, natm, elem, xyz):
+        """Sets molecular geometry."""
+        self.natm = natm
+        self.elem = elem
+        self.xyz = xyz
+        self._check()
+        self.saved = False
+
     def add_atoms(self, new_elem, new_xyz):
         """Adds atoms(s) to molecule."""
         self.natm += 1 if isinstance(new_elem, str) else len(new_elem)
@@ -89,51 +82,48 @@ class Molecule(object):
         self._check()
         self.saved = False
 
+    # Input / Output
     def read_xyz(self, fname):
         """Reads input file in XYZ format."""
-        with open(fname, 'r') as fin:
-            self.natm = int(fin.readline())
-            fin.readline()
-            data = np.array([line.split() for line in fin.readlines()])
-
-        self.elem = data[:self.natm, 0]
-        self.xyz = data[:self.natm, 1:].astype(float)
+        with open(fname, 'r') as infile:
+            self.natm, self.elem, self.xyz = fileio.read_xyz(infile)
         self.save()
 
     def read_col(self, fname):
         """Reads input file in COLUMBUS format."""
-        with open(fname, 'r') as fin:
-            data = np.array([line.split() for line in fin.readlines()])
-
-        self.natm = len(data)
-        self.elem = data[:, 0]
-        self.xyz = data[:, 2:-1].astype(float) * self.a0
+        with open(fname, 'r') as infile:
+            self.natm, self.elem, self.xyz = fileio.read_col(infile)
         self.save()
 
     def read_zmat(self, fname):
         """Reads input file in ZMAT format."""
-        pass # this might require importing the displacement module
+        with open(fname, 'r') as infile:                                        
+            self.natm, self.elem, self.xyz = fileio.read_zmat(infile)            
+        self.save()
 
     def write_xyz(self, outfile, comment=''):
         """Writes geometry to an output file in XYZ format."""
-        outfile.write(' {}\n{}\n'.format(self.natm, comment))
-
-        for a, pos in zip(self.elem, self.xyz):
-            outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(a, *pos))
+        fileio.write_xyz(outfile, self.natm, self.elem, self.xyz, comment)
 
     def write_col(self, outfile, comment=''):
         """Writes geometry to an output file in COLUMBUS format."""
-        if comment != '':
-            outfile.write('{}\n'.format(comment))
-
-        for a, pos in zip(self.elem, self.xyz / self.a0):
-            outfile.write(' {:<2}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'
-                          '\n'.format(a, self.atmnum[a], *pos, self.atmmass[a]))
+        fileio.write_col(outfile, self.natm, self.elem, self.xyz, comment)
 
     def write_zmat(self, outfile, comment=''):
         """Writes geometry to an output file in ZMAT format."""
-        pass # this is relatively easy
+        fileio.write_zmat(outfile, self.natm, self.elem, self.xyz, comment)
 
+    # Accessors
+    def get_natm(self):
+        return self.natm
+
+    def get_elem(self):
+        return self.elem
+
+    def get_xyz(self):
+        return self.xyz
+
+    # Internal geometry
     def get_stre(self, ind):
         return stre(self.xyz, ind)
 
