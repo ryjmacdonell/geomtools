@@ -16,6 +16,7 @@ Example axes for displacements:
 """
 import sys
 import numpy as np
+import constants as con
 
 
 def translate(xyz, ind, amp, u, orig=np.zeros(3)):
@@ -32,8 +33,8 @@ def rotate(xyz, ind, amp, u, orig=np.zeros(3)):
     u /= np.linalg.norm(u)
     uouter = np.outer(u, u)
     ucross = np.array([[0, -u[2], u[1]], [u[2], 0, -u[0]], [-u[1], u[0], 0]])
-    rotmat = np.cos(amp) * np.eye(3) + np.sin(amp) * ucross + 
-             (1 - np.cos(amp)) * uouter
+    rotmat = np.cos(amp) * np.eye(3) + np.sin(amp) * ucross + (1 - 
+             np.cos(amp)) * uouter
 
     newxyz = xyz - orig 
     newxyz[ind] = np.dot(rotmat, newxyz[ind].T).T
@@ -58,6 +59,12 @@ def combo(funcs, wgts=None):
     return _function
 
 
+def get_centremass(elem, xyz):
+    """Returns centre of mass of a set of atoms."""
+    mass = con.get_mass(elem)
+    return np.sum(mass[:,np.newaxis] * xyz, axis=0) / np.sum(mass)
+
+
 def comment(s, func, inds):
     """Writes a comment line based on a measurement."""
     def _function(xyz):
@@ -65,9 +72,10 @@ def comment(s, func, inds):
     return _function
 
 
-def c_loop(outfile, wfunc, disp, n, el, xyz, u, origin, ind, amplim, comm, n):
+def c_loop(outfile, wfunc, disp, n, el, xyz, u, origin, ind, amplim, 
+           comm, namp):
     """Displaces by amplitudes in list and outputs geometries."""
-    amplist = np.linspace(amplim[0], amplim[1], n)
+    amplist = np.linspace(amplim[0], amplim[1], namp)
 
     for amp in amplist:
         newxyz = disp(xyz, ind, amp, u, origin)

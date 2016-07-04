@@ -7,30 +7,9 @@ TODO: Finish ZMAT functions. Add custom formats.
 """
 import sys
 import numpy as np
+import constants as con
 import displace
-
-
-# Global constants
-a0 = 0.52917721092                                                 
-
-
-def get_num(elem):
-    """Returns atomic number from atomic symbol."""
-    num = {'X':0, 'H':1, 'He':2, 'Li':3, 'Be':4, 'B':5, 'C':6, 'N':7, 'O':8,
-           'F':9, 'Ne':10, 'Na':11, 'Mg':12, 'Al':13, 'Si':14, 'P':15, 'S':16,
-           'Cl':17, 'Ar':18}               
-    return num[elem]
-
-
-def get_mass(elem):
-    """Returns atomic mass from atomic symbol."""
-    mass = {'X':0.00000000, 'H':1.00782504, 'He':4.00260325, 'Li':7.01600450,
-            'Be':9.01218250, 'B':11.00930530, 'C':12.00000000, 'N':14.00307401,
-            'O':15.99491464, 'F':18.99840325, 'Ne':19.99243910, 
-            'Na':22.98976970, 'Mg':23.98504500, 'Al':26.98154130, 
-            'Si':27.97692840, 'P':30.97376340, 'S':31.97207180, 
-            'Cl':34.96885273, 'Ar':39.96238310}
-    return mass[elem]
+import molecule
 
 
 def read_xyz(infile):                                                  
@@ -39,8 +18,8 @@ def read_xyz(infile):
     infile.readline()                                                      
     data = np.array([line.split() for line in infile.readlines()])         
                                                                             
-    elem = data[:self.natm, 0]                                         
-    xyz = data[:self.natm, 1:].astype(float)                           
+    elem = data[:natm, 0]                                         
+    xyz = data[:natm, 1:].astype(float)                           
     return natm, elem, xyz
                                                                             
 
@@ -50,7 +29,7 @@ def read_col(infile):
                                                                             
     natm = len(data)                                                   
     elem = data[:, 0]                                                  
-    xyz = data[:, 2:-1].astype(float) * self.a0                        
+    xyz = data[:, 2:-1].astype(float) * con.a0                        
     return natm, elem, xyz
 
 
@@ -69,15 +48,42 @@ def write_xyz(outfile, natm, elem, xyz, comment=''):
 
 def write_col(outfile, natm, elem, xyz, comment=''):                                   
     """Writes geometry to an output file in COLUMBUS format."""             
-    global a0
     if comment != '':                                                       
-        outfile.write('{}\n'.format(comment))                               
+        outfile.write(comment + '\n')                               
                                                                             
-    for a, pos in zip(elem, xyz / a0):                       
+    for a, pos in zip(elem, xyz / con.a0):                       
         outfile.write(' {:<2}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'       
-                      '\n'.format(a, get_num(a), *pos, get_mass(a)))
+                      '\n'.format(a, con.get_num(a), *pos, con.get_mass(a)))
 
 
 def write_zmat(outfile, natm, elem, xyz, comment=''):                                  
-    """Writes geometry to an output file in ZMAT format."""                 
-    pass # this is relatively easy
+    """Writes geometry to an output file in ZMAT format.
+    
+    This could be made 'smarter' using the bonding module."""                 
+    if comment != '':                                                           
+        outfile.write(comment + '\n')
+
+    for i in range(natm):
+        if i == 0:
+            # first element has just the symbol
+            outfile.write('{:<2}\n'.format(elem[0]))
+        elif i == 1:
+            # second element has symbol, index, bond length
+            outfile.write('{:<2}{:3d}{:12.6f}'
+                          '\n'.format(elem[1], 1, molecule.stre(xyz, [0,1])))
+        elif i == 2:
+            # third element has symbol, index, bond length, index, bond angle
+            outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}'
+                          '\n'.format(elem[2], 2, molecule.stre(xyz, [1,2]),
+                                      1, molecule.bend(xyz, [0,1,2],
+                                                       units='deg')))
+        else:
+            # all other elements have symbol, index, bond length, index,
+            # bond angle, index, dihedral angle
+            outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}{:3d}{:12.6f}'
+                          '\n'.format(elem[i], i, molecule.stre(xyz, [i-1,i]),
+                                      i-1, molecule.bend(xyz, [i-2,i-1,i], 
+                                                         units='deg'), 
+                                      i-2, molecule.tors(xyz, [i-3,i-2,i-1,i], 
+                                                         units='deg')))
+
