@@ -6,8 +6,8 @@ operation. Can add/remove individual atoms or groups or set the full geometry.
 """
 import sys
 import numpy as np
-import fileio
-import constants as con
+import geomtools.constants as con
+import geomtools.fileio as fileio
 
 
 class Molecule(object):
@@ -82,6 +82,21 @@ class Molecule(object):
         self.xyz = np.delete(self.xyz, ind, axis=0)
         self._check()
         self.saved = False
+    
+    def rearrange(self, new_ind, old_ind=None):
+        """Moves atom(s) from old_ind to new_ind."""
+        if old_ind == None:
+            if isinstance(new_ind, int) or len(new_ind) < self.natm:
+                raise ValueError('Old indices must be specified if length of '
+                                'new indices less than natm')
+            else:
+                old_ind = range(self.natm)
+        if not isinstance(old_ind, type(new_ind)):
+            raise TypeError('Old and new indices must be of the same type')
+        elif isinstance(new_ind, list) and len(new_ind) != len(old_ind):
+            raise IndexError('Old and new indices must be the same length')
+
+        self.xyz[old_ind] = self.xyz[new_ind]
 
     # Input / Output
     def read_xyz(self, fname):
@@ -242,6 +257,9 @@ if __name__ == '__main__':
     test.write_xyz(fout)
     fout.write('\nRemoving B atom:\n')
     test.rm_atoms(0)
+    test.write_xyz(fout)
+    fout.write('\nSwitching atoms 1 and 3')
+    test.rearrange(0, 3)
     test.write_xyz(fout)
     fout.write('\nReverting to original geometry\n')
     test.revert()

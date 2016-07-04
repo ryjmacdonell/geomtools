@@ -1,8 +1,8 @@
 """
 Constant molecular properties to be used in other modules.
 
-Arrays are ordered by atomic number for convenience. At the moment,
-atomic symbols are case sensitive.
+Arrays are ordered by atomic number for convenience. Atomic symbols are case 
+sensitive. This module should not depend on other geomtools modules.
 """
 import sys
 import numpy as np
@@ -50,6 +50,7 @@ def get_covrad(elem):
 
 
 def unit_convert(value, units, utype):
+    """Returns a value converted from default units to given units."""
     if utype == 'length' and units in lenunits:
         return value * lenunits[units]
     elif utype == 'angle' and units in angunits:

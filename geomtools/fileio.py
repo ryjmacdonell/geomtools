@@ -7,9 +7,9 @@ TODO: Finish ZMAT functions. Add custom formats.
 """
 import sys
 import numpy as np
-import constants as con
-import displace
-import molecule
+import geomtools.constants as con
+import geomtools.displace
+import geomtools.molecule
 
 
 def read_xyz(infile):                                                  

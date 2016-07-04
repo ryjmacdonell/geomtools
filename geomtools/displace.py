@@ -16,7 +16,7 @@ Example axes for displacements:
 """
 import sys
 import numpy as np
-import constants as con
+import geomtools.constants as con
 
 
 def translate(xyz, ind, amp, u, orig=np.zeros(3)):
