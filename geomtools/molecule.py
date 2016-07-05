@@ -1,7 +1,7 @@
 """
 The Molecule object and tools for generating and querying molecular geometries.
 
-Creates a saved copy of the geometry after input for reversion after an 
+Creates a saved copy of the geometry after input for reversion after an
 operation. Can add/remove individual atoms or groups or set the full geometry.
 """
 import sys
@@ -29,7 +29,7 @@ class Molecule(object):
         len_elem = len(self.elem)
         len_xyz = len(self.xyz)
         if natm != len_elem and natm != len_xyz:
-            raise ValueError('Number of atoms ({:d}) not equal to number of ' 
+            raise ValueError('Number of atoms ({:d}) not equal to number of '
                              'element labels ({:d}) and number of cartesian '
                              'vectors ({:d}).'.format(natm, len_elem, len_xyz))
         elif natm != len_elem:
@@ -42,7 +42,7 @@ class Molecule(object):
     def copy(self):
         """Creates a copy of the Molecule object."""
         self._check()
-        return Molecule(np.copy(self.natm), np.copy(self.elem), 
+        return Molecule(np.copy(self.natm), np.copy(self.elem),
                         np.copy(self.xyz))
 
     def save(self):
@@ -83,7 +83,7 @@ class Molecule(object):
         self.xyz = np.delete(self.xyz, ind, axis=0)
         self._check()
         self.saved = False
-    
+
     def rearrange(self, new_ind, old_ind=None):
         """Moves atom(s) from old_ind to new_ind."""
         if old_ind == None:
@@ -114,8 +114,8 @@ class Molecule(object):
 
     def read_zmat(self, fname):
         """Reads input file in ZMAT format."""
-        with open(fname, 'r') as infile:                                        
-            self.natm, self.elem, self.xyz = fileio.read_zmat(infile)            
+        with open(fname, 'r') as infile:
+            self.natm, self.elem, self.xyz = fileio.read_zmat(infile)
         self.save()
 
     def write_xyz(self, outfile, comment=''):
