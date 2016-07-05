@@ -22,7 +22,7 @@ import geomtools.constants as con
 def stre(xyz, ind, units='ang'):
     """Returns bond length based on index."""
     coord = np.linalg.norm(xyz[ind[0]] - xyz[ind[1]])
-    return con.unit_convert(coord, units, 'length')
+    return coord * con.unit_convert('ang', units)
 
 
 def bend(xyz, ind, units='rad'):
@@ -33,7 +33,7 @@ def bend(xyz, ind, units='rad'):
     e2 /= np.linalg.norm(e2)
 
     coord = np.arccos(np.dot(e1, e2))
-    return con.unit_convert(coord, units, 'angle')
+    return coord * con.unit_convert('rad', units)
 
 
 def tors(xyz, ind, units='rad'):
@@ -52,11 +52,11 @@ def tors(xyz, ind, units='rad'):
     cp2 /= np.linalg.norm(cp2)
 
     # get cross product of plane normals for signed dihedral angle
-    cp3 = np.cross(cp2, cp1)
+    cp3 = np.cross(cp1, cp2)
     cp3 /= np.linalg.norm(cp3)
 
     coord = np.sign(np.dot(cp3, e2)) * np.arccos(np.dot(cp1, cp2))
-    return con.unit_convert(coord, units, 'angle')
+    return coord * con.unit_convert('rad', units)
 
 
 def oop(xyz, ind, units='rad'):
@@ -71,33 +71,42 @@ def oop(xyz, ind, units='rad'):
 
     coord = np.arcsin(np.dot(np.cross(e2, e3) /
                             np.sqrt(1 - np.dot(e2, e3) ** 2), e1))
-    return con.unit_convert(coord, units, 'angle')
+    return coord * con.unit_convert('rad', units)
 
 
-def translate(xyz, ind, amp, u, orig=np.zeros(3)):
+def translate(xyz, ind, amp, axis, origin=np.zeros(3), units='ang'):
     """Translates atoms given by ind along a vector u."""
+    u = np.array(axis, dtype=float)
     u /= np.linalg.norm(u)
+    origin = np.array(origin, dtype=float)
+    amp *= con.unit_convert(units, 'ang')
 
-    newxyz = xyz - orig
+    newxyz = xyz - origin
     newxyz[ind] += amp * u
-    return newxyz + orig
+    return newxyz + origin
 
 
-def rotate(xyz, ind, amp, u, orig=np.zeros(3)):
+def rotate(xyz, ind, amp, axis, origin=np.zeros(3), units='rad'):
     """Rotates atoms given by ind about a vector u."""
+    u = np.array(axis, dtype=float)
     u /= np.linalg.norm(u)
+    origin = np.array(origin, dtype=float)
+    amp *= con.unit_convert(units, 'rad')
     uouter = np.outer(u, u)
     ucross = np.array([[0, -u[2], u[1]], [u[2], 0, -u[0]], [-u[1], u[0], 0]])
     rotmat = np.cos(amp) * np.eye(3) + np.sin(amp) * ucross + (1 -
              np.cos(amp)) * uouter
 
-    newxyz = xyz - orig
+    newxyz = xyz - origin
     newxyz[ind] = np.dot(rotmat, newxyz[ind].T).T
-    return newxyz + orig
+    return newxyz + origin
 
 
 def combo(funcs, wgts=None):
-    """Creates a combination function of translations and rotations."""
+    """Creates a combination function of translations and rotations.
+
+    TODO: Find a better way to right this.
+    """
     if wgts == None:
         wgts = np.ones(len(funcs))
 
@@ -120,6 +129,11 @@ def get_centremass(elem, xyz):
     return np.sum(mass[:,np.newaxis] * xyz, axis=0) / np.sum(mass)
 
 
+def centre_mass(elem, xyz):
+    """Returns xyz with centre of mass at the origin."""
+    return xyz - get_centremass(elem, xyz)
+
+
 def comment(s, func, inds):
     """Writes a comment line based on a measurement."""
     def _function(xyz):
@@ -129,7 +143,10 @@ def comment(s, func, inds):
 
 def c_loop(outfile, wfunc, disp, n, el, xyz, u, origin, ind, amplim,
            comm, namp):
-    """Displaces by amplitudes in list and outputs geometries."""
+    """Displaces by amplitudes in list and outputs geometries.
+
+    TODO: Rewrite this.
+    """
     amplist = np.linspace(amplim[0], amplim[1], namp)
 
     for amp in amplist:
