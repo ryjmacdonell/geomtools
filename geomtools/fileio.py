@@ -8,8 +8,7 @@ TODO: Finish ZMAT functions. Add custom formats.
 import sys
 import numpy as np
 import geomtools.constants as con
-import geomtools.displace
-import geomtools.molecule
+import geomtools.displace as displace
 
 
 def read_xyz(infile):                                                  
@@ -70,20 +69,20 @@ def write_zmat(outfile, natm, elem, xyz, comment=''):
         elif i == 1:
             # second element has symbol, index, bond length
             outfile.write('{:<2}{:3d}{:12.6f}'
-                          '\n'.format(elem[1], 1, molecule.stre(xyz, [0,1])))
+                          '\n'.format(elem[1], 1, displace.stre(xyz, [0,1])))
         elif i == 2:
             # third element has symbol, index, bond length, index, bond angle
             outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}'
-                          '\n'.format(elem[2], 2, molecule.stre(xyz, [1,2]),
-                                      1, molecule.bend(xyz, [0,1,2],
+                          '\n'.format(elem[2], 2, displace.stre(xyz, [1,2]),
+                                      1, displace.bend(xyz, [0,1,2],
                                                        units='deg')))
         else:
             # all other elements have symbol, index, bond length, index,
             # bond angle, index, dihedral angle
             outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}{:3d}{:12.6f}'
-                          '\n'.format(elem[i], i, molecule.stre(xyz, [i-1,i]),
-                                      i-1, molecule.bend(xyz, [i-2,i-1,i], 
+                          '\n'.format(elem[i], i, displace.stre(xyz, [i-1,i]),
+                                      i-1, displace.bend(xyz, [i-2,i-1,i], 
                                                          units='deg'), 
-                                      i-2, molecule.tors(xyz, [i-3,i-2,i-1,i], 
+                                      i-2, displace.tors(xyz, [i-3,i-2,i-1,i], 
                                                          units='deg')))
 

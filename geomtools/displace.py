@@ -19,6 +19,61 @@ import numpy as np
 import geomtools.constants as con
 
 
+def stre(xyz, ind, units='ang'):
+    """Returns bond length based on index."""
+    coord = np.linalg.norm(xyz[ind[0]] - xyz[ind[1]])
+    return con.unit_convert(coord, units, 'length')
+
+
+def bend(xyz, ind, units='rad'):
+    """Returns bending angle for 3 atoms in a chain based on index."""
+    e1 = xyz[ind[0]] - xyz[ind[1]]
+    e2 = xyz[ind[2]] - xyz[ind[1]]
+    e1 /= np.linalg.norm(e1)
+    e2 /= np.linalg.norm(e2)
+
+    coord = np.arccos(np.dot(e1, e2))
+    return con.unit_convert(coord, units, 'angle')
+
+
+def tors(xyz, ind, units='rad'):
+    """Returns dihedral angle for 4 atoms in a chain based on index."""
+    e1 = xyz[ind[0]] - xyz[ind[1]]
+    e2 = xyz[ind[2]] - xyz[ind[1]]
+    e3 = xyz[ind[2]] - xyz[ind[3]]
+    e1 /= np.linalg.norm(e1)
+    e2 /= np.linalg.norm(e2)
+    e3 /= np.linalg.norm(e3)
+
+    # get normals to 3-atom planes
+    cp1 = np.cross(e1, e2)
+    cp2 = np.cross(e2, e3)
+    cp1 /= np.linalg.norm(cp1)
+    cp2 /= np.linalg.norm(cp2)
+
+    # get cross product of plane normals for signed dihedral angle
+    cp3 = np.cross(cp2, cp1)
+    cp3 /= np.linalg.norm(cp3)
+
+    coord = np.sign(np.dot(cp3, e2)) * np.arccos(np.dot(cp1, cp2))
+    return con.unit_convert(coord, units, 'angle')
+
+
+def oop(xyz, ind, units='rad'):
+    """Returns out-of-plane angle of atom 1 connected to atom 4 in the
+    2-3-4 plane."""
+    e1 = xyz[ind[0]] - xyz[ind[3]]
+    e2 = xyz[ind[1]] - xyz[ind[3]]
+    e3 = xyz[ind[2]] - xyz[ind[3]]
+    e1 /= np.linalg.norm(e1)
+    e2 /= np.linalg.norm(e2)
+    e3 /= np.linalg.norm(e3)
+
+    coord = np.arcsin(np.dot(np.cross(e2, e3) /
+                            np.sqrt(1 - np.dot(e2, e3) ** 2), e1))
+    return con.unit_convert(coord, units, 'angle')
+
+
 def translate(xyz, ind, amp, u, orig=np.zeros(3)):
     """Translates atoms given by ind along a vector u."""
     u /= np.linalg.norm(u)
@@ -33,10 +88,10 @@ def rotate(xyz, ind, amp, u, orig=np.zeros(3)):
     u /= np.linalg.norm(u)
     uouter = np.outer(u, u)
     ucross = np.array([[0, -u[2], u[1]], [u[2], 0, -u[0]], [-u[1], u[0], 0]])
-    rotmat = np.cos(amp) * np.eye(3) + np.sin(amp) * ucross + (1 - 
+    rotmat = np.cos(amp) * np.eye(3) + np.sin(amp) * ucross + (1 -
              np.cos(amp)) * uouter
 
-    newxyz = xyz - orig 
+    newxyz = xyz - orig
     newxyz[ind] = np.dot(rotmat, newxyz[ind].T).T
     return newxyz + orig
 
@@ -49,12 +104,12 @@ def combo(funcs, wgts=None):
     def _function(xyz, ind, amp, u, orig=np.zeros(3)):
         newxyz = np.copy(xyz)
         to_list = [u, orig]
-        [u, orig] = [s if isinstance(s, list) else [s] * len(funcs) 
+        [u, orig] = [s if isinstance(s, list) else [s] * len(funcs)
                      for s in to_list]
         ind = ind if isinstance(ind[0], list) else [ind] * len(funcs)
 
         for i, f in enumerate(funcs):
-           newxyz = f(newxyz, ind[i], amp * wgts[i], u[i], orig[i]) 
+           newxyz = f(newxyz, ind[i], amp * wgts[i], u[i], orig[i])
         return newxyz
     return _function
 
@@ -72,7 +127,7 @@ def comment(s, func, inds):
     return _function
 
 
-def c_loop(outfile, wfunc, disp, n, el, xyz, u, origin, ind, amplim, 
+def c_loop(outfile, wfunc, disp, n, el, xyz, u, origin, ind, amplim,
            comm, namp):
     """Displaces by amplitudes in list and outputs geometries."""
     amplist = np.linspace(amplim[0], amplim[1], namp)
@@ -103,11 +158,11 @@ if __name__ == '__main__':
     # test combination
     fout.write('\nCombined translation by 1.0 Ang. and rotation by pi/2 '
                'about x axis:\n')
-    write_xyz(fout, natm, elem, combo([translate, rotate], xyz, range(natm), 
+    write_xyz(fout, natm, elem, combo([translate, rotate], xyz, range(natm),
               [1.0, np.pi/2], xyz[0]))
 
     # test looping through geoms
     fout.write('\nLooping atom C through pi/2 rotations about x axis:\n')
-    c_loop(fout, write_xyz, rotate, natm, elem, xyz, xyz[0], xyz[0], [1], 
-           [np.pi/2, 2*np.pi], comment('CON angle: {:.4f} rad', bend, 
+    c_loop(fout, write_xyz, rotate, natm, elem, xyz, xyz[0], xyz[0], [1],
+           [np.pi/2, 2*np.pi], comment('CON angle: {:.4f} rad', bend,
                                        [1, 3, 2]), 4)

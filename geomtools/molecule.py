@@ -8,6 +8,7 @@ import sys
 import numpy as np
 import geomtools.constants as con
 import geomtools.fileio as fileio
+import geomtools.displace as displace
 
 
 class Molecule(object):
@@ -141,23 +142,22 @@ class Molecule(object):
 
     # Internal geometry
     def get_stre(self, ind, units='ang'):
-        return stre(self.xyz, ind, units=units)
+        return displace.stre(self.xyz, ind, units=units)
 
     def get_bend(self, ind, units='rad'):
-        return bend(self.xyz, ind, units=units)
+        return displace.bend(self.xyz, ind, units=units)
 
     def get_tors(self, ind, units='rad'):
-        return tors(self.xyz, ind, units=units)
+        return displace.tors(self.xyz, ind, units=units)
 
     def get_oop(self, ind, units='rad'):
-        return oop(self.xyz, ind, units=units)
+        return displace.oop(self.xyz, ind, units=units)
 
 
 def import_xyz(fname):
     """Imports geometry in XYZ format to Molecule object."""
     mol = Molecule()
     mol.read_xyz(fname)
-
     return mol
 
 
@@ -165,63 +165,14 @@ def import_col(fname):
     """Imports geometry in COLUMBUS format to Molecule object."""
     mol = Molecule()
     mol.read_col(fname)
-
     return mol
 
 
-def stre(xyz, ind, units='ang'):
-    """Returns bond length based on index."""
-    coord = np.linalg.norm(xyz[ind[0]] - xyz[ind[1]])
-    return con.unit_convert(coord, units, 'length')
-
-
-def bend(xyz, ind, units='rad'):
-    """Returns bending angle for 3 atoms in a chain based on index."""
-    e1 = xyz[ind[0]] - xyz[ind[1]]
-    e2 = xyz[ind[2]] - xyz[ind[1]]
-    e1 /= np.linalg.norm(e1)
-    e2 /= np.linalg.norm(e2)
-
-    coord = np.arccos(np.dot(e1, e2))
-    return con.unit_convert(coord, units, 'angle')
-
-
-def tors(xyz, ind, units='rad'):
-    """Returns dihedral angle for 4 atoms in a chain based on index."""
-    e1 = xyz[ind[0]] - xyz[ind[1]]
-    e2 = xyz[ind[2]] - xyz[ind[1]]
-    e3 = xyz[ind[2]] - xyz[ind[3]]
-    e1 /= np.linalg.norm(e1)
-    e2 /= np.linalg.norm(e2)
-    e3 /= np.linalg.norm(e3)
-
-    # get normals to 3-atom planes
-    cp1 = np.cross(e1, e2)
-    cp2 = np.cross(e2, e3)
-    cp1 /= np.linalg.norm(cp1)
-    cp2 /= np.linalg.norm(cp2)
-
-    # get cross product of plane normals for signed dihedral angle
-    cp3 = np.cross(cp2, cp1)
-    cp3 /= np.linalg.norm(cp3)
-
-    coord = np.sign(np.dot(cp3, e2)) * np.arccos(np.dot(cp1, cp2))
-    return con.unit_convert(coord, units, 'angle')
-
-
-def oop(xyz, ind, units='rad'):
-    """Returns out-of-plane angle of atom 1 connected to atom 4 in the
-    2-3-4 plane."""
-    e1 = xyz[ind[0]] - xyz[ind[3]]
-    e2 = xyz[ind[1]] - xyz[ind[3]]
-    e3 = xyz[ind[2]] - xyz[ind[3]]
-    e1 /= np.linalg.norm(e1)
-    e2 /= np.linalg.norm(e2)
-    e3 /= np.linalg.norm(e3)
-
-    coord = np.arcsin(np.dot(np.cross(e2, e3) / 
-                            np.sqrt(1 - np.dot(e2, e3) ** 2), e1))
-    return con.unit_convert(coord, units, 'angle')
+def import_zmat(fname):
+    """Imports geometry in ZMAT format to Molecule object."""
+    mol = Molecule()
+    mol.read_zmat(fname)
+    return mol
 
 
 if __name__ == '__main__':
@@ -258,7 +209,7 @@ if __name__ == '__main__':
     fout.write('\nRemoving B atom:\n')
     test.rm_atoms(0)
     test.write_xyz(fout)
-    fout.write('\nSwitching atoms 1 and 3')
+    fout.write('\nSwitching atoms 1 and 3\n')
     test.rearrange(0, 3)
     test.write_xyz(fout)
     fout.write('\nReverting to original geometry\n')
