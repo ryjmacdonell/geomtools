@@ -83,7 +83,7 @@ def read_zmat(infile):
                                   np.cross(xyz[indT]-xyz[indA],
                                            xyz[indR]-xyz[indA]),
                                   origin=xyz[indR], units='deg')
-            # rotate about indA-indR by T
+            # rotate about indR-indA by T
             xyz = displace.rotate(xyz, i, float(data[i][6]),
                                   xyz[indR]-xyz[indA],
                                   origin=xyz[indR], units='deg')
