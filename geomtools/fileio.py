@@ -26,7 +26,7 @@ def read_col(infile):
     data = np.array([line.split() for line in infile.readlines()])
     natm = len(data)
     elem = data[:, 0]
-    xyz = data[:, 2:-1].astype(float) * con.a0
+    xyz = data[:, 2:-1].astype(float) * con.conv('bohr','ang')
     return natm, elem, xyz
 
 
@@ -69,13 +69,13 @@ def read_zmat(infile):
                                      xyz[indA]-xyz[indR])
             # rotate into xz-plane by A
             xyz = displace.rotate(xyz, 2, float(data[2][4]), [0, 1, 0],
-                            origin=xyz[indR], units='deg')
+                                  origin=xyz[indR], units='deg')
         else:
             indR = int(data[i][1]) - 1
             indA = int(data[i][3]) - 1
             indT = int(data[i][5]) - 1
             xyz[i] = xyz[indR]
-            # move from indR towards indA by R, rotate about
+            # move from indR towards indA by R
             xyz = displace.translate(xyz, i, float(data[i][2]),
                                      xyz[indA]-xyz[indR])
             # rotate about (indT-indA)x(indR-indA) by A
@@ -103,7 +103,7 @@ def write_col(outfile, natm, elem, xyz, comment=''):
     """Writes geometry to an output file in COLUMBUS format."""
     if comment != '':
         outfile.write(comment + '\n')
-    for a, pos in zip(elem, xyz / con.a0):
+    for a, pos in zip(elem, xyz * con.conv('ang','bohr')):
         outfile.write(' {:<2}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'
                       '\n'.format(a, con.get_num(a), *pos, con.get_mass(a)))
 

@@ -22,7 +22,7 @@ import geomtools.constants as con
 def stre(xyz, ind, units='ang'):
     """Returns bond length based on index."""
     coord = np.linalg.norm(xyz[ind[0]] - xyz[ind[1]])
-    return coord * con.unit_convert('ang', units)
+    return coord * con.conv('ang', units)
 
 
 def bend(xyz, ind, units='rad'):
@@ -33,7 +33,7 @@ def bend(xyz, ind, units='rad'):
     e2 /= np.linalg.norm(e2)
 
     coord = np.arccos(np.dot(e1, e2))
-    return coord * con.unit_convert('rad', units)
+    return coord * con.conv('rad', units)
 
 
 def tors(xyz, ind, units='rad'):
@@ -56,7 +56,7 @@ def tors(xyz, ind, units='rad'):
     cp3 /= np.linalg.norm(cp3)
 
     coord = np.sign(np.dot(cp3, e2)) * np.arccos(np.dot(cp1, cp2))
-    return coord * con.unit_convert('rad', units)
+    return coord * con.conv('rad', units)
 
 
 def oop(xyz, ind, units='rad'):
@@ -71,7 +71,7 @@ def oop(xyz, ind, units='rad'):
 
     coord = np.arcsin(np.dot(np.cross(e2, e3) /
                             np.sqrt(1 - np.dot(e2, e3) ** 2), e1))
-    return coord * con.unit_convert('rad', units)
+    return coord * con.conv('rad', units)
 
 
 def translate(xyz, ind, amp, axis, origin=np.zeros(3), units='ang'):
@@ -79,7 +79,7 @@ def translate(xyz, ind, amp, axis, origin=np.zeros(3), units='ang'):
     u = np.array(axis, dtype=float)
     u /= np.linalg.norm(u)
     origin = np.array(origin, dtype=float)
-    amp *= con.unit_convert(units, 'ang')
+    amp *= con.conv(units, 'ang')
 
     newxyz = xyz - origin
     newxyz[ind] += amp * u
@@ -91,7 +91,7 @@ def rotate(xyz, ind, amp, axis, origin=np.zeros(3), units='rad'):
     u = np.array(axis, dtype=float)
     u /= np.linalg.norm(u)
     origin = np.array(origin, dtype=float)
-    amp *= con.unit_convert(units, 'rad')
+    amp *= con.conv(units, 'rad')
     uouter = np.outer(u, u)
     ucross = np.array([[0, -u[2], u[1]], [u[2], 0, -u[0]], [-u[1], u[0], 0]])
     rotmat = np.cos(amp) * np.eye(3) + np.sin(amp) * ucross + (1 -

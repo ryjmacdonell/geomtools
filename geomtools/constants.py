@@ -9,7 +9,6 @@ import numpy as np
 
 
 # Global constants
-a0 = 0.52917721092
 sym = np.array(['X', 'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
                 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar'])
 mass = np.array([0.00000000, 1.00782504, 4.00260325, 7.01600450, 9.01218250,
@@ -20,8 +19,18 @@ mass = np.array([0.00000000, 1.00782504, 4.00260325, 7.01600450, 9.01218250,
 covrad = np.array([0.000, 0.320, 1.600, 0.680, 0.352, 0.832, 0.720, 0.680,
                    0.680, 0.640, 1.120, 0.972, 1.100, 1.352, 1.200, 1.036,
                    1.020, 1.000, 1.568])
-lenunits = {'ang':1., 'au':1./a0, 'pm':100., 'nm':0.1}
+# Length units: Angstrom, Bohr, picometre, nanometre
+lenunits = {'ang':1., 'bohr':1./0.52917721, 'pm':100., 'nm':0.1}
+# Angle units: radian, degree
 angunits = {'rad':1., 'deg':180./np.pi}
+# Time units: femtosecond, picosecond, atomic unit
+timunits = {'fs':1., 'ps':0.001, 'au':0.024188843}
+# Mass units: atomic mass unit, electron mass, proton mass, kilogram
+masunits = {'amu':1., 'me':5.48579909e-4, 'mp':1.00727647, 'kg':1.66053904e-27}
+# Energy units: electron volt, Hartree, kilocalories per mole, kilojoules 
+# per mole, reciprocal centimetres
+eneunits = {'ev':1., 'har':1./27.21138505, 'kcm':23.061, 'kjm':96.485, 
+            'cm':8065.5}
 
 
 def get_num(elem):
@@ -49,14 +58,13 @@ def get_covrad(elem):
     return covrad[get_num(elem)]
 
 
-def unit_convert(old_units, new_units):
+def conv(old_units, new_units):
     """Returns conversion factor from old units to new units."""
     if old_units == new_units:
         return 1.
-    if old_units in lenunits and new_units in lenunits:
-        return lenunits[new_units] / lenunits[old_units]
-    elif old_units in angunits and new_units in angunits:
-        return angunits[new_units] / angunits[old_units]
-    else:
-        raise ValueError('Units \'{}\' and \'{}\' unrecognized or '
-                         'not of same unit type'.format(old_units, new_units))
+    for unittype in [lenunits, angunits, timunits, masunits, eneunits]:
+        if old_units in unittype and new_units in unittype:
+            return unittype[new_units] / unittype[old_units]
+
+    raise ValueError('Units \'{}\' and \'{}\' unrecognized or '
+                     'not of same unit type'.format(old_units, new_units))
