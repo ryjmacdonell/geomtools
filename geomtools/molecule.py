@@ -4,9 +4,7 @@ The Molecule object and tools for generating and querying molecular geometries.
 Creates a saved copy of the geometry after input for reversion after an
 operation. Can add/remove individual atoms or groups or set the full geometry.
 """
-import sys
 import numpy as np
-import geomtools.constants as con
 import geomtools.fileio as fileio
 import geomtools.displace as displace
 
@@ -21,6 +19,7 @@ class Molecule(object):
         self.natm = natm
         self.elem = elem
         self.xyz = xyz
+        self.saved = True
         self.save()
 
     def _check(self):
@@ -89,7 +88,7 @@ class Molecule(object):
         if old_ind == None:
             if isinstance(new_ind, int) or len(new_ind) < self.natm:
                 raise ValueError('Old indices must be specified if length of '
-                                'new indices less than natm')
+                                 'new indices less than natm')
             else:
                 old_ind = range(self.natm)
         if not isinstance(old_ind, type(new_ind)):
@@ -176,6 +175,7 @@ def import_zmat(fname):
 
 
 if __name__ == '__main__':
+    import sys
     fout = sys.stdout
     fout.write('Tests for the Python molecular geometry module.\n')
 

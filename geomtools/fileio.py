@@ -5,7 +5,6 @@ Can support XYZ, COLUMBUS and ZMAT formats. Input and output both require
 an open file to support multiple geometries.
 TODO: Add custom formats.
 """
-import sys
 import numpy as np
 import geomtools.constants as con
 import geomtools.displace as displace
@@ -95,17 +94,18 @@ def read_zmat(infile):
 def write_xyz(outfile, natm, elem, xyz, comment=''):
     """Writes geometry to an output file in XYZ format."""
     outfile.write(' {}\n{}\n'.format(natm, comment))
-    for a, pos in zip(elem, xyz):
-        outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(a, *pos))
+    for atm, pos in zip(elem, xyz):
+        outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(atm, *pos))
 
 
 def write_col(outfile, natm, elem, xyz, comment=''):
     """Writes geometry to an output file in COLUMBUS format."""
     if comment != '':
         outfile.write(comment + '\n')
-    for a, pos in zip(elem, xyz * con.conv('ang','bohr')):
+    for atm, pos in zip(elem, xyz * con.conv('ang','bohr')):
         outfile.write(' {:<2}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'
-                      '\n'.format(a, con.get_num(a), *pos, con.get_mass(a)))
+                      '\n'.format(atm, con.get_num(atm), *pos,
+                                  con.get_mass(atm)))
 
 
 def write_zmat(outfile, natm, elem, xyz, comment=''):

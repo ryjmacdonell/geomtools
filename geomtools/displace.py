@@ -14,7 +14,6 @@ Example axes for displacements:
 3. X1X4X2 bend: r14 x r24
 4. X1 out-of-plane: (r24 x r34) x r14
 """
-import sys
 import numpy as np
 import geomtools.constants as con
 
@@ -70,7 +69,7 @@ def oop(xyz, ind, units='rad'):
     e3 /= np.linalg.norm(e3)
 
     coord = np.arcsin(np.dot(np.cross(e2, e3) /
-                            np.sqrt(1 - np.dot(e2, e3) ** 2), e1))
+                             np.sqrt(1 - np.dot(e2, e3) ** 2), e1))
     return coord * con.conv('rad', units)
 
 
@@ -94,8 +93,8 @@ def rotate(xyz, ind, amp, axis, origin=np.zeros(3), units='rad'):
     amp *= con.conv(units, 'rad')
     uouter = np.outer(u, u)
     ucross = np.array([[0, -u[2], u[1]], [u[2], 0, -u[0]], [-u[1], u[0], 0]])
-    rotmat = np.cos(amp) * np.eye(3) + np.sin(amp) * ucross + (1 -
-             np.cos(amp)) * uouter
+    rotmat = (np.cos(amp) * np.eye(3) + np.sin(amp) * ucross +
+              (1 - np.cos(amp)) * uouter)
 
     newxyz = xyz - origin
     newxyz[ind] = np.dot(rotmat, newxyz[ind].T).T
@@ -107,7 +106,7 @@ def combo(funcs, wgts=None):
 
     TODO: Find a better way to right this.
     """
-    if wgts == None:
+    if wgts is None:
         wgts = np.ones(len(funcs))
 
     def _function(xyz, ind, amp, u, orig=np.zeros(3)):
@@ -118,7 +117,7 @@ def combo(funcs, wgts=None):
         ind = ind if isinstance(ind[0], list) else [ind] * len(funcs)
 
         for i, f in enumerate(funcs):
-           newxyz = f(newxyz, ind[i], amp * wgts[i], u[i], orig[i])
+            newxyz = f(newxyz, ind[i], amp * wgts[i], u[i], orig[i])
         return newxyz
     return _function
 
@@ -154,32 +153,33 @@ def c_loop(outfile, wfunc, disp, n, el, xyz, u, origin, ind, amplim,
         wfunc(outfile, n, el, newxyz, comm(newxyz))
 
 
-if __name__ == '__main__':
-    fout = sys.stdout
-
-    fout.write('Tests for the python geometric displacement module.\n')
-
-    # basic test geometry
-    natm = 4
-    elem = ['B', 'C', 'N', 'O']
-    xyz = np.eye(4, 3)
-
-    # test translation
-    fout.write('\nTranslation by 1.0 Ang. along x axis:\n')
-    write_xyz(fout, natm, elem, translate(xyz, range(natm), 1.0, xyz[0]))
-
-    # test rotation
-    fout.write('\nRotation by pi/2 about x axis:\n')
-    write_xyz(fout, natm, elem, rotate(xyz, range(natm), np.pi/2, xyz[0]))
-
-    # test combination
-    fout.write('\nCombined translation by 1.0 Ang. and rotation by pi/2 '
-               'about x axis:\n')
-    write_xyz(fout, natm, elem, combo([translate, rotate], xyz, range(natm),
-              [1.0, np.pi/2], xyz[0]))
-
-    # test looping through geoms
-    fout.write('\nLooping atom C through pi/2 rotations about x axis:\n')
-    c_loop(fout, write_xyz, rotate, natm, elem, xyz, xyz[0], xyz[0], [1],
-           [np.pi/2, 2*np.pi], comment('CON angle: {:.4f} rad', bend,
-                                       [1, 3, 2]), 4)
+#if __name__ == '__main__':
+#    import sys
+#    fout = sys.stdout
+#
+#    fout.write('Tests for the python geometric displacement module.\n')
+#
+#    # basic test geometry
+#    natm = 4
+#    elem = ['B', 'C', 'N', 'O']
+#    test_xyz = np.eye(4, 3)
+#
+#    # test translation
+#    fout.write('\nTranslation by 1.0 Ang. along x axis:\n')
+#    write_xyz(fout, natm, elem, translate(test_xyz, range(natm), 1.0, xyz[0]))
+#
+#    # test rotation
+#    fout.write('\nRotation by pi/2 about x axis:\n')
+#    write_xyz(fout, natm, elem, rotate(test_xyz, range(natm), np.pi/2, xyz[0]))
+#
+#    # test combination
+#    fout.write('\nCombined translation by 1.0 Ang. and rotation by pi/2 '
+#               'about x axis:\n')
+#    write_xyz(fout, natm, elem, combo([translate, rotate], xyz, range(natm),
+#                                      [1.0, np.pi/2], xyz[0]))
+#
+#    # test looping through geoms
+#    fout.write('\nLooping atom C through pi/2 rotations about x axis:\n')
+#    c_loop(fout, write_xyz, rotate, natm, elem, xyz, xyz[0], xyz[0], [1],
+#           [np.pi/2, 2*np.pi], comment('CON angle: {:.4f} rad', bend,
+#                                       [1, 3, 2]), 4)

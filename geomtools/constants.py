@@ -9,12 +9,11 @@ Unit types
 Length: Angstrom (ang), Bohr (bohr), picometre (pm), nanometre (nm)
 Angle: radian (rad), degree (deg)
 Time: femtosecond (fs), picosecond (ps), atomic unit (au)
-Mass: atomic mass unit (amu), electron mass (me), proton mass (mp), 
+Mass: atomic mass unit (amu), electron mass (me), proton mass (mp),
       kilogram (kg)
 Energy: electron volt (ev), Hartree (har), kilocalorie per mole (kcm),
         kilojoule per mole (kjm), reciprocal centimetre (cm)
 """
-import sys
 import numpy as np
 
 
@@ -33,7 +32,7 @@ lenunits = {'ang':1., 'bohr':1./0.52917721, 'pm':100., 'nm':0.1}
 angunits = {'rad':1., 'deg':180./np.pi}
 timunits = {'fs':1., 'ps':0.001, 'au':0.024188843}
 masunits = {'amu':1., 'me':5.48579909e-4, 'mp':1.00727647, 'kg':1.66053904e-27}
-eneunits = {'ev':1., 'har':1./27.21138505, 'kcm':23.061, 'kjm':96.485, 
+eneunits = {'ev':1., 'har':1./27.21138505, 'kcm':23.061, 'kjm':96.485,
             'cm':8065.5}
 
 
