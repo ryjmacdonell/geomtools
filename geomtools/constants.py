@@ -3,6 +3,16 @@ Constant molecular properties to be used in other modules.
 
 Arrays are ordered by atomic number for convenience. Atomic symbols are case
 sensitive. This module should not depend on other geomtools modules.
+
+Unit types
+----------
+Length: Angstrom (ang), Bohr (bohr), picometre (pm), nanometre (nm)
+Angle: radian (rad), degree (deg)
+Time: femtosecond (fs), picosecond (ps), atomic unit (au)
+Mass: atomic mass unit (amu), electron mass (me), proton mass (mp), 
+      kilogram (kg)
+Energy: electron volt (ev), Hartree (har), kilocalorie per mole (kcm),
+        kilojoule per mole (kjm), reciprocal centimetre (cm)
 """
 import sys
 import numpy as np
@@ -19,16 +29,10 @@ mass = np.array([0.00000000, 1.00782504, 4.00260325, 7.01600450, 9.01218250,
 covrad = np.array([0.000, 0.320, 1.600, 0.680, 0.352, 0.832, 0.720, 0.680,
                    0.680, 0.640, 1.120, 0.972, 1.100, 1.352, 1.200, 1.036,
                    1.020, 1.000, 1.568])
-# Length units: Angstrom, Bohr, picometre, nanometre
 lenunits = {'ang':1., 'bohr':1./0.52917721, 'pm':100., 'nm':0.1}
-# Angle units: radian, degree
 angunits = {'rad':1., 'deg':180./np.pi}
-# Time units: femtosecond, picosecond, atomic unit
 timunits = {'fs':1., 'ps':0.001, 'au':0.024188843}
-# Mass units: atomic mass unit, electron mass, proton mass, kilogram
 masunits = {'amu':1., 'me':5.48579909e-4, 'mp':1.00727647, 'kg':1.66053904e-27}
-# Energy units: electron volt, Hartree, kilocalories per mole, kilojoules 
-# per mole, reciprocal centimetres
 eneunits = {'ev':1., 'har':1./27.21138505, 'kcm':23.061, 'kjm':96.485, 
             'cm':8065.5}
 
@@ -39,7 +43,6 @@ def get_num(elem):
     Takes advantage of the fact that sym indices match atomic numbers. Input
     can be a single atom or a list of atoms.
     """
-    global sym
     if isinstance(elem, str):
         return np.where(sym == elem)[0][0]
     else:
@@ -48,13 +51,11 @@ def get_num(elem):
 
 def get_mass(elem):
     """Returns atomic mass from atomic symbol."""
-    global mass
     return mass[get_num(elem)]
 
 
 def get_covrad(elem):
     """Returns covalent radius from atomic symbol."""
-    global covrad
     return covrad[get_num(elem)]
 
 
