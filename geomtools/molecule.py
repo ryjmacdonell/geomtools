@@ -15,10 +15,11 @@ class Molecule(object):
     getting geometric properties.
     """
     def __init__(self, natm=0, elem=np.array([], dtype=str),
-                 xyz=np.empty((0, 3))):
+                 xyz=np.empty((0, 3)), comment=''):
         self.natm = natm
         self.elem = elem
         self.xyz = xyz
+        self.comment = comment
         self.saved = True
         self.save()
 
@@ -67,6 +68,10 @@ class Molecule(object):
         self._check()
         self.saved = False
 
+    def add_comment(self, comment):
+        """Adds a comment line to describe the molecule."""
+        self.comment = comment
+
     def add_atoms(self, new_elem, new_xyz):
         """Adds atoms(s) to molecule."""
         self.natm += 1 if isinstance(new_elem, str) else len(new_elem)
@@ -85,7 +90,7 @@ class Molecule(object):
 
     def rearrange(self, new_ind, old_ind=None):
         """Moves atom(s) from old_ind to new_ind."""
-        if old_ind == None:
+        if old_ind is None:
             if isinstance(new_ind, int) or len(new_ind) < self.natm:
                 raise ValueError('Old indices must be specified if length of '
                                  'new indices less than natm')
@@ -98,80 +103,98 @@ class Molecule(object):
 
         self.xyz[old_ind] = self.xyz[new_ind]
 
-    # Input / Output
-    def read_xyz(self, fname):
+    # Input
+    def read_xyz(self, fname, hc=False):
         """Reads input file in XYZ format."""
         with open(fname, 'r') as infile:
-            self.natm, self.elem, self.xyz = fileio.read_xyz(infile)
+            (self.natm, self.elem, self.xyz,
+             self.comment) = fileio.read_xyz(infile, hascomment=hc)
         self.save()
 
-    def read_col(self, fname):
+    def read_col(self, fname, hc=False):
         """Reads input file in COLUMBUS format."""
         with open(fname, 'r') as infile:
-            self.natm, self.elem, self.xyz = fileio.read_col(infile)
+            (self.natm, self.elem, self.xyz,
+             self.comment) = fileio.read_col(infile, hascomment=hc)
         self.save()
 
-    def read_zmat(self, fname):
-        """Reads input file in ZMAT format."""
+    def read_zmt(self, fname, hc=False):
+        """Reads input file in Z-matrix format."""
         with open(fname, 'r') as infile:
-            self.natm, self.elem, self.xyz = fileio.read_zmat(infile)
+            (self.natm, self.elem, self.xyz,
+             self.comment) = fileio.read_zmt(infile, hascomment=hc)
         self.save()
 
-    def write_xyz(self, outfile, comment=''):
+    # Output
+    def write_xyz(self, outfile):
         """Writes geometry to an output file in XYZ format."""
-        fileio.write_xyz(outfile, self.natm, self.elem, self.xyz, comment)
+        fileio.write_xyz(outfile, self.natm, self.elem, self.xyz, self.comment)
 
-    def write_col(self, outfile, comment=''):
+    def write_col(self, outfile):
         """Writes geometry to an output file in COLUMBUS format."""
-        fileio.write_col(outfile, self.natm, self.elem, self.xyz, comment)
+        fileio.write_col(outfile, self.natm, self.elem, self.xyz, self.comment)
 
-    def write_zmat(self, outfile, comment=''):
-        """Writes geometry to an output file in ZMAT format."""
-        fileio.write_zmat(outfile, self.natm, self.elem, self.xyz, comment)
+    def write_zmt(self, outfile):
+        """Writes geometry to an output file in Z-matrix format."""
+        fileio.write_zmt(outfile, self.natm, self.elem, self.xyz, self.comment)
+
+    def write_zmtvar(self, outfile):
+        """Writes geometry to an output file in Z-matrix format
+        with assignment variables."""
+        fileio.write_zmtvar(outfile, self.natm, self.elem, self.xyz,
+                            self.comment)
 
     # Accessors
     def get_natm(self):
+        """Returns number of atoms."""
         return self.natm
 
     def get_elem(self):
+        """Returns list of elements."""
         return self.elem
 
     def get_xyz(self):
+        """Returns cartesian geometry."""
         return self.xyz
+
+    def get_comment(self):
+        """Returns comment line."""
+        return self.comment
 
     # Internal geometry
     def get_stre(self, ind, units='ang'):
+        """Returns bond length based on index in molecule."""
         return displace.stre(self.xyz, ind, units=units)
 
     def get_bend(self, ind, units='rad'):
+        """Returns bond angle based on index in molecule."""
         return displace.bend(self.xyz, ind, units=units)
 
     def get_tors(self, ind, units='rad'):
+        """Returns dihedral angle based on index in molecule."""
         return displace.tors(self.xyz, ind, units=units)
 
     def get_oop(self, ind, units='rad'):
+        """Returns out-of-plane angle based on index in molecule."""
         return displace.oop(self.xyz, ind, units=units)
 
 
-def import_xyz(fname):
+def import_xyz(fname, hc=False):
     """Imports geometry in XYZ format to Molecule object."""
-    mol = Molecule()
-    mol.read_xyz(fname)
-    return mol
+    with open(fname, 'r') as infile:
+        return Molecule(*fileio.read_xyz(infile, hascomment=hc))
 
 
-def import_col(fname):
+def import_col(fname, hc=False):
     """Imports geometry in COLUMBUS format to Molecule object."""
-    mol = Molecule()
-    mol.read_col(fname)
-    return mol
+    with open(fname, 'r') as infile:
+        return Molecule(*fileio.read_col(infile, hascomment=hc))
 
 
-def import_zmat(fname):
-    """Imports geometry in ZMAT format to Molecule object."""
-    mol = Molecule()
-    mol.read_zmat(fname)
-    return mol
+def import_zmt(fname, hc=False):
+    """Imports geometry in Z-matrix format to Molecule object."""
+    with open(fname, 'r') as infile:
+        return Molecule(*fileio.read_zmt(infile, hascomment=hc))
 
 
 if __name__ == '__main__':
@@ -183,13 +206,15 @@ if __name__ == '__main__':
     natm = 4
     elem = ['B', 'C', 'N', 'O']
     xyz = np.eye(4, 3)
-    test = Molecule(natm, elem, xyz)
+    test = Molecule(natm, elem, xyz, 'Comment line')
 
     # test output formats
     fout.write('\nGeometry in XYZ format:\n')
-    test.write_xyz(fout, comment='Comment line')
+    test.write_xyz(fout)
     fout.write('\nGeometry in COLUMBUS format:\n')
-    test.write_col(fout, comment='Comment line')
+    test.write_col(fout)
+    fout.write('\nGeometry in Z-matrix format:\n')
+    test.write_zmt(fout)
 
     # test measurements
     fout.write('\n')

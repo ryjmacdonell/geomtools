@@ -1,8 +1,8 @@
 """
 File input/output functions for molecular geometry files.
 
-Can support XYZ, COLUMBUS and ZMAT formats. Input and output both require
-an open file to support multiple geometries.
+Can support XYZ, COLUMBUS and Z-matrix formats. Input and output both
+require an open file to support multiple geometries.
 TODO: Add custom formats.
 """
 import numpy as np
@@ -10,29 +10,37 @@ import geomtools.constants as con
 import geomtools.displace as displace
 
 
-def read_xyz(infile):
+def read_xyz(infile, hascomment=False):
     """Reads input file in XYZ format."""
     natm = int(infile.readline())
-    infile.readline()
+    if hascomment:
+        comment = infile.readline().strip()
+    else:
+        infile.readline()
+        comment = ''
     data = np.array([line.split() for line in infile.readlines()])
     elem = data[:natm, 0]
     xyz = data[:natm, 1:].astype(float)
-    return natm, elem, xyz
+    return natm, elem, xyz, comment
 
 
-def read_col(infile):
+def read_col(infile, hascomment=False):
     """Reads input file in COLUMBUS format."""
+    if hascomment:
+        comment = infile.readline().strip()
+    else:
+        comment = ''
     data = np.array([line.split() for line in infile.readlines()])
     natm = len(data)
     elem = data[:, 0]
     xyz = data[:, 2:-1].astype(float) * con.conv('bohr','ang')
-    return natm, elem, xyz
+    return natm, elem, xyz, comment
 
 
-def read_zmat(infile):
-    """Reads input file in ZMAT format.
+def read_zmt(infile, hascomment=False):
+    """Reads input file in Z-matrix format.
 
-    ZMatrix files are in the format:
+    Z-matrix files are in the format:
     A
     B 1 R
     C indR R indA A
@@ -43,14 +51,24 @@ def read_zmat(infile):
     atom indices, R are bond lengths, A are bond angles and T are dihedral
     angles. For example, E is a distance R from atom indR with an
     E-indR-indA angle of A and an E-indR-indA-indT dihedral angle of T.
-    TODO: Add alternative format, where R, A, T are variables given below
-    the matrix (separated by one space). This can be distinguished by
-    whether R, A, T are can be converted to float.
+    Alternatively, values can be assigned to a list of variables after the
+    Z-matrix (preceded by a blank line).
     """
+    if hascomment:
+        comment = infile.readline().strip()
+    else:
+        comment = ''
     data = [line.split() for line in infile.readlines()]
-    natm = len(data) # In alternative format, ends at first blank line
-    elem = np.array([line[0] for line in data])
+    vlist = dict()
+    if [] in data:
+        natm = data.index([])
+        for line in data[natm+1:]:
+            assert line[1] == '='
+            vlist[line[0]] = float(line[2])
+    else:
+        natm = len(data)
 
+    elem = np.array([line[0] for line in data[:natm]])
     xyz = np.zeros((natm, 3))
     for i in range(natm):
         if i == 0:
@@ -58,37 +76,49 @@ def read_zmat(infile):
             continue
         elif i == 1:
             # move along z-axis by R
-            xyz = displace.translate(xyz, 1, float(data[1][2]), [0, 0, 1])
+            xyz = displace.translate(xyz, 1, _valvar(data[1][2], vlist),
+                                     [0, 0, 1])
         elif i == 2:
             indR = int(data[2][1]) - 1
             indA = int(data[2][3]) - 1
             xyz[2] = xyz[indR]
             # move from indR towards indA by R
-            xyz = displace.translate(xyz, 2, float(data[2][2]),
+            xyz = displace.translate(xyz, 2, _valvar(data[2][2], vlist),
                                      xyz[indA]-xyz[indR])
             # rotate into xz-plane by A
-            xyz = displace.rotate(xyz, 2, float(data[2][4]), [0, 1, 0],
-                                  origin=xyz[indR], units='deg')
+            xyz = displace.rotate(xyz, 2, _valvar(data[2][4], vlist),
+                                  [0, 1, 0], origin=xyz[indR], units='deg')
         else:
             indR = int(data[i][1]) - 1
             indA = int(data[i][3]) - 1
             indT = int(data[i][5]) - 1
             xyz[i] = xyz[indR]
             # move from indR towards indA by R
-            xyz = displace.translate(xyz, i, float(data[i][2]),
+            xyz = displace.translate(xyz, i, _valvar(data[i][2], vlist),
                                      xyz[indA]-xyz[indR])
             # rotate about (indT-indA)x(indR-indA) by A
-            xyz = displace.rotate(xyz, i, float(data[i][4]),
+            xyz = displace.rotate(xyz, i, _valvar(data[i][4], vlist),
                                   np.cross(xyz[indT]-xyz[indA],
                                            xyz[indR]-xyz[indA]),
                                   origin=xyz[indR], units='deg')
             # rotate about indR-indA by T
-            xyz = displace.rotate(xyz, i, float(data[i][6]),
+            xyz = displace.rotate(xyz, i, _valvar(data[i][6], vlist),
                                   xyz[indR]-xyz[indA],
                                   origin=xyz[indR], units='deg')
 
     xyz = displace.centre_mass(elem, xyz)
-    return natm, elem, xyz
+    return natm, elem, xyz, comment
+
+
+def _valvar(unk, vardict):
+    """Determines if an unknown string is a value or a dict variable."""
+    try:
+        return float(unk)
+    except ValueError:
+        if unk in vardict:
+            return vardict[unk]
+        else:
+            raise KeyError('\'{}\' not found in variable list'.format(unk))
 
 
 def write_xyz(outfile, natm, elem, xyz, comment=''):
@@ -108,8 +138,8 @@ def write_col(outfile, natm, elem, xyz, comment=''):
                                   con.get_mass(atm)))
 
 
-def write_zmat(outfile, natm, elem, xyz, comment=''):
-    """Writes geometry to an output file in ZMAT format.
+def write_zmt(outfile, natm, elem, xyz, comment=''):
+    """Writes geometry to an output file in Z-matrix format.
 
     TODO: At present, each atom uses the previous atoms in order as
     references. This could be made 'smarter' using the bonding module.
@@ -140,3 +170,39 @@ def write_zmat(outfile, natm, elem, xyz, comment=''):
                                       i-2, displace.tors(xyz, [i-3,i-2,i-1,i],
                                                          units='deg')))
 
+
+def write_zmtvar(outfile, natm, elem, xyz, comment=''):
+    """Writes geometry to an output file in Z-matrix format with
+    variable assignments."""
+    if comment != '':
+        outfile.write(comment + '\n')
+    vlist = dict()
+    for i in range(natm):
+        if i == 0:
+            # first element has just the symbol
+            outfile.write('{:<2}\n'.format(elem[0]))
+        elif i == 1:
+            # second element has symbol, index, bond length
+            outfile.write('{:<2}{:3d}  R{:<2d}'
+                          '\n'.format(elem[1], 1, 1))
+            vlist['R1'] = displace.stre(xyz, [0,1])
+        elif i == 2:
+            # third element has symbol, index, bond length, index, bond angle
+            outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d}'
+                          '\n'.format(elem[2], 2, 2, 1, 1))
+            vlist['R2'] = displace.stre(xyz, [0,1])
+            vlist['A1'] = displace.bend(xyz, [0,1,2], units='deg')
+        else:
+            # all other elements have symbol, index, bond length, index,
+            # bond angle, index, dihedral angle
+            outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d} '
+                          '{:3d}  T{:<2d}'
+                          '\n'.format(elem[i], i, i, i-1, i-1, i-2, i-2))
+            vlist['R'+str(i)] = displace.stre(xyz, [i-1,i])
+            vlist['A'+str(i-1)] = displace.bend(xyz, [i-2,i-1,i],
+                                                units='deg')
+            vlist['T'+str(i-2)] = displace.tors(xyz, [i-3,i-2,i-1,i],
+                                                units='deg')
+    outfile.write('\n')
+    for key, val in vlist.items():
+        outfile.write('{:4s} = {:14.8f}\n'.format(key, val))
