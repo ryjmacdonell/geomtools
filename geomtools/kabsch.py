@@ -8,7 +8,7 @@ between each vector pair.
 After translating the vector sets of centroids, the covariance matrix A
 is calculated by A = P^T Q. Then, using singular value decomposition,
 V S W^T = A. The scaling component S is discarded. The handedness of the
-coordinate system is determined by d = sgn(|W V^T|). The rotation
+coordinate system is determined by d = sgn(det(W V^T)). The rotation
 matrix is then found by
        _       _
       |  1 0 0  |
@@ -39,10 +39,11 @@ def permute(plist):
     elif not isinstance(plist[0], list):
         plist = [plist]
 
-    unperm = sum(plist, [])
+    unperm = [item for sublist in plist for item in sublist]
     single_perms = [list(itertools.permutations(i)) for i in plist]
     prod_perms = tuple2list(itertools.product(*single_perms))
-    final_perms = [sum(i, []) for i in prod_perms]
+    final_perms = [[item for sublist in i for item in sublist]
+                   for i in prod_perms]
     return unperm, final_perms
 
 
@@ -69,7 +70,7 @@ def map_onto(test, ref):
     return test.dot(kabsch(test, ref))
 
 
-def opt_permref(test, ref, plist=None, invert=True):
+def opt_permute(test, ref, plist=None, invert=True):
     """Determines optimal permutation of test geometry indices for
     mapping onto reference."""
     ind0, perms = permute(plist)
@@ -88,13 +89,24 @@ def opt_permref(test, ref, plist=None, invert=True):
     return geoms[np.argmin(err)], np.min(err)
 
 
-def opt_multiref(test, reflist, plist=None, invert=True):
+def opt_ref(test, reflist, plist=None, invert=True):
     """Determines optimal reference geometry for a given test geometry."""
     nrefs = len(reflist)
     geoms = np.empty((nrefs, *test.shape))
     err = np.empty(nrefs)
     for i in range(nrefs):
-        geoms[i], err[i] = opt_permref(test, reflist[i], plist, invert)
+        geoms[i], err[i] = opt_permute(test, reflist[i], plist, invert)
 
     optref = np.argmin(err)
     return geoms[optref], optref
+
+
+def opt_multi(testlist, reflist, plist=None, invert=True):
+    """Determines the optimal geometries of a set of test geometries
+    against a set of reference geometries."""
+    geomlist = [[] for i in len(reflist)]
+    for test in testlist:
+        geom, ind = opt_ref(test, reflist, plist, invert)
+        geomlist[ind].append(geom)
+
+    return geomlist

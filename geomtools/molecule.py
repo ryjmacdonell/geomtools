@@ -55,9 +55,10 @@ class Molecule(object):
 
     def revert(self):
         """Reverts properties to 'orig' variables."""
-        self.natm = np.copy(self.orig_natm)
-        self.elem = np.copy(self.orig_elem)
-        self.xyz = np.copy(self.orig_xyz)
+        if not self.saved:
+            self.natm = np.copy(self.orig_natm)
+            self.elem = np.copy(self.orig_elem)
+            self.xyz = np.copy(self.orig_xyz)
         self.saved = True
 
     def set_geom(self, natm, elem, xyz):
@@ -177,6 +178,30 @@ class Molecule(object):
     def get_oop(self, ind, units='rad'):
         """Returns out-of-plane angle based on index in molecule."""
         return displace.oop(self.xyz, ind, units=units)
+
+
+def Bundle(object):
+    """
+    Object containing a set of molecules in the form of Molecule
+    objects.
+    """
+    def __init__(self, nmol=0, molecules=[]):
+        self.nmol = nmol
+        self.molecules = molecules
+
+    def copy(self):
+        """Returns a copy of the Bundle object."""
+        return [mol.copy() for mol in self.molecules]
+
+    def save(self):
+        """Saves all molecules in the molecule bundle."""
+        for mol in molecules:
+            mol.save()
+
+    def revert(self):
+        """Reverts each molecule in the molecule bundle."""
+        for mol in molecules:
+            mol.revert()
 
 
 def import_xyz(fname, hc=False):
