@@ -11,29 +11,73 @@ import geomtools.displace as displace
 
 
 def read_xyz(infile, hascomment=False):
-    """Reads input file in XYZ format."""
-    natm = int(infile.readline())
+    """Reads input file in XYZ format.
+
+    XYZ files are in the format:
+    natm
+    comment
+    A X1 Y1 Z1
+    B X2 Y2 Z2
+    ...
+    where natm is the number of atoms, comment is a comment line, A and B
+    are atomic labels and X, Y and Z are cartesian coordinates (in
+    Angstroms).
+
+    Due to the preceding number of atoms, multiple XYZ format geometries
+    can easily be read from a single file.
+    """
+    try:
+        natm = int(infile.readline())
+    except ValueError:
+        raise ValueError('Geometry not in XYZ format.')
     if hascomment:
         comment = infile.readline().strip()
     else:
         infile.readline()
         comment = ''
-    data = np.array([line.split() for line in infile.readlines()])
-    elem = data[:natm, 0]
-    xyz = data[:natm, 1:].astype(float)
+    data = np.array([infile.readline().split() for i in range(natm)])
+    elem = data[:, 0]
+    xyz = data[:, 1:].astype(float)
     return natm, elem, xyz, comment
 
 
 def read_col(infile, hascomment=False):
-    """Reads input file in COLUMBUS format."""
+    """Reads input file in COLUMBUS format.
+
+    COLUMBUS geometry files are in the format:
+    A nA X1 Y1 Z1 mA
+    B nB X2 Y2 Z2 mB
+    ...
+    where A and B are atomic labels, nA and nB are corresponding atomic
+    numbers, mA and mB are corresponding atomic masses and X, Y and Z
+    are cartesian coordinates (in Bohrs).
+
+    COLUMBUS geometry files do not provide the number of atoms in each
+    geometry. A comment line (or blank line) must be used to separate
+    molecules.
+    """
     if hascomment:
         comment = infile.readline().strip()
     else:
         comment = ''
-    data = np.array([line.split() for line in infile.readlines()])
-    natm = len(data)
+    data = np.empty((0, 6), dtype=str)
+    while True:
+        pos = infile.tell()
+        line = np.array(infile.readline().split())
+        try:
+            # catch comment line or end-of-file
+            line[1:].astype(float)
+            data = np.vstack((data, line))
+        except (ValueError, IndexError):
+            if len(data) < 1:
+                raise ValueError('Geometry not in COLUMBUS format.')
+            else:
+                # roll back one line before break
+                infile.seek(pos)
+                break
     elem = data[:, 0]
     xyz = data[:, 2:-1].astype(float) * con.conv('bohr','ang')
+    natm = len(data)
     return natm, elem, xyz, comment
 
 
@@ -42,33 +86,57 @@ def read_zmt(infile, hascomment=False):
 
     Z-matrix files are in the format:
     A
-    B 1 R
-    C indR R indA A
-    D indR R indA A indT T
-    E indR R indA A indT T
+    B 1 R1
+    C indR2 R2 indA2 A2
+    D indR3 R3 indA3 A3 indT3 T3
+    E indR4 R4 indA4 A4 indT4 T4
     ...
     Where A, B, C, D, E are atomic labels, indR, indA, indT are reference
-    atom indices, R are bond lengths, A are bond angles and T are dihedral
-    angles. For example, E is a distance R from atom indR with an
-    E-indR-indA angle of A and an E-indR-indA-indT dihedral angle of T.
-    Alternatively, values can be assigned to a list of variables after the
-    Z-matrix (preceded by a blank line).
+    atom indices, R are bond lengths (in Angstroms), A are bond angles (in
+    degrees) and T are dihedral angles (in degrees). For example, E is a
+    distance R from atom indR with an E-indR-indA angle of A and an
+    E-indR-indA-indT dihedral angle of T. Alternatively, values can be
+    assigned to a list of variables after the Z-matrix (preceded by a blank
+    line).
+
+    Although the number of atoms is not provided, the unique format of the
+    first atom allows multiple geometries to be read without separation
+    by a comment line.
     """
     if hascomment:
         comment = infile.readline().strip()
     else:
         comment = ''
-    data = [line.split() for line in infile.readlines()]
+    data = []
     vlist = dict()
-    if [] in data:
-        natm = data.index([])
-        for line in data[natm+1:]:
-            assert line[1] == '='
-            vlist[line[0]] = float(line[2])
-    else:
-        natm = len(data)
+    while True:
+        pos = infile.tell()
+        line = infile.readline()
+        split = line.split()
+        if line == '':
+            # end-of-file
+            break
+        elif ((len(split) == 1 and len(data) > 0) or
+              (split == [] and infile.readline().split()[0] in con.sym)):
+            # roll back one line before break
+            infile.seek(pos)
+            break
+        elif split == []:
+            # blank line before variable assignment
+            continue
+        elif split[0] in con.sym:
+            data.append(split)
+        elif split[1] == '=' and len(split) == 3:
+            vlist[split[0]] = float(split[2])
+        else:
+            # assume it's a comment line and roll back
+            infile.seek(pos)
+            break
 
-    elem = np.array([line[0] for line in data[:natm]])
+    natm = len(data)
+    if natm < 1:
+        raise ValueError('Geometry not in Z-matrix format.')
+    elem = np.array([line[0] for line in data])
     xyz = np.zeros((natm, 3))
     for i in range(natm):
         if i == 0:
