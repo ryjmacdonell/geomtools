@@ -82,7 +82,7 @@ class Molecule(object):
         self.saved = False
 
     def rm_atoms(self, ind):
-        """Removes atom(s) from molecule based on index."""
+        """Removes atom(s) from molecule by index."""
         self.natm -= 1 if isinstance(ind, int) else len(ind)
         self.elem = np.delete(self.elem, ind)
         self.xyz = np.delete(self.xyz, ind, axis=0)
@@ -91,59 +91,21 @@ class Molecule(object):
 
     def rearrange(self, new_ind, old_ind=None):
         """Moves atom(s) from old_ind to new_ind."""
-        if old_ind is None:
-            if isinstance(new_ind, int) or len(new_ind) < self.natm:
-                raise ValueError('Old indices must be specified if length of '
-                                 'new indices less than natm')
-            else:
-                old_ind = range(self.natm)
-        if not isinstance(old_ind, type(new_ind)):
-            raise TypeError('Old and new indices must be of the same type')
-        elif isinstance(new_ind, list) and len(new_ind) != len(old_ind):
-            raise IndexError('Old and new indices must be the same length')
-
+        _rearrange_check(new_ind, old_ind)
         self.xyz[old_ind] = self.xyz[new_ind]
 
-    # Input
-    def read_xyz(self, fname, hc=False):
-        """Reads input file in XYZ format."""
+    def read(self, fname, fmt='xyz', hc=False):
+        """Reads input file in provided format."""
+        read_func = getattr(fileio, 'read_' + fmt)
         with open(fname, 'r') as infile:
             (self.natm, self.elem, self.xyz,
-             self.comment) = fileio.read_xyz(infile, hascomment=hc)
+             self.comment) = read_func(infile, hascomment=hc)
         self.save()
 
-    def read_col(self, fname, hc=False):
-        """Reads input file in COLUMBUS format."""
-        with open(fname, 'r') as infile:
-            (self.natm, self.elem, self.xyz,
-             self.comment) = fileio.read_col(infile, hascomment=hc)
-        self.save()
-
-    def read_zmt(self, fname, hc=False):
-        """Reads input file in Z-matrix format."""
-        with open(fname, 'r') as infile:
-            (self.natm, self.elem, self.xyz,
-             self.comment) = fileio.read_zmt(infile, hascomment=hc)
-        self.save()
-
-    # Output
-    def write_xyz(self, outfile):
-        """Writes geometry to an output file in XYZ format."""
-        fileio.write_xyz(outfile, self.natm, self.elem, self.xyz, self.comment)
-
-    def write_col(self, outfile):
-        """Writes geometry to an output file in COLUMBUS format."""
-        fileio.write_col(outfile, self.natm, self.elem, self.xyz, self.comment)
-
-    def write_zmt(self, outfile):
-        """Writes geometry to an output file in Z-matrix format."""
-        fileio.write_zmt(outfile, self.natm, self.elem, self.xyz, self.comment)
-
-    def write_zmtvar(self, outfile):
-        """Writes geometry to an output file in Z-matrix format
-        with assignment variables."""
-        fileio.write_zmtvar(outfile, self.natm, self.elem, self.xyz,
-                            self.comment)
+    def write(self, outfile, fmt='xyz'):
+        """Writes geometry to an output file in provided format."""
+        write_func = getattr(fileio, 'write_' + fmt)
+        write_func(outfile, self.natm, self.elem, self.xyz, self.comment)
 
     # Accessors
     def get_natm(self):
@@ -180,46 +142,78 @@ class Molecule(object):
         return displace.oop(self.xyz, ind, units=units)
 
 
-def Bundle(object):
+def MoleculeBundle(object):
     """
     Object containing a set of molecules in the form of Molecule
     objects.
     """
     def __init__(self, nmol=0, molecules=[]):
         self.nmol = nmol
-        self.molecules = molecules
+        self.molecules = np.array(molecules, dtype=object)
 
     def copy(self):
-        """Returns a copy of the Bundle object."""
-        return [mol.copy() for mol in self.molecules]
+        """Returns a copy of the MoleculeBundle object."""
+        new_mols = [mol.copy() for mol in self.molecules]
+        return MoleculeBundle(np.copy(self.nmol), new_mols)
 
     def save(self):
-        """Saves all molecules in the molecule bundle."""
-        for mol in molecules:
+        """Saves all molecules in the bundle."""
+        for mol in self.molecules:
             mol.save()
 
     def revert(self):
-        """Reverts each molecule in the molecule bundle."""
-        for mol in molecules:
+        """Reverts each molecule in the bundle."""
+        for mol in self.molecules:
             mol.revert()
 
+    def rearrange(self, new_ind, old_ind=None):
+        """Moves molecule(s) from old_ind to new_ind in bundle."""
+        _rearrange_check(new_ind, old_ind)
+        self.molecules[old_ind] = self.molecules[new_ind]
 
-def import_xyz(fname, hc=False):
-    """Imports geometry in XYZ format to Molecule object."""
+    def add_molecules(self, new_molecules):
+        """Adds molecule(s) to the bundle."""
+        molecules = [new_molecules] if isinstance(new_molecules,
+                                                  Molecule) else new_molecules
+        self.nmol += len(molecules)
+        self.molecules = np.hstack((self.molecules, molecules))
+
+    def rm_molecules(self, ind):
+        """Removes molecule(s) from the bundle by index."""
+        self.nmol -= 1 if isinstance(ind, int) else len(ind)
+        del self.molecules[ind]
+
+
+def _rearrange_check(new_ind, old_ind):
+    """Checks indices for rearrangement routines for errors."""
+    if old_ind is None:
+        if isinstance(new_ind, int) or len(new_ind) < self.natm:
+            raise ValueError('Old indices must be specified if length of '
+                             'new indices less than natm')
+        else:
+            old_ind = range(self.natm)
+    if not isinstance(old_ind, type(new_ind)):
+        raise TypeError('Old and new indices must be of the same type')
+    elif isinstance(new_ind, list) and len(new_ind) != len(old_ind):
+        raise IndexError('Old and new indices must be the same length')
+
+
+def import_molecule(fname, fmt='xyz', hc=False):
+    """Imports geometry in provided format to Molecule object."""
+    read_func = getattr(fileio, 'read_' + fmt)
     with open(fname, 'r') as infile:
-        return Molecule(*fileio.read_xyz(infile, hascomment=hc))
+        return Molecule(*read_func(infile, hascomment=hc))
 
 
-def import_col(fname, hc=False):
-    """Imports geometry in COLUMBUS format to Molecule object."""
+def import_bundle(fname, fmt='xyz', hc=False):
+    """Imports geometry in provided format to MoleculeBundle object."""
+    read_func = getattr(fileio, 'read_' + fmt)
     with open(fname, 'r') as infile:
-        return Molecule(*fileio.read_col(infile, hascomment=hc))
-
-
-def import_zmt(fname, hc=False):
-    """Imports geometry in Z-matrix format to Molecule object."""
-    with open(fname, 'r') as infile:
-        return Molecule(*fileio.read_zmt(infile, hascomment=hc))
+        try:
+            # read in Molecule objects until end-of-file
+            pass
+        except Exception:
+            pass
 
 
 if __name__ == '__main__':
