@@ -91,15 +91,14 @@ class Molecule(object):
 
     def rearrange(self, new_ind, old_ind=None):
         """Moves atom(s) from old_ind to new_ind."""
-        _rearrange_check(new_ind, old_ind)
+        _rearrange_check(new_ind, old_ind, self.natm)
         self.xyz[old_ind] = self.xyz[new_ind]
 
-    def read(self, fname, fmt='xyz', hc=False):
-        """Reads input file in provided format."""
+    def read(self, infile, fmt='xyz', hc=False):
+        """Reads single geometry from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
-        with open(fname, 'r') as infile:
-            (self.natm, self.elem, self.xyz,
-             self.comment) = read_func(infile, hascomment=hc)
+        (self.natm, self.elem, self.xyz,
+         self.comment) = read_func(infile, hascomment=hc)
         self.save()
 
     def write(self, outfile, fmt='xyz'):
@@ -142,14 +141,17 @@ class Molecule(object):
         return displace.oop(self.xyz, ind, units=units)
 
 
-def MoleculeBundle(object):
+class MoleculeBundle(object):
     """
     Object containing a set of molecules in the form of Molecule
     objects.
     """
-    def __init__(self, nmol=0, molecules=[]):
+    def __init__(self, nmol=0, molecules=None):
         self.nmol = nmol
-        self.molecules = np.array(molecules, dtype=object)
+        if molecules is None:
+            self.molecules = np.array([], dtype=object)
+        else:
+            self.molecules = np.array(molecules, dtype=object)
 
     def copy(self):
         """Returns a copy of the MoleculeBundle object."""
@@ -168,7 +170,7 @@ def MoleculeBundle(object):
 
     def rearrange(self, new_ind, old_ind=None):
         """Moves molecule(s) from old_ind to new_ind in bundle."""
-        _rearrange_check(new_ind, old_ind)
+        _rearrange_check(new_ind, old_ind, self.nmol)
         self.molecules[old_ind] = self.molecules[new_ind]
 
     def add_molecules(self, new_molecules):
@@ -183,15 +185,33 @@ def MoleculeBundle(object):
         self.nmol -= 1 if isinstance(ind, int) else len(ind)
         del self.molecules[ind]
 
+    def read(self, infile, fmt='xyz', hc=False):
+        """Reads all geometries from input file in provided format."""
+        read_func = getattr(fileio, 'read_' + fmt)
+        while True:
+            try:
+                new_mol = Molecule(*read_func(infile, hascomment=hc))
+                self.molecules = np.hstack((self.molecules, new_mol))
+                self.nmol += 1
+            except ValueError:
+                break
 
-def _rearrange_check(new_ind, old_ind):
-    """Checks indices for rearrangement routines for errors."""
+        self.save()
+
+    def write(self, outfile, fmt='xyz'):
+        """Writes geometries to an output file in provided format."""
+        for mol in self.molecules:
+            mol.write(outfile, fmt=fmt)
+
+
+def _rearrange_check(new_ind, old_ind, ntot):
+    """Checks indices of rearrangement routines for errors."""
     if old_ind is None:
-        if isinstance(new_ind, int) or len(new_ind) < self.natm:
+        if isinstance(new_ind, int) or len(new_ind) < ntot:
             raise ValueError('Old indices must be specified if length of '
                              'new indices less than natm')
         else:
-            old_ind = range(self.natm)
+            old_ind = range(ntot)
     if not isinstance(old_ind, type(new_ind)):
         raise TypeError('Old and new indices must be of the same type')
     elif isinstance(new_ind, list) and len(new_ind) != len(old_ind):
@@ -206,58 +226,14 @@ def import_molecule(fname, fmt='xyz', hc=False):
 
 
 def import_bundle(fname, fmt='xyz', hc=False):
-    """Imports geometry in provided format to MoleculeBundle object."""
+    """Imports geometries in provided format to MoleculeBundle object."""
     read_func = getattr(fileio, 'read_' + fmt)
+    molecules = []
     with open(fname, 'r') as infile:
-        try:
-            # read in Molecule objects until end-of-file
-            pass
-        except Exception:
-            pass
+        while True:
+            try:
+                molecules.append(Molecule(*read_func(infile, hascomment=hc)))
+            except ValueError:
+                break
 
-
-if __name__ == '__main__':
-    import sys
-    fout = sys.stdout
-    fout.write('Tests for the Python molecular geometry module.\n')
-
-    # basic test geometry
-    natm = 4
-    elem = ['B', 'C', 'N', 'O']
-    xyz = np.eye(4, 3)
-    test = Molecule(natm, elem, xyz, 'Comment line')
-
-    # test output formats
-    fout.write('\nGeometry in XYZ format:\n')
-    test.write_xyz(fout)
-    fout.write('\nGeometry in COLUMBUS format:\n')
-    test.write_col(fout)
-    fout.write('\nGeometry in Z-matrix format:\n')
-    test.write_zmt(fout)
-
-    # test measurements
-    fout.write('\n')
-    fout.write('BO bond length: {:.4f} Angstroms'
-               '\n'.format(test.get_stre([0, 3])))
-    fout.write('BOC bond angle: {:.4f} rad'
-               '\n'.format(test.get_bend([0, 3, 1])))
-    fout.write('BOCN dihedral angle: {:.4f} rad'
-               '\n'.format(test.get_tors([0, 3, 1, 2])))
-    fout.write('B-CON out-of-plane angle: {:.4f} rad'
-               '\n'.format(test.get_oop([0, 3, 1, 2])))
-
-    # test adding/removing atoms
-    fout.write('\nAdding F atom:\n')
-    test.add_atoms('F', [-1, 0, 0])
-    test.write_xyz(fout)
-    fout.write('\nRemoving B atom:\n')
-    test.rm_atoms(0)
-    test.write_xyz(fout)
-    fout.write('\nSwitching atoms 1 and 3\n')
-    test.rearrange(0, 3)
-    test.write_xyz(fout)
-    fout.write('\nReverting to original geometry\n')
-    test.revert()
-    test.write_xyz(fout)
-
-    fout.close()
+    return MoleculeBundle(len(molecules), molecules)

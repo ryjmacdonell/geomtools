@@ -26,15 +26,18 @@ def read_xyz(infile, hascomment=False):
     Due to the preceding number of atoms, multiple XYZ format geometries
     can easily be read from a single file.
     """
-    natm = int(infile.readline())
+    try:
+        natm = int(infile.readline())
+    except ValueError:
+        raise ValueError('Geometry not in XYZ format.')
     if hascomment:
         comment = infile.readline().strip()
     else:
         infile.readline()
         comment = ''
     data = np.array([infile.readline().split() for i in range(natm)])
-    elem = data[:natm, 0]
-    xyz = data[:natm, 1:].astype(float)
+    elem = data[:, 0]
+    xyz = data[:, 1:].astype(float)
     return natm, elem, xyz, comment
 
 
@@ -66,9 +69,12 @@ def read_col(infile, hascomment=False):
             line[1:].astype(float)
             data = np.vstack((data, line))
         except (ValueError, IndexError):
-            # roll back one line before break
-            infile.seek(pos)
-            break
+            if len(data) < 1:
+                raise ValueError('Geometry not in COLUMBUS format.')
+            else:
+                # roll back one line before break
+                infile.seek(pos)
+                break
     elem = data[:, 0]
     xyz = data[:, 2:-1].astype(float) * con.conv('bohr','ang')
     natm = len(data)
@@ -128,6 +134,8 @@ def read_zmt(infile, hascomment=False):
             break
 
     natm = len(data)
+    if natm < 1:
+        raise ValueError('Geometry not in Z-matrix format.')
     elem = np.array([line[0] for line in data])
     xyz = np.zeros((natm, 3))
     for i in range(natm):
