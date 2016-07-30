@@ -38,7 +38,7 @@ def read_xyz(infile, hascomment=False):
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
     xyz = data[:, 1:].astype(float)
-    return natm, elem, xyz, comment
+    return elem, xyz, comment
 
 
 def read_col(infile, hascomment=False):
@@ -77,8 +77,7 @@ def read_col(infile, hascomment=False):
                 break
     elem = data[:, 0]
     xyz = data[:, 2:-1].astype(float) * con.conv('bohr','ang')
-    natm = len(data)
-    return natm, elem, xyz, comment
+    return elem, xyz, comment
 
 
 def read_zmt(infile, hascomment=False):
@@ -175,7 +174,7 @@ def read_zmt(infile, hascomment=False):
                                   origin=xyz[indR], units='deg')
 
     xyz = displace.centre_mass(elem, xyz)
-    return natm, elem, xyz, comment
+    return elem, xyz, comment
 
 
 def _valvar(unk, vardict):
@@ -189,14 +188,15 @@ def _valvar(unk, vardict):
             raise KeyError('\'{}\' not found in variable list'.format(unk))
 
 
-def write_xyz(outfile, natm, elem, xyz, comment=''):
+def write_xyz(outfile, elem, xyz, comment=''):
     """Writes geometry to an output file in XYZ format."""
+    natm = len(elem)
     outfile.write(' {}\n{}\n'.format(natm, comment))
     for atm, pos in zip(elem, xyz):
         outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(atm, *pos))
 
 
-def write_col(outfile, natm, elem, xyz, comment=''):
+def write_col(outfile, elem, xyz, comment=''):
     """Writes geometry to an output file in COLUMBUS format."""
     if comment != '':
         outfile.write(comment + '\n')
@@ -206,12 +206,13 @@ def write_col(outfile, natm, elem, xyz, comment=''):
                                   con.get_mass(atm)))
 
 
-def write_zmt(outfile, natm, elem, xyz, comment=''):
+def write_zmt(outfile, elem, xyz, comment=''):
     """Writes geometry to an output file in Z-matrix format.
 
     TODO: At present, each atom uses the previous atoms in order as
     references. This could be made 'smarter' using the bonding module.
     """
+    natm = len(elem)
     if comment != '':
         outfile.write(comment + '\n')
     for i in range(natm):
@@ -239,9 +240,10 @@ def write_zmt(outfile, natm, elem, xyz, comment=''):
                                                          units='deg')))
 
 
-def write_zmtvar(outfile, natm, elem, xyz, comment=''):
+def write_zmtvar(outfile, elem, xyz, comment=''):
     """Writes geometry to an output file in Z-matrix format with
     variable assignments."""
+    natm = len(elem)
     if comment != '':
         outfile.write(comment + '\n')
     vlist = dict()
