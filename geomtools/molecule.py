@@ -1,8 +1,13 @@
 """
-The Molecule object and tools for generating and querying molecular geometries.
+The Molecule and MoleculeBundle objects and tools for generating and
+querying molecular geometries.
 
-Creates a saved copy of the geometry after input for reversion after an
-operation. Can add/remove individual atoms or groups or set the full geometry.
+Molecule creates a saved copy of the geometry after input for reversion
+after an operation. Can add/remove individual atoms or groups or set the
+full geometry.
+
+Likewise, MoleculeBundle creates a saved copy of a set molecular
+geometries. Input files with multiple geometries can be read to a bundle.
 """
 import numpy as np
 import geomtools.fileio as fileio
@@ -14,41 +19,36 @@ class Molecule(object):
     Object containing the molecular geometry and functions for setting and
     getting geometric properties.
     """
-    def __init__(self, natm=0, elem=np.array([], dtype=str),
-                 xyz=np.empty((0, 3)), comment=''):
-        self.natm = natm
-        self.elem = elem
-        self.xyz = xyz
+    def __init__(self, elem=np.array([], dtype=str), xyz=np.empty((0, 3)),
+                 comment=''):
+        self.elem = np.array(elem, dtype=str)
+        self.xyz = np.array(xyz, dtype=float)
         self.comment = comment
+        self.natm = len(elem)
         self.saved = True
         self.save()
 
     def _check(self):
-        """Checks that natm = len(elem) = len(xyz)."""
-        natm = self.natm
+        """Checks that xyz is 3D and len(elem) = len(xyz)."""
+        if self.xyz.shape[1] != 3:
+            raise ValueError('Molecular geometry must be 3-dimensional.')
         len_elem = len(self.elem)
         len_xyz = len(self.xyz)
-        if natm != len_elem and natm != len_xyz:
-            raise ValueError('Number of atoms ({:d}) not equal to number of '
-                             'element labels ({:d}) and number of cartesian '
-                             'vectors ({:d}).'.format(natm, len_elem, len_xyz))
-        elif natm != len_elem:
-            raise ValueError('Number of element labels ({:d}) not equal to '
-                             'number of atoms ({:d}).'.format(natm, len_elem))
-        elif natm != len_xyz:
-            raise ValueError('Number of cartesian vectors ({:d}) not equal to '
-                             'number of atoms ({:d}).'.format(natm, len_xyz))
+        if len_elem != len_xyz:
+            raise ValueError('Number of element labels ({:d}) not equal '
+                             'to number of cartesian vectors '
+                             '({:d}).'.format(len_elem, len_xyz))
 
-    def copy(self):
+    def copy(self, comment=None):
         """Creates a copy of the Molecule object."""
         self._check()
-        return Molecule(np.copy(self.natm), np.copy(self.elem),
-                        np.copy(self.xyz))
+        if comment is None:
+            comment = 'Copy of ' + self.comment
+        return Molecule(np.copy(self.elem), np.copy(self.xyz), comment)
 
     def save(self):
         """Saves molecular properties to 'orig' variables."""
         self._check()
-        self.orig_natm = np.copy(self.natm)
         self.orig_elem = np.copy(self.elem)
         self.orig_xyz = np.copy(self.xyz)
         self.saved = True
@@ -56,14 +56,12 @@ class Molecule(object):
     def revert(self):
         """Reverts properties to 'orig' variables."""
         if not self.saved:
-            self.natm = np.copy(self.orig_natm)
             self.elem = np.copy(self.orig_elem)
             self.xyz = np.copy(self.orig_xyz)
         self.saved = True
 
-    def set_geom(self, natm, elem, xyz):
+    def set_geom(self, elem, xyz):
         """Sets molecular geometry."""
-        self.natm = natm
         self.elem = elem
         self.xyz = xyz
         self._check()
@@ -91,20 +89,26 @@ class Molecule(object):
 
     def rearrange(self, new_ind, old_ind=None):
         """Moves atom(s) from old_ind to new_ind."""
+        if old_ind is None:
+            old_ind = range(ntot)
         _rearrange_check(new_ind, old_ind, self.natm)
-        self.xyz[old_ind] = self.xyz[new_ind]
+        old = np.hstack((new_ind, old_ind))
+        new = np.hstack((old_ind, new_ind))
+        self.xyz[old] = self.xyz[new]
+        self.elem[old] = self.elem[new]
 
+    # Input/Output
     def read(self, infile, fmt='xyz', hc=False):
         """Reads single geometry from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
-        (self.natm, self.elem, self.xyz,
-         self.comment) = read_func(infile, hascomment=hc)
+        self.elem, self.xyz, self.comment = read_func(infile, hascomment=hc)
+        self.natm = len(self.elem)
         self.save()
 
     def write(self, outfile, fmt='xyz'):
         """Writes geometry to an output file in provided format."""
         write_func = getattr(fileio, 'write_' + fmt)
-        write_func(outfile, self.natm, self.elem, self.xyz, self.comment)
+        write_func(outfile, self.elem, self.xyz, self.comment)
 
     # Accessors
     def get_natm(self):
@@ -146,22 +150,30 @@ class MoleculeBundle(object):
     Object containing a set of molecules in the form of Molecule
     objects.
     """
-    def __init__(self, nmol=0, molecules=None):
-        self.nmol = nmol
+    def __init__(self, molecules=None):
         if molecules is None:
             self.molecules = np.array([], dtype=object)
         else:
             self.molecules = np.array(molecules, dtype=object)
+        self.nmol = len(self.molecules)
+        self._check()
+
+    def _check(self):
+        """Check that all bundle objects are Molecule type."""
+        for mol in self.molecules:
+            if not isinstance(mol, Molecule):
+                raise TypeError('Elements of molecule bundle must be '
+                                'Molecule type.')
 
     def copy(self):
         """Returns a copy of the MoleculeBundle object."""
-        new_mols = [mol.copy() for mol in self.molecules]
-        return MoleculeBundle(np.copy(self.nmol), new_mols)
+        return MoleculeBundle([mol.copy() for mol in self.molecules])
 
     def save(self):
         """Saves all molecules in the bundle."""
         for mol in self.molecules:
             mol.save()
+        self._check()
 
     def revert(self):
         """Reverts each molecule in the bundle."""
@@ -170,21 +182,26 @@ class MoleculeBundle(object):
 
     def rearrange(self, new_ind, old_ind=None):
         """Moves molecule(s) from old_ind to new_ind in bundle."""
+        if old_ind is None:
+            old_ind = range(ntot)
         _rearrange_check(new_ind, old_ind, self.nmol)
-        self.molecules[old_ind] = self.molecules[new_ind]
+        old = np.hstack((new_ind, old_ind))
+        new = np.hstack((old_ind, new_ind))
+        self.molecules[old] = self.molecules[new]
 
     def add_molecules(self, new_molecules):
         """Adds molecule(s) to the bundle."""
-        molecules = [new_molecules] if isinstance(new_molecules,
-                                                  Molecule) else new_molecules
-        self.nmol += len(molecules)
+        self.nmol += (1 if isinstance(new_molecules, Molecule)
+                      else len(molecules))
         self.molecules = np.hstack((self.molecules, molecules))
+        self._check()
 
     def rm_molecules(self, ind):
         """Removes molecule(s) from the bundle by index."""
         self.nmol -= 1 if isinstance(ind, int) else len(ind)
-        del self.molecules[ind]
+        self.molecules = np.delete(self.molecules, ind)
 
+    # Input/Output
     def read(self, infile, fmt='xyz', hc=False):
         """Reads all geometries from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
@@ -203,18 +220,21 @@ class MoleculeBundle(object):
         for mol in self.molecules:
             mol.write(outfile, fmt=fmt)
 
+    # Accessors
+    def get_nmol(self):
+        """Returns the number of molecules."""
+        return self.nmol
+
+    def get_molecules(self):
+        """Returns the list of molecules."""
+        return self.molecules
+
 
 def _rearrange_check(new_ind, old_ind, ntot):
     """Checks indices of rearrangement routines for errors."""
-    if old_ind is None:
-        if isinstance(new_ind, int) or len(new_ind) < ntot:
-            raise ValueError('Old indices must be specified if length of '
-                             'new indices less than natm')
-        else:
-            old_ind = range(ntot)
-    if not isinstance(old_ind, type(new_ind)):
-        raise TypeError('Old and new indices must be of the same type')
-    elif isinstance(new_ind, list) and len(new_ind) != len(old_ind):
+    new = [new_ind] if isinstance(new_ind, int) else new_ind
+    old = [old_ind] if isinstance(old_ind, int) else old_ind
+    if len(new) != len(old):
         raise IndexError('Old and new indices must be the same length')
 
 
@@ -236,4 +256,4 @@ def import_bundle(fname, fmt='xyz', hc=False):
             except ValueError:
                 break
 
-    return MoleculeBundle(len(molecules), molecules)
+    return MoleculeBundle(molecules)
