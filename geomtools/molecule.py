@@ -1,8 +1,13 @@
 """
-The Molecule object and tools for generating and querying molecular geometries.
+The Molecule and MoleculeBundle objects and tools for generating and
+querying molecular geometries.
 
-Creates a saved copy of the geometry after input for reversion after an
-operation. Can add/remove individual atoms or groups or set the full geometry.
+Molecule creates a saved copy of the geometry after input for reversion
+after an operation. Can add/remove individual atoms or groups or set the
+full geometry.
+
+Likewise, MoleculeBundle creates a saved copy of a set molecular
+geometries. Input files with multiple geometries can be read to a bundle.
 """
 import numpy as np
 import geomtools.fileio as fileio
@@ -16,18 +21,20 @@ class Molecule(object):
     """
     def __init__(self, elem=np.array([], dtype=str), xyz=np.empty((0, 3)),
                  comment=''):
-        self.elem = elem
-        self.xyz = xyz
+        self.elem = np.array(elem, dtype=str)
+        self.xyz = np.array(xyz, dtype=float)
         self.comment = comment
         self.natm = len(elem)
         self.saved = True
         self.save()
 
     def _check(self):
-        """Checks that len(elem) = len(xyz)."""
+        """Checks that xyz is 3D and len(elem) = len(xyz)."""
+        if self.xyz.shape[1] != 3:
+            raise ValueError('Molecular geometry must be 3-dimensional.')
         len_elem = len(self.elem)
         len_xyz = len(self.xyz)
-        elif len_elem != len_xyz:
+        if len_elem != len_xyz:
             raise ValueError('Number of element labels ({:d}) not equal '
                              'to number of cartesian vectors '
                              '({:d}).'.format(len_elem, len_xyz))
@@ -82,14 +89,20 @@ class Molecule(object):
 
     def rearrange(self, new_ind, old_ind=None):
         """Moves atom(s) from old_ind to new_ind."""
+        if old_ind is None:
+            old_ind = range(ntot)
         _rearrange_check(new_ind, old_ind, self.natm)
-        self.xyz[old_ind] = self.xyz[new_ind]
+        old = np.hstack((new_ind, old_ind))
+        new = np.hstack((old_ind, new_ind))
+        self.xyz[old] = self.xyz[new]
+        self.elem[old] = self.elem[new]
 
     # Input/Output
     def read(self, infile, fmt='xyz', hc=False):
         """Reads single geometry from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
         self.elem, self.xyz, self.comment = read_func(infile, hascomment=hc)
+        self.natm = len(self.elem)
         self.save()
 
     def write(self, outfile, fmt='xyz'):
@@ -169,8 +182,12 @@ class MoleculeBundle(object):
 
     def rearrange(self, new_ind, old_ind=None):
         """Moves molecule(s) from old_ind to new_ind in bundle."""
+        if old_ind is None:
+            old_ind = range(ntot)
         _rearrange_check(new_ind, old_ind, self.nmol)
-        self.molecules[old_ind] = self.molecules[new_ind]
+        old = np.hstack((new_ind, old_ind))
+        new = np.hstack((old_ind, new_ind))
+        self.molecules[old] = self.molecules[new]
 
     def add_molecules(self, new_molecules):
         """Adds molecule(s) to the bundle."""
@@ -215,8 +232,6 @@ class MoleculeBundle(object):
 
 def _rearrange_check(new_ind, old_ind, ntot):
     """Checks indices of rearrangement routines for errors."""
-    if old_ind is None:
-        old_ind = range(ntot)
     new = [new_ind] if isinstance(new_ind, int) else new_ind
     old = [old_ind] if isinstance(old_ind, int) else old_ind
     if len(new) != len(old):
