@@ -24,6 +24,7 @@ are independent of chirality, the vectors may also be inverted.
 import itertools
 import numpy as np
 from scipy import linalg
+import geomtools.displace as disp
 
 
 def tuple2list(tupl):
@@ -47,13 +48,18 @@ def permute(plist):
     return unperm, final_perms
 
 
-def rmsd(test, ref):
+def rmsd(test, ref, wgt=None):
     """Returns the root mean squared deviation of a test geometry with
-    respect to a reference."""
-    if test.shape != ref.shape:
-        raise ValueError('operands could not be broadcast together with '
-                         'shapes {}, {}'.format(test.shape, ref.shape))
-    return np.sqrt(np.sum((test - ref) ** 2) / np.size(test))
+    respect to a reference.
+
+    Weights can be provided (e.g. atomic masses) with the optional
+    variable wgt.
+    """
+    if wgt is None:
+        return np.sqrt(np.sum((test - ref) ** 2) / np.size(test))
+    else:
+        return np.sqrt(np.sum(wgt * (test - ref) ** 2) /
+                       (np.sum(wgt) * np.size(test)))
 
 
 def kabsch(test, ref):
@@ -65,12 +71,26 @@ def kabsch(test, ref):
     return rot1.dot(rot2)
 
 
-def map_onto(test, ref):
-    """Returns the optimal mapping of a test geometry onto a reference."""
-    return test.dot(kabsch(test, ref))
+def map_onto(elem, test, ref, ind=None, cent=None):
+    """Returns the optimal mapping of a test geometry onto a reference
+    using the Kabsch algorithm.
+
+    The centre of mass of both test and ref are subtracted by default.
+    If an index or list of indices is provided for cent, only the centre
+    of mass of the provided atoms is subtracted. Alternatively, ind can
+    be provided to only map a subset of atoms.
+    """
+    if ind is None:
+        ind = range(len(elem))
+    if cent is None:
+        cent = range(len(elem))
+
+    new_test = disp.centre_mass(elem, test, inds=cent)
+    new_ref = disp.centre_mass(elem, ref, inds=cent)
+    return new_test.dot(kabsch(new_test[ind], new_ref[ind]))
 
 
-def opt_permute(test, ref, plist=None, invert=True):
+def opt_permute(elem, test, ref, plist=None, invert=True):
     """Determines optimal permutation of test geometry indices for
     mapping onto reference."""
     ind0, perms = permute(plist)
@@ -81,32 +101,32 @@ def opt_permute(test, ref, plist=None, invert=True):
         j = 2 * i if invert else i
         xyz = np.copy(test)
         xyz[ind0] = xyz[ind]
-        geoms[j] = map_onto(xyz, ref)
+        geoms[j] = map_onto(elem, xyz, ref)
         if invert:
-            geoms[j+1] = map_onto(-xyz, ref)
+            geoms[j+1] = map_onto(elem, -xyz, ref)
 
     err = np.array([rmsd(xyz, ref) for xyz in geoms])
     return geoms[np.argmin(err)], np.min(err)
 
 
-def opt_ref(test, reflist, plist=None, invert=True):
+def opt_ref(elem, test, reflist, plist=None, invert=True):
     """Determines optimal reference geometry for a given test geometry."""
     nrefs = len(reflist)
     geoms = np.empty((nrefs, *test.shape))
     err = np.empty(nrefs)
     for i in range(nrefs):
-        geoms[i], err[i] = opt_permute(test, reflist[i], plist, invert)
+        geoms[i], err[i] = opt_permute(elem, test, reflist[i], plist, invert)
 
     optref = np.argmin(err)
     return geoms[optref], optref
 
 
-def opt_multi(testlist, reflist, plist=None, invert=True):
+def opt_multi(elem, testlist, reflist, plist=None, invert=True):
     """Determines the optimal geometries of a set of test geometries
     against a set of reference geometries."""
     geomlist = [[] for i in len(reflist)]
     for test in testlist:
-        geom, ind = opt_ref(test, reflist, plist, invert)
+        geom, ind = opt_ref(elem, test, reflist, plist, invert)
         geomlist[ind].append(geom)
 
     return geomlist
