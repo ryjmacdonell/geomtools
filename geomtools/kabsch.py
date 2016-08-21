@@ -27,7 +27,7 @@ from scipy import linalg
 import geomtools.displace as disp
 
 
-def tuple2list(tupl):
+def _tuple2list(tupl):
     """Iteratively converts nested tuple to nested list."""
     return list((tuple2list(x) if isinstance(x, tuple) else x for x in tupl))
 
@@ -42,7 +42,7 @@ def permute(plist):
 
     unperm = [item for sublist in plist for item in sublist]
     single_perms = [list(itertools.permutations(i)) for i in plist]
-    prod_perms = tuple2list(itertools.product(*single_perms))
+    prod_perms = _tuple2list(itertools.product(*single_perms))
     final_perms = [[item for sublist in i for item in sublist]
                    for i in prod_perms]
     return unperm, final_perms
@@ -58,7 +58,7 @@ def rmsd(test, ref, wgt=None):
     if wgt is None:
         return np.sqrt(np.sum((test - ref) ** 2) / np.size(test))
     else:
-        return np.sqrt(np.sum(wgt * (test - ref) ** 2) /
+        return np.sqrt(np.sum(wgt[:,np.newaxis] * (test - ref) ** 2) /
                        (np.sum(wgt) * np.size(test)))
 
 

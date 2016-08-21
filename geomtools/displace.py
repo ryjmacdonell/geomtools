@@ -125,7 +125,11 @@ def combo(funcs, wgts=None):
 def get_centremass(elem, xyz):
     """Returns centre of mass of a set of atoms."""
     mass = con.get_mass(elem)
-    return np.sum(mass[:,np.newaxis] * xyz, axis=0) / np.sum(mass)
+    if isinstance(mass, float):
+        # Centre of mass of one atom is its position
+        return xyz
+    else:
+        return np.sum(mass[:,np.newaxis] * xyz, axis=0) / np.sum(mass)
 
 
 def centre_mass(elem, xyz, inds=None):
