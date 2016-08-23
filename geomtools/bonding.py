@@ -33,7 +33,7 @@ def minor(arr, i, j):
 def build_adjmat(elem, xyz, error=0.56):
     """Returns an adjacency matrix from a set of atoms.
 
-    At present, thresholds are set to the Jmol defaults of covalent
+    At present, thresholds are set to the Rasmol defaults of covalent
     radius + 0.56 and covalent radius - 0.91.
     """
     rad = con.get_covrad(elem)
@@ -47,7 +47,7 @@ def build_adjmat(elem, xyz, error=0.56):
     return bonded.astype(int)
 
 
-def k_power(mat, k):
+def power(mat, k):
     """Returns the kth power of a square matrix.
 
     The elements (A^k)_ij of the kth power of an adjacency matrix
@@ -62,27 +62,24 @@ def k_power(mat, k):
 
 
 def len_k_path(adjmat, k):
-    """Returns the number of paths of length k from an adjacency matrix.
+    """Returns the matrix of paths of length k from an adjacency matrix.
 
-    The returned matrix excludes all elements from l = k - 1 to 1 in order
-    to avoid double counting bonds."""
-    new_adjmat = np.copy(adjmat)
-    sum_adjmat = np.zeros_like(adjmat)
-    for i in range(k-1):
-        if i % 2 == 0:
-            # even
-            pass
-        else:
-            #odd
-            pass
-        sum_adjmat += new_adjmat
-        new_adjmat = new_adjmat.dot(adjmat)
-
-    # subtract double counted bonds?
-    return new_adjmat
+    Ideally, all elements should be unity unless loops are present. Loops
+    are not fully accounted for at the moment. They should lead to
+    nonzero diagonal elements.
+    """
+    new_mat = power(adjmat, k)
+    new_mat -= np.diagonal(new_mat) * np.eye(k, dtype=int)
+    new_mat[new_mat > k - 2] = 0
+    return new_mat
 
 
-def num_k_loops(adjmat, k):
+def num_neighbours(adjmat, k):
+    """Returns the number of atoms k atoms away from each atom."""
+    return np.sum(len_k_path(adjmat, k), axis=0)
+
+
+def num_loops(adjmat, k):
     """Returns the number of loops of length k.
 
     Only works for 3-loops and 4-loops at the moment.
@@ -96,5 +93,5 @@ def num_k_loops(adjmat, k):
         loop = np.sum(eigs ** 3) / 6
         total = int(round(loop3))
     elif k == 4:
-        adj2 = k_power(adjmat, 2)
+        adj2 = power(adjmat, 2)
         loop = (np.sum(eigs ** 4) - 2 * np.sum(adj2) + np.sum(adjmat)) / 8
