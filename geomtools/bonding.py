@@ -61,7 +61,7 @@ def power(mat, k):
     return new_mat
 
 
-def len_k_path(adjmat, k):
+def path_len(adjmat, k):
     """Returns the matrix of paths of length k from an adjacency matrix.
 
     Ideally, all elements should be unity unless loops are present. Loops
@@ -76,7 +76,7 @@ def len_k_path(adjmat, k):
 
 def num_neighbours(adjmat, k):
     """Returns the number of atoms k atoms away from each atom."""
-    return np.sum(len_k_path(adjmat, k), axis=0)
+    return np.sum(path_len(adjmat, k), axis=0)
 
 
 def num_loops(adjmat, k):
