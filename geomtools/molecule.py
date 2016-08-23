@@ -192,8 +192,8 @@ class MoleculeBundle(object):
     def add_molecules(self, new_molecules):
         """Adds molecule(s) to the bundle."""
         self.nmol += (1 if isinstance(new_molecules, Molecule)
-                      else len(molecules))
-        self.molecules = np.hstack((self.molecules, molecules))
+                      else len(new_molecules))
+        self.molecules = np.hstack((self.molecules, new_molecules))
         self._check()
 
     def rm_molecules(self, ind):

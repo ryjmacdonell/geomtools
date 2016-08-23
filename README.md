@@ -3,9 +3,12 @@ GeomTools
 Tools in Python for quickly creating, displacing and querying molecular
 geometries.
 
-Modules bonding.py and kabsch.py are currently standalone scripts that need
-significant updating.
-
 Formats
 -------
-Currently supports geometry files in XYZ, COLUMBUS and Z-matrix formats for import or export.
+Currently supports geometry files in XYZ, COLUMBUS and Z-matrix formats
+for import or export. Geometries can be imported to a Molecule object, and
+multiple geometries to a MoleculeBundle object.
+
+Requirements
+------------
+At least Python 3.3, NumPy v1.6.0, SciPy v0.9.0

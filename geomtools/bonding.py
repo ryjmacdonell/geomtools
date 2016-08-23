@@ -1,70 +1,97 @@
-'''
-Script for reading in atoms and determining their internal coordinates based on bonding.
+"""
+Module for determining bonded atoms and natural coordinates.
 
-Notes
------
-Coordinate determination not yet set up for rings. Rings are complicated.
-'''
+The distance between N elements (atoms) in a set of cartesian coordinates
+can be determined by taking the norm of the outer difference of the
+coordinate array. An N x N adjacency matrix can then be formed by comparing
+the distance matrix to an upper (and lower) threshold.
+
+For an adjacency matrix A, the elements connected by k links (bonds) is
+given by the matrix A^k. In molecular geometries, this can be used to find
+all sets of bonds (k = 1), angles (k = 2) and dihedral angles (k = 3).
+
+Small rings can be measured from the eigenvectors of A. For example, if
+B = eig(A), the number of three-membered rings is given by
+sum_ij B_ij^3 / 6.
+"""
 import numpy as np
+from scipy import linalg
+import geomtools.constants as con
 
-def minor(arr, i, j)
+
+def minor(arr, i, j):
+    """Returns the minor of an array.
+
+    Given indices i, j, the minor of the matrix is defined as the original
+    matrix excluding row i and column j.
+    """
     rows = np.array(range(i) + range(i + 1, arr.shape[0]))[:, np.newaxis]
     cols = np.array(range(j) + range(j + 1, arr.shape[1]))
-
     return arr[rows, cols]
 
-atmsym = {'H':1, 'He':2, 'Li':3, 'Be':4, 'B':5, 'C':6, 'N':7, 'O':8, 'F':9, \
-    'Ne':10, 'Na':11, 'Mg':12, 'Al':13, 'Si':14, 'P':15, 'S':16, 'Cl':17, 'Ar':18}
-covrad = np.array([0.000, 0.320, 1.600, 0.680, 0.352, 0.832, 0.720, 0.680, 0.680, 0.640, \
-    1.120, 0.972, 1.100, 1.352, 1.200, 1.036, 1.020, 1.000, 1.568])
-error = 0.56
 
-f = open('geom.xyz', 'r')
-natm = int(f.readline())
-f.readline()
+def build_adjmat(elem, xyz, error=0.56):
+    """Returns an adjacency matrix from a set of atoms.
 
-data = f.readlines()
-f.close()
-atom = np.zeros(natm)
-rad = np.zeros(natm)
-xyz = np.zeros((natm, 3))
+    At present, thresholds are set to the Rasmol defaults of covalent
+    radius + 0.56 and covalent radius - 0.91.
+    """
+    rad = con.get_covrad(elem)
+    upthresh = np.add.outer(rad, rad) + error
+    lothresh = upthresh - 0.35 - 2*error
 
-for i in range(natm):
-    split = data[i].split()
-    atom[i] = atmsym[split[0]]
-    rad[i] = covrad[atom[i]]
-    xyz[i] = np.array(split[1:]).astype(float)
+    xyz_diff = xyz.T[:,:,np.newaxis] - xyz.T[:,np.newaxis,:]
+    blength = np.sqrt(np.sum(xyz_diff ** 2, axis=0))
 
-xyz_diff = xyz.T[:,:,np.newaxis] - xyz.T[:,np.newaxis,:]
-blength = np.sqrt(np.sum(xyz_diff ** 2, axis=0))
+    bonded = (blength < upthresh) & (blength > lothresh)
+    return bonded.astype(int)
 
-# build adjacency matrix from thresholds (cf. jmol, 0.35 from higher order bonding)
-upthresh = np.add.outer(rad, rad) + error
-lowthresh = upthresh - 0.35 - 2 * error
-lowthresh[np.where(lowthresh < 0)] = 0
 
-bonded = (blength < upthresh) & (blength > lowthresh)
+def power(mat, k):
+    """Returns the kth power of a square matrix.
 
-# determine terminal atoms for path lengths of interest
-b = bonded.astype(int)
-c = b.dot(b) # oop angles can be determined using ij = 1 where ii > 2 (i != j)
-c[np.eye(natm).astype(bool)] = 0
-d = b.dot(b).dot(b)
-d[(b + c).astype(bool)] = 0
+    The elements (A^k)_ij of the kth power of an adjacency matrix
+    represent the number of k-length paths from element i to element j,
+    including repetitions.
+    """
+    new_mat = np.copy(mat)
+    for i in range(k-1):
+        new_mat = new_mat.dot(mat)
 
-print 'Length 1 paths (bond lengths):'
-print b
-print '\nLength 2 paths (bond angles):'
-print c
-print '\nLength 3 paths (torsional angles):'
-print d
+    return new_mat
 
-# find rings
-eigs = np.linalg.eig(b)[0]
-loop3 = np.sum(eigs ** 3) / 6
-loop3 = int(round(loop3))
-loop4 = (np.sum(eigs ** 4) - 2 * np.sum(b.dot(b)) + np.sum(b)) / 8
-loop4 = int(round(loop4))
 
-print '\nNumber of 3 membered rings: {}'.format(loop3)
-print 'Number of 4 membered rings: {}'.format(loop4)
+def len_k_path(adjmat, k):
+    """Returns the matrix of paths of length k from an adjacency matrix.
+
+    Ideally, all elements should be unity unless loops are present. Loops
+    are not fully accounted for at the moment. They should lead to
+    nonzero diagonal elements.
+    """
+    new_mat = power(adjmat, k)
+    new_mat -= np.diagonal(new_mat) * np.eye(k, dtype=int)
+    new_mat[new_mat > k - 2] = 0
+    return new_mat
+
+
+def num_neighbours(adjmat, k):
+    """Returns the number of atoms k atoms away from each atom."""
+    return np.sum(len_k_path(adjmat, k), axis=0)
+
+
+def num_loops(adjmat, k):
+    """Returns the number of loops of length k.
+
+    Only works for 3-loops and 4-loops at the moment.
+    TODO: Generalize this
+    """
+    if k < 3:
+        raise ValueError('Loops must have 3 or more elements.')
+
+    eigs = linalg.eigh(adjmat)[0]
+    if k == 3:
+        loop = np.sum(eigs ** 3) / 6
+        total = int(round(loop3))
+    elif k == 4:
+        adj2 = power(adjmat, 2)
+        loop = (np.sum(eigs ** 4) - 2 * np.sum(adj2) + np.sum(adjmat)) / 8
