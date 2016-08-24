@@ -275,3 +275,20 @@ def write_zmtvar(outfile, elem, xyz, comment=''):
     outfile.write('\n')
     for key, val in vlist.items():
         outfile.write('{:4s} = {:14.8f}\n'.format(key, val))
+
+
+def convert(infname, outfname, infmt='xyz', outfmt='xyz', hc=False):
+    """Reads a file in format infmt and writes to a file in format
+    outfmt.
+
+    Input (and output) may have multiple geometries. Z-matrix index
+    ordering is not conserved.
+    """
+    read_func = globals()['read_' + infmt]
+    write_func = globals()['write_' + outfmt]
+    with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
+        while True:
+            try:
+                write_func(outfile, *read_func(infile, hascomment=hc))
+            except ValueError:
+                break
