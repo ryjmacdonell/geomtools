@@ -73,26 +73,79 @@ def oop(xyz, ind, units='rad'):
     return coord * con.conv('rad', units)
 
 
-def translate(xyz, ind, amp, axis, origin=np.zeros(3), units='ang'):
-    """Translates atoms given by ind along a vector u."""
-    u = np.array(axis, dtype=float)
-    u /= np.linalg.norm(u)
-    origin = np.array(origin, dtype=float)
+def _parse_axis(inp):
+    """Returns a numpy array from string or axis vector."""
+    if isinstance(inp, str):
+        if inp == 'x':
+            return np.array([1., 0., 0.])
+        elif inp == 'y':
+            return np.array([0., 1., 0.])
+        elif inp == 'z':
+            return np.array([0., 0., 1.])
+    elif len(inp) == 3:
+        u = np.array(inp, dtype=float)
+        return u / np.linalg.norm(u)
+    else:
+        raise ValueError('Axis must be specified by cartesian axis or '
+                         '3D vector.')
+
+
+def _parse_plane(inp):
+    """Returns a plane normal from a string, 3-atom set or plane normal."""
+    if isinstance(inp, str):
+        if inp == 'yz':
+            return np.array([1., 0., 0.])
+        elif inp == 'xz':
+            return np.array([0., 1., 0.])
+        elif inp == 'xy':
+            return np.array([0., 0., 1.])
+    elif len(inp) == 3:
+        u = np.array(inp, dtype=float)
+        if u.size == 9:
+            return np.cross(u[0] - u[1], u[2] - u[1])
+        else:
+            return u
+    else:
+        raise ValueError('Plane must be specified by cartesian axes, plane '
+                         'normal vector or set of 3 atoms.')
+
+
+def translate(xyz, amp, axis, ind=None, units='ang'):
+    """Translates a set of atoms along a given vector.
+
+    If no indices are specified, all atoms are displaced.
+    """
+    if ind is None:
+        ind = range(len(xyz))
+    u = _parse_axis(axis)
     amp *= con.conv(units, 'ang')
 
-    newxyz = xyz - origin
+    newxyz = np.copy(xyz)
     newxyz[ind] += amp * u
-    return newxyz + origin
+    return newxyz
 
 
-def rotate(xyz, ind, amp, axis, origin=np.zeros(3), units='rad'):
-    """Rotates atoms given by ind about a vector u."""
-    u = np.array(axis, dtype=float)
-    u /= np.linalg.norm(u)
+def rotate(xyz, amp, axis, ind=None, origin=np.zeros(3), units='rad'):
+    """Rotates a set of atoms about a given vector.
+
+    The rotational matrix in 3D can be formed given an angle and an axis by
+
+    R = cos(a) I + sin(a) [u]_x + (1 - cos(a)) u (x) u
+
+    for angle a, axis u, cross-product matrix [u]_x and tensor product (x)
+    (See en.wikipedia.org/wiki/Rotation_matrix). Action of the rotational
+    matrix occurs about the origin, so an origin can be specified for
+    rotation about a specific point.
+
+    If no indices are specified, all atoms are displaced.
+    """
+    if ind is None:
+        ind = range(len(xyz))
+    u = _parse_axis(axis)
     origin = np.array(origin, dtype=float)
     amp *= con.conv(units, 'rad')
-    uouter = np.outer(u, u)
     ucross = np.array([[0, -u[2], u[1]], [u[2], 0, -u[0]], [-u[1], u[0], 0]])
+    uouter = np.outer(u, u)
     rotmat = (np.cos(amp) * np.eye(3) + np.sin(amp) * ucross +
               (1 - np.cos(amp)) * uouter)
 
@@ -101,25 +154,30 @@ def rotate(xyz, ind, amp, axis, origin=np.zeros(3), units='rad'):
     return newxyz + origin
 
 
-def combo(funcs, wgts=None):
-    """Creates a combination function of translations and rotations.
+def align_pos(xyz, test_crd, ref_crd, ind=None):
+    """Translates a set of atoms such that two positions are coincident."""
+    transax = ref_crd - test_crd
+    dist = np.linalg.norm(transax)
+    return translate(xyz, dist, transax, ind=ind)
 
-    TODO: Find a better way to right this.
-    """
-    if wgts is None:
-        wgts = np.ones(len(funcs))
 
-    def _function(xyz, ind, amp, u, orig=np.zeros(3)):
-        newxyz = np.copy(xyz)
-        to_list = [u, orig]
-        [u, orig] = [s if isinstance(s, list) else [s] * len(funcs)
-                     for s in to_list]
-        ind = ind if isinstance(ind[0], list) else [ind] * len(funcs)
+def align_axis(xyz, test_ax, ref_ax, ind=None, origin=np.zeros(3)):
+    """Rotates a set of atoms such that two axes are parallel."""
+    test = _parse_axis(test_ax)
+    ref = _parse_axis(ref_ax)
+    test /= np.linalg.norm(test)
+    ref /= np.linalg.norm(ref)
 
-        for i, f in enumerate(funcs):
-            newxyz = f(newxyz, ind[i], amp * wgts[i], u[i], orig[i])
-        return newxyz
-    return _function
+    angle = np.arccos(np.dot(test, ref))
+    rotax = np.cross(test, ref)
+    return rotate(xyz, angle, rotax, ind=ind, origin=origin)
+
+
+def align_plane(xyz, test_pl, ref_pl, ind=None, origin=np.zeros(3)):
+    """Rotates a set of atoms such that two planes are parallel."""
+    test = _parse_plane(test_pl)
+    ref = _parse_plane(ref_pl)
+    return align_axis(xyz, test, ref, ind=ind, origin=origin)
 
 
 def get_centremass(elem, xyz):
@@ -143,8 +201,32 @@ def centre_mass(elem, xyz, inds=None):
     return xyz - get_centremass(elem[inds], xyz[inds])
 
 
+def combo(funcs, wgts=None):
+    """Creates a combination function of translations and rotations.
+
+    TODO: Find a better way to right this.
+    """
+    if wgts is None:
+        wgts = np.ones(len(funcs))
+
+    def _function(xyz, ind, amp, u, orig=np.zeros(3)):
+        newxyz = np.copy(xyz)
+        to_list = [u, orig]
+        [u, orig] = [s if isinstance(s, list) else [s] * len(funcs)
+                     for s in to_list]
+        ind = ind if isinstance(ind[0], list) else [ind] * len(funcs)
+
+        for i, f in enumerate(funcs):
+            newxyz = f(newxyz, ind[i], amp * wgts[i], u[i], orig[i])
+        return newxyz
+    return _function
+
+
 def comment(s, func, inds):
-    """Writes a comment line based on a measurement."""
+    """Writes a comment line based on a measurement.
+
+    TODO: Rewrite this.
+    """
     def _function(xyz):
         return s.format(func(xyz, inds))
     return _function
@@ -161,35 +243,3 @@ def c_loop(outfile, wfunc, disp, n, el, xyz, u, origin, ind, amplim,
     for amp in amplist:
         newxyz = disp(xyz, ind, amp, u, origin)
         wfunc(outfile, n, el, newxyz, comm(newxyz))
-
-
-#if __name__ == '__main__':
-#    import sys
-#    fout = sys.stdout
-#
-#    fout.write('Tests for the python geometric displacement module.\n')
-#
-#    # basic test geometry
-#    natm = 4
-#    elem = ['B', 'C', 'N', 'O']
-#    test_xyz = np.eye(4, 3)
-#
-#    # test translation
-#    fout.write('\nTranslation by 1.0 Ang. along x axis:\n')
-#    write_xyz(fout, natm, elem, translate(test_xyz, range(natm), 1.0, xyz[0]))
-#
-#    # test rotation
-#    fout.write('\nRotation by pi/2 about x axis:\n')
-#    write_xyz(fout, natm, elem, rotate(test_xyz, range(natm), np.pi/2, xyz[0]))
-#
-#    # test combination
-#    fout.write('\nCombined translation by 1.0 Ang. and rotation by pi/2 '
-#               'about x axis:\n')
-#    write_xyz(fout, natm, elem, combo([translate, rotate], xyz, range(natm),
-#                                      [1.0, np.pi/2], xyz[0]))
-#
-#    # test looping through geoms
-#    fout.write('\nLooping atom C through pi/2 rotations about x axis:\n')
-#    c_loop(fout, write_xyz, rotate, natm, elem, xyz, xyz[0], xyz[0], [1],
-#           [np.pi/2, 2*np.pi], comment('CON angle: {:.4f} rad', bend,
-#                                       [1, 3, 2]), 4)

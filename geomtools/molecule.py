@@ -101,14 +101,22 @@ class Molecule(object):
     def read(self, infile, fmt='xyz', hc=False):
         """Reads single geometry from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
-        self.elem, self.xyz, self.comment = read_func(infile, hascomment=hc)
+        if isinstance(infile, str):
+            with open(infile, 'r') as f:
+                self.elem, self.xyz, self.comment = read_func(f, hascomment=hc)
+        else:
+            self.elem, self.xyz, self.comment = read_func(infile, hascomment=hc)
         self.natm = len(self.elem)
         self.save()
 
     def write(self, outfile, fmt='xyz'):
         """Writes geometry to an output file in provided format."""
         write_func = getattr(fileio, 'write_' + fmt)
-        write_func(outfile, self.elem, self.xyz, self.comment)
+        if isinstance(outfile, str):
+            with open(outfile, 'w') as f:
+                write_func(f, self.elem, self.xyz, self.comment)
+        else:
+            write_func(outfile, self.elem, self.xyz, self.comment)
 
     # Accessors
     def get_natm(self):
