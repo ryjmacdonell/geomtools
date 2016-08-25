@@ -12,12 +12,16 @@ geometries. Input files with multiple geometries can be read to a bundle.
 import numpy as np
 import geomtools.fileio as fileio
 import geomtools.displace as displace
+import geomtools.constants as con
 
 
-class Molecule(object):
+class BaseMolecule(object):
     """
-    Object containing the molecular geometry and functions for setting and
-    getting geometric properties.
+    Basic object containing molecular geometry and functions for setting and
+    changing the geometry.
+
+    All methods of BaseMolecule involve setting and saving the molecular
+    geometry. There are no dependancies to other geomtools modules.
     """
     def __init__(self, elem=np.array([], dtype=str), xyz=np.empty((0, 3)),
                  comment=''):
@@ -40,17 +44,19 @@ class Molecule(object):
                              '({:d}).'.format(len_elem, len_xyz))
 
     def copy(self, comment=None):
-        """Creates a copy of the Molecule object."""
+        """Creates a copy of the BaseMolecule object."""
         self._check()
         if comment is None:
             comment = 'Copy of ' + self.comment
-        return Molecule(np.copy(self.elem), np.copy(self.xyz), comment)
+        return BaseMolecule(np.copy(self.elem[1:]), np.copy(self.xyz[1:]),
+                            comment)
 
     def save(self):
         """Saves molecular properties to 'orig' variables."""
         self._check()
         self.orig_elem = np.copy(self.elem)
         self.orig_xyz = np.copy(self.xyz)
+        self.orig_comment = np.copy(self.comment)
         self.saved = True
 
     def revert(self):
@@ -62,14 +68,16 @@ class Molecule(object):
 
     def set_geom(self, elem, xyz):
         """Sets molecular geometry."""
-        self.elem = elem
-        self.xyz = xyz
+        if elem is not None:
+            self.elem = elem
+        self.xyz = np.array(xyz, dtype=float)
         self._check()
         self.saved = False
 
-    def add_comment(self, comment):
+    def set_comment(self, comment):
         """Adds a comment line to describe the molecule."""
         self.comment = comment
+        self.saved = False
 
     def add_atoms(self, new_elem, new_xyz):
         """Adds atoms(s) to molecule."""
@@ -90,12 +98,48 @@ class Molecule(object):
     def rearrange(self, new_ind, old_ind=None):
         """Moves atom(s) from old_ind to new_ind."""
         if old_ind is None:
-            old_ind = range(ntot)
-        _rearrange_check(new_ind, old_ind, self.natm)
+            old_ind = range(self.natm)
+        _rearrange_check(new_ind, old_ind)
         old = np.hstack((new_ind, old_ind))
         new = np.hstack((old_ind, new_ind))
         self.xyz[old] = self.xyz[new]
         self.elem[old] = self.elem[new]
+        self.saved = False
+
+
+class Molecule(BaseMolecule):
+    """
+    More advanced Molecule object which inherits from BaseMolecule.
+
+    A dummy atom XM is added to index 0 at the centre of mass of the
+    molecule. Indices thus match the regular definition. Accessor methods
+    get_elem and get_xyz return the geometry without the index 0 dummy atom.
+
+    Molecule can also read from and write to input files given by a filename
+    or an open file object. Other methods are derived from geomtools modules.
+    """
+    def _add_centre(self):
+        """Adds a dummy atom at index 0 at molecular centre of mass."""
+        pos = displace.get_centremass(self.elem, self.xyz)
+        if self.elem[0] == 'XM':
+            self.xyz[0] = pos
+        else:
+            self.elem = np.hstack(('XM', self.elem))
+            self.xyz = np.vstack((pos, self.xyz))
+
+    def _check(self):
+        """Checks that xyz is 3D and len(elem) = len(xyz) and that dummy
+        atom is at centre of mass."""
+        BaseMolecule._check(self)
+        self._add_centre()
+
+    def copy(self, comment=None):
+        """Creates a copy of the Molecule object."""
+        self._check()
+        if comment is None:
+            comment = 'Copy of ' + self.comment
+        return Molecule(np.copy(self.elem[1:]), np.copy(self.xyz[1:]),
+                        comment)
 
     # Input/Output
     def read(self, infile, fmt='xyz', hc=False):
@@ -114,9 +158,9 @@ class Molecule(object):
         write_func = getattr(fileio, 'write_' + fmt)
         if isinstance(outfile, str):
             with open(outfile, 'w') as f:
-                write_func(f, self.elem, self.xyz, self.comment)
+                write_func(f, self.elem[1:], self.xyz[1:], self.comment)
         else:
-            write_func(outfile, self.elem, self.xyz, self.comment)
+            write_func(outfile, self.elem[1:], self.xyz[1:], self.comment)
 
     # Accessors
     def get_natm(self):
@@ -125,15 +169,19 @@ class Molecule(object):
 
     def get_elem(self):
         """Returns list of elements."""
-        return self.elem
+        return self.elem[1:]
 
     def get_xyz(self):
         """Returns cartesian geometry."""
-        return self.xyz
+        return self.xyz[1:]
 
     def get_comment(self):
         """Returns comment line."""
         return self.comment
+
+    def get_mass(self):
+        """Returns atomic masses."""
+        return con.get_mass(self.elem[1:])
 
     # Internal geometry
     def get_stre(self, ind, units='ang'):
@@ -151,6 +199,26 @@ class Molecule(object):
     def get_oop(self, ind, units='rad'):
         """Returns out-of-plane angle based on index in molecule."""
         return displace.oop(self.xyz, ind, units=units)
+
+    # Displacement
+    def centre_mass(self):
+        """Places the centre of mass at the origin."""
+        self.xyz -= self.xyz[0]
+        self.saved = False
+
+    def translate(self, amp, axis, ind=None, units='ang'):
+        """Translates the molecule along a given axis."""
+        self.xyz = displace.translate(self.xyz, amp, axis, ind=ind,
+                                      units=units)
+        self._add_centre()
+        self.saved = False
+
+    def rotate(self, amp, axis, ind=None, origin=np.zeros(3), units='rad'):
+        """Rotates the molecule about a given axis from a given origin."""
+        self.xyz = displace.rotate(self.xyz, amp, axis, ind=ind,
+                                   origin=origin, units=units)
+        self._add_centre()
+        self.saved = False
 
 
 class MoleculeBundle(object):
@@ -191,8 +259,8 @@ class MoleculeBundle(object):
     def rearrange(self, new_ind, old_ind=None):
         """Moves molecule(s) from old_ind to new_ind in bundle."""
         if old_ind is None:
-            old_ind = range(ntot)
-        _rearrange_check(new_ind, old_ind, self.nmol)
+            old_ind = range(self.nmol)
+        _rearrange_check(new_ind, old_ind)
         old = np.hstack((new_ind, old_ind))
         new = np.hstack((old_ind, new_ind))
         self.molecules[old] = self.molecules[new]
@@ -238,7 +306,7 @@ class MoleculeBundle(object):
         return self.molecules
 
 
-def _rearrange_check(new_ind, old_ind, ntot):
+def _rearrange_check(new_ind, old_ind):
     """Checks indices of rearrangement routines for errors."""
     new = [new_ind] if isinstance(new_ind, int) else new_ind
     old = [old_ind] if isinstance(old_ind, int) else old_ind

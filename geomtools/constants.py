@@ -43,6 +43,12 @@ eneunits = {'ev':1., 'har':1./27.21138505, 'kcm':23.061, 'kjm':96.485,
             'cm':8065.5}
 
 
+def _find_index(string):
+    """Determines if dummy or regular atom and returns index."""
+    elem = 'X' if string[0] == 'X' else string
+    return np.where(sym == elem)[0][0]
+
+
 def get_num(elem):
     """Returns atomic number from atomic symbol.
 
@@ -50,13 +56,13 @@ def get_num(elem):
     can be a single atom or a list of atoms.
     """
     if isinstance(elem, str):
-        return np.where(sym == elem)[0][0]
+        return _find_index(elem)
     else:
         for atm in elem:
-            if atm not in sym:
+            if atm not in sym and 'X' not in atm:
                 raise ValueError('Unrecognized atomic symbol \'' + atm +
-                                 '\'. Use X for dummy atoms.')
-        return np.array([np.where(sym == atm)[0][0] for atm in elem])
+                                 '\'. Use X prefix for dummy atoms.')
+        return np.array([_find_index(atm) for atm in elem])
 
 
 def get_mass(elem):
