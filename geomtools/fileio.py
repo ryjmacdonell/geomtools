@@ -115,8 +115,7 @@ def read_zmt(infile, hascomment=False):
         if line == '':
             # end-of-file
             break
-        elif ((len(split) == 1 and len(data) > 0) or
-              (split == [] and infile.readline().split()[0] in con.sym)):
+        elif len(split) == 1 and len(data) > 0:
             # roll back one line before break
             infile.seek(pos)
             break
@@ -143,35 +142,35 @@ def read_zmt(infile, hascomment=False):
             continue
         elif i == 1:
             # move along z-axis by R
-            xyz = displace.translate(xyz, 1, _valvar(data[1][2], vlist),
-                                     [0, 0, 1])
+            xyz = displace.translate(xyz, _valvar(data[1][2], vlist),
+                                     [0, 0, 1], ind=1)
         elif i == 2:
             indR = int(data[2][1]) - 1
             indA = int(data[2][3]) - 1
             xyz[2] = xyz[indR]
             # move from indR towards indA by R
-            xyz = displace.translate(xyz, 2, _valvar(data[2][2], vlist),
-                                     xyz[indA]-xyz[indR])
+            xyz = displace.translate(xyz, _valvar(data[2][2], vlist),
+                                     xyz[indA]-xyz[indR], ind=2)
             # rotate into xz-plane by A
-            xyz = displace.rotate(xyz, 2, _valvar(data[2][4], vlist),
-                                  [0, 1, 0], origin=xyz[indR], units='deg')
+            xyz = displace.rotate(xyz, _valvar(data[2][4], vlist), [0, 1, 0],
+                                  ind=2, origin=xyz[indR], units='deg')
         else:
             indR = int(data[i][1]) - 1
             indA = int(data[i][3]) - 1
             indT = int(data[i][5]) - 1
             xyz[i] = xyz[indR]
             # move from indR towards indA by R
-            xyz = displace.translate(xyz, i, _valvar(data[i][2], vlist),
-                                     xyz[indA]-xyz[indR])
+            xyz = displace.translate(xyz, _valvar(data[i][2], vlist),
+                                     xyz[indA]-xyz[indR], ind=i)
             # rotate about (indT-indA)x(indR-indA) by A
-            xyz = displace.rotate(xyz, i, _valvar(data[i][4], vlist),
+            xyz = displace.rotate(xyz, _valvar(data[i][4], vlist),
                                   np.cross(xyz[indT]-xyz[indA],
                                            xyz[indR]-xyz[indA]),
-                                  origin=xyz[indR], units='deg')
+                                  ind=i, origin=xyz[indR], units='deg')
             # rotate about indR-indA by T
-            xyz = displace.rotate(xyz, i, _valvar(data[i][6], vlist),
+            xyz = displace.rotate(xyz, _valvar(data[i][6], vlist),
                                   xyz[indR]-xyz[indA],
-                                  origin=xyz[indR], units='deg')
+                                  ind=i, origin=xyz[indR], units='deg')
 
     xyz = displace.centre_mass(elem, xyz)
     return elem, xyz, comment
@@ -260,7 +259,7 @@ def write_zmtvar(outfile, elem, xyz, comment=''):
             # third element has symbol, index, bond length, index, bond angle
             outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d}'
                           '\n'.format(elem[2], 2, 2, 1, 1))
-            vlist['R2'] = displace.stre(xyz, [0,1])
+            vlist['R2'] = displace.stre(xyz, [1,2])
             vlist['A1'] = displace.bend(xyz, [0,1,2], units='deg')
         else:
             # all other elements have symbol, index, bond length, index,
@@ -276,3 +275,20 @@ def write_zmtvar(outfile, elem, xyz, comment=''):
     outfile.write('\n')
     for key, val in vlist.items():
         outfile.write('{:4s} = {:14.8f}\n'.format(key, val))
+
+
+def convert(infname, outfname, infmt='xyz', outfmt='xyz', hc=False):
+    """Reads a file in format infmt and writes to a file in format
+    outfmt.
+
+    Input (and output) may have multiple geometries. Z-matrix index
+    ordering is not conserved.
+    """
+    read_func = globals()['read_' + infmt]
+    write_func = globals()['write_' + outfmt]
+    with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
+        while True:
+            try:
+                write_func(outfile, *read_func(infile, hascomment=hc))
+            except ValueError:
+                break

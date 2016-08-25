@@ -15,7 +15,7 @@ matrix is then found by
 U = W |  0 1 0  | V^T
       |_ 0 0 d _|
 
-(Source: en.wikipedia.org/wiki/Kabsch_algorithm)
+(See en.wikipedia.org/wiki/Kabsch_algorithm)
 
 The best match for multiple references can be found by the minimum RMSD.
 Sets of equivalent vectors (atoms) can be permuted as well. In cases that
@@ -62,10 +62,17 @@ def rmsd(test, ref, wgt=None):
                        (np.sum(wgt) * np.size(test)))
 
 
-def kabsch(test, ref):
+def kabsch(test, ref, wgt=None):
     """Returns the Kabsch rotational matrix to map a test geometry onto
-    a reference."""
-    cov = test.T.dot(ref)
+    a reference.
+
+    If weights are provided, they are used to weight the test vectors
+    before forming the covariance matrix.
+    """
+    if wgt is None:
+        cov = test.T.dot(ref)
+    else:
+        cov = (wgt[:,np.newaxis] * test).T.dot(ref)
     rot1, scale, rot2 = linalg.svd(cov)
     rot1[:,-1] *= np.sign(linalg.det(rot1) * linalg.det(rot2))
     return rot1.dot(rot2)
