@@ -2,5 +2,11 @@
 __pycache__/
 *.py[cod]
 
+# Setup related files
+dist/
+build/
+*.egg
+*.egg-info/
+
 # Test files
 tests/

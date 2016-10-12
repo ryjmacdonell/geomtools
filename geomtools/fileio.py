@@ -191,17 +191,17 @@ def write_xyz(outfile, elem, xyz, comment=''):
     """Writes geometry to an output file in XYZ format."""
     natm = len(elem)
     outfile.write(' {}\n{}\n'.format(natm, comment))
-    for atm, pos in zip(elem, xyz):
-        outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(atm, *pos))
+    for atm, (x, y, z) in zip(elem, xyz):
+        outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(atm, x, y, z))
 
 
 def write_col(outfile, elem, xyz, comment=''):
     """Writes geometry to an output file in COLUMBUS format."""
     if comment != '':
         outfile.write(comment + '\n')
-    for atm, pos in zip(elem, xyz * con.conv('ang','bohr')):
+    for atm, (x, y, z) in zip(elem, xyz * con.conv('ang','bohr')):
         outfile.write(' {:<2}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'
-                      '\n'.format(atm, con.get_num(atm), *pos,
+                      '\n'.format(atm, con.get_num(atm), x, y, z,
                                   con.get_mass(atm)))
 
 
