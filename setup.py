@@ -13,8 +13,8 @@ def readme():
 setup(
     name='geomtools',
     version='0.1',
-    description=('Tools for creating, displacing and querying molecular ' +
-                 'geometries'),
+    description=('Tools for importing, creating, editing and querying ' +
+                 'molecular geometries'),
     long_description=readme(),
     keywords='geomtools molecules geometry displacement',
     url='https://github.com/ryjmacdonell/geomtools',
@@ -31,5 +31,5 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Topic :: Scientific/Engineering :: Chemistry'
                  ],
-    install_requires=['numpy', 'scipy']
+    install_requires=['numpy>=1.6.0', 'scipy>=0.9.0']
       )
