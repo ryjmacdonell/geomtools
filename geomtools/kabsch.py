@@ -101,8 +101,7 @@ def opt_permute(elem, test, ref, plist=None, invert=True):
     """Determines optimal permutation of test geometry indices for
     mapping onto reference."""
     ind0, perms = permute(plist)
-    geoms = np.empty((2 * len(perms) if invert else len(perms),
-                      *test.shape))
+    geoms = np.empty((2 * len(perms) if invert else len(perms),) + test.shape)
 
     for i, ind in enumerate(perms):
         j = 2 * i if invert else i
@@ -119,7 +118,7 @@ def opt_permute(elem, test, ref, plist=None, invert=True):
 def opt_ref(elem, test, reflist, plist=None, invert=True):
     """Determines optimal reference geometry for a given test geometry."""
     nrefs = len(reflist)
-    geoms = np.empty((nrefs, *test.shape))
+    geoms = np.empty((nrefs,) + test.shape)
     err = np.empty(nrefs)
     for i in range(nrefs):
         geoms[i], err[i] = opt_permute(elem, test, reflist[i], plist, invert)
