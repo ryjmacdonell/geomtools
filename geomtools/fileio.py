@@ -292,3 +292,32 @@ def convert(infname, outfname, infmt='xyz', outfmt='xyz', hc=False):
                 write_func(outfile, *read_func(infile, hascomment=hc))
             except ValueError:
                 break
+
+
+def convert_trajdump(infname, outfname, outfmt='xyz', times=None):
+    """Reads an FMS TrajDump file and writes to a file in format outfmt.
+
+    Geometry.dat file must also be in the working directory. A time or list
+    of times can be specified. Otherwise, the full trajectory will be read.
+    """
+    write_func = globals()['write_' + outfmt]
+    with open('Geometry.dat', 'r') as gfile:
+        gfile.readline()
+        natm = int(gfile.readline())
+        elem = np.array([line.split()[0] for line in gfile.readlines()[:natm]])
+    with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
+        infile.readline()
+        alldata = np.array([line.split() for line in infile.readlines()])
+        if times is None:
+            numdata = alldata[alldata[:,0] != '#Time'].astype(float)
+        else:
+            times = np.atleast_1d(times)
+            numdata = np.empty((len(times), len(alldata[1]))) #, len(times)))
+            for i, t in enumerate(times):
+                numdata[i] = alldata[alldata[:,0] == '{:.2f}'.format(t)]
+        for line in numdata:
+            ti = line[0]
+            xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv('bohr','ang')
+            pop = line[-2]
+            write_func(outfile, elem, xyz,
+                       comment='t = {:.2f}, pop = {:.4f}'.format(ti, pop))
