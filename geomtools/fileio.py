@@ -2,7 +2,8 @@
 File input/output functions for molecular geometry files.
 
 Can support XYZ, COLUMBUS and Z-matrix formats. Input and output both
-require an open file to support multiple geometries.
+require an open file to support multiple geometries. Only 3D geometries
+are currently supported.
 TODO: Add custom formats.
 """
 import numpy as np
@@ -294,17 +295,14 @@ def convert(infname, outfname, infmt='xyz', outfmt='xyz', hc=False):
                 break
 
 
-def convert_trajdump(infname, outfname, outfmt='xyz', times=None):
+def convert_trajdump(infname, outfname, outfmt='xyz', elem=None, times=None):
     """Reads an FMS TrajDump file and writes to a file in format outfmt.
 
-    Geometry.dat file must also be in the working directory. A time or list
-    of times can be specified. Otherwise, the full trajectory will be read.
+    An element list should be provided, otherwise dummy atoms (X) will be
+    assumed. A time or list of times can be specified. Otherwise, the full
+    trajectory will be read.
     """
     write_func = globals()['write_' + outfmt]
-    with open('Geometry.dat', 'r') as gfile:
-        gfile.readline()
-        natm = int(gfile.readline())
-        elem = np.array([line.split()[0] for line in gfile.readlines()[:natm]])
     with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
         infile.readline()
         alldata = np.array([line.split() for line in infile.readlines()])
@@ -312,10 +310,13 @@ def convert_trajdump(infname, outfname, outfmt='xyz', times=None):
             numdata = alldata[alldata[:,0] != '#Time'].astype(float)
         else:
             times = np.atleast_1d(times)
-            numdata = np.empty((len(times), len(alldata[1]))) #, len(times)))
+            numdata = np.empty((len(times), len(alldata[1])))
             for i, t in enumerate(times):
-                numdata[i] = alldata[alldata[:,0] == '{:.2f}'.format(t)]
+                numdata[i] = alldata[alldata[:,0] == '{:.4f}'.format(t)] # Number of decimals differs!
         for line in numdata:
+            natm = len(line) // 6 - 1
+            if elem is None:
+                elem = ['X'] * natm
             ti = line[0]
             xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv('bohr','ang')
             pop = line[-2]
