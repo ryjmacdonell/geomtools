@@ -40,9 +40,6 @@ def tors(xyz, ind, units='rad'):
     e1 = xyz[ind[0]] - xyz[ind[1]]
     e2 = xyz[ind[2]] - xyz[ind[1]]
     e3 = xyz[ind[2]] - xyz[ind[3]]
-    e1 /= np.linalg.norm(e1)
-    e2 /= np.linalg.norm(e2)
-    e3 /= np.linalg.norm(e3)
 
     # get normals to 3-atom planes
     cp1 = np.cross(e1, e2)
@@ -52,7 +49,6 @@ def tors(xyz, ind, units='rad'):
 
     # get cross product of plane normals for signed dihedral angle
     cp3 = np.cross(cp1, cp2)
-    cp3 /= np.linalg.norm(cp3)
 
     coord = np.sign(np.dot(cp3, e2)) * np.arccos(np.dot(cp1, cp2))
     return coord * con.conv('rad', units)
@@ -70,6 +66,53 @@ def oop(xyz, ind, units='rad'):
 
     coord = np.arcsin(np.dot(np.cross(e2, e3) /
                              np.sqrt(1 - np.dot(e2, e3) ** 2), e1))
+    return coord * con.conv('rad', units)
+
+
+def planeang(xyz, ind, units='rad'):
+    """Returns the angle between two planes with 3 atoms each."""
+    e1 = xyz[ind[0]] - xyz[ind[2]]
+    e2 = xyz[ind[1]] - xyz[ind[2]]
+    e3 = xyz[ind[3]] - xyz[ind[2]]
+    e4 = xyz[ind[4]] - xyz[ind[3]]
+    e5 = xyz[ind[5]] - xyz[ind[3]]
+
+    # get normals to 3-atom planes
+    cp1 = np.cross(e1, e2)
+    cp2 = np.cross(e4, e5)
+    cp1 /= np.linalg.norm(cp1)
+    cp2 /= np.linalg.norm(cp2)
+
+    # get cross product of plane norms for signed dihedral angle
+    cp3 = np.cross(cp1, cp2)
+
+    coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(cp1, cp2))
+    return coord * con.conv('rad', units)
+
+
+def planetors(xyz, ind, units='rad'):
+    """Returns the plane angle with the central bond projected out."""
+    e1 = xyz[ind[0]] - xyz[ind[2]]
+    e2 = xyz[ind[1]] - xyz[ind[2]]
+    e3 = xyz[ind[3]] - xyz[ind[2]]
+    e4 = xyz[ind[4]] - xyz[ind[3]]
+    e5 = xyz[ind[5]] - xyz[ind[3]]
+    e3 /= np.linalg.norm(e3)
+
+    # get normals to 3-atom planes
+    cp1 = np.cross(e1, e2)
+    cp2 = np.cross(e4, e5)
+
+    # project out component along central bond
+    pj1 = cp1 - np.dot(cp1, e3) * e3
+    pj2 = cp2 - np.dot(cp2, e3) * e3
+    pj1 /= np.linalg.norm(pj1)
+    pj2 /= np.linalg.norm(pj2)
+
+    # get cross product of plane norms for signed dihedral angle
+    cp3 = np.cross(pj1, pj2)
+
+    coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(pj1, pj2))
     return coord * con.conv('rad', units)
 
 
