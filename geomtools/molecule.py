@@ -200,6 +200,14 @@ class Molecule(BaseMolecule):
         """Returns out-of-plane angle based on index in molecule."""
         return displace.oop(self.xyz, ind, units=units)
 
+    def get_planeang(self, ind, units='rad'):
+        """Returns plane angle based on index in molecule."""
+        return displace.planeang(self.xyz, ind, units=units)
+
+    def get_planetors(self, ind, units='rad'):
+        """Returns plane dihedral angle based on index in molecule."""
+        return displace.planetors(self.xyz, ind, units=units)
+
     # Displacement
     def centre_mass(self):
         """Places the centre of mass at the origin."""
