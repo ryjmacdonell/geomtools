@@ -38,7 +38,7 @@ def read_xyz(infile, hascomment=False):
         comment = ''
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
-    xyz = data[:, 1:].astype(float)
+    xyz = data[:, 1:4].astype(float)
     return elem, xyz, comment
 
 
@@ -77,7 +77,7 @@ def read_col(infile, hascomment=False):
                 infile.seek(pos)
                 break
     elem = data[:, 0]
-    xyz = data[:, 2:-1].astype(float) * con.conv('bohr','ang')
+    xyz = data[:, 2:5].astype(float) * con.conv('bohr','ang')
     return elem, xyz, comment
 
 
@@ -91,7 +91,7 @@ def read_zmt(infile, hascomment=False):
     D indR3 R3 indA3 A3 indT3 T3
     E indR4 R4 indA4 A4 indT4 T4
     ...
-    Where A, B, C, D, E are atomic labels, indR, indA, indT are reference
+    where A, B, C, D, E are atomic labels, indR, indA, indT are reference
     atom indices, R are bond lengths (in Angstroms), A are bond angles (in
     degrees) and T are dihedral angles (in degrees). For example, E is a
     distance R from atom indR with an E-indR-indA angle of A and an
@@ -174,6 +174,44 @@ def read_zmt(infile, hascomment=False):
                                   ind=i, origin=xyz[indR], units='deg')
 
     xyz = displace.centre_mass(elem, xyz)
+    return elem, xyz, comment
+
+
+def read_trajdump(infile, hascomment=False, elem=None, time=None):
+    """Reads input file in FMS90 TrajDump format
+
+    TrajDump files are in the format:
+    T1 X1 Y1 Z1 X2 Y2 ... Px1 Py1 Pz1 Px2 Py2 ... G Re(A) Im(A) |A| S
+    T2 X1 Y1 Z1 X2 Y2 ... Px1 Py1 Pz1 Px2 Py2 ... G Re(A) Im(A) |A| S
+    ...
+    where T is the time, Pq are the momenta for cartesian coordinates q,
+    G is the phase, A is the amplitude and S is the state label.
+
+    TrajDump files do not contain atomic labels. If not provided, they are
+    set to dummy atoms which may affect calculations involving atomic
+    properties. A time should be provided, other the first geometry
+    in the file is used.
+    """
+    if hascomment:
+        comment = infile.readline().strip()
+    else:
+        comment = ''
+    if time is None:
+        rawline = infile.readline().split()
+        if rawline == []:
+            raise ValueError('empty line provided')
+        elif rawline[0][0] == '#':
+            line = np.array(infile.readline().split(), dtype=float)
+        else:
+            line = np.array(rawline, dtype=float)
+    else:
+        alldata = np.array([line.split() for line in infile.readlines()])
+        alldata = alldata[[dat[0] != '#' for dat in alldata[:,0]]].astype(float)
+        line = alldata[np.abs(alldata[:,0] - t) < 1e-6][0]
+    natm = len(line) // 6 - 1
+    if elem is None:
+        elem = np.array(['X'] * natm)
+    xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv('bohr','ang')
     return elem, xyz, comment
 
 
@@ -301,18 +339,22 @@ def convert_trajdump(infname, outfname, outfmt='xyz', elem=None, times=None):
     An element list should be provided, otherwise dummy atoms (X) will be
     assumed. A time or list of times can be specified. Otherwise, the full
     trajectory will be read.
+
+    Note: This is the same as using infmt='trajdump' with convert, except
+    for the option to add atomic labels and the automatic comment line.
     """
     write_func = globals()['write_' + outfmt]
     with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
         infile.readline()
         alldata = np.array([line.split() for line in infile.readlines()])
+        alldata = alldata[alldata[:,0] != '#Time'].astype(float)
         if times is None:
-            numdata = alldata[alldata[:,0] != '#Time'].astype(float)
+            numdata = np.copy(alldata)
         else:
             times = np.atleast_1d(times)
             numdata = np.empty((len(times), len(alldata[1])))
             for i, t in enumerate(times):
-                numdata[i] = alldata[alldata[:,0] == '{:.4f}'.format(t)] # Number of decimals differs!
+                numdata[i] = alldata[np.abs(alldata[:,0] - t) < 1e-6]
         for line in numdata:
             natm = len(line) // 6 - 1
             if elem is None:
