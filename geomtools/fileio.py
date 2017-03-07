@@ -81,6 +81,41 @@ def read_col(infile, hascomment=False):
     return elem, xyz, comment
 
 
+def read_gdat(infile, hascomment=False):
+    """Reads input file in FMS90 Geometry.dat format.
+
+    Geometry.dat files are in the format:
+    comment
+    natm
+    A X1 Y1 Z1
+    B X2 Y2 Z2
+    ...
+    Px1 Py1 Pz1
+    Px2 Py2 Pz2
+    ...
+    where comment is a comment line, natm is the number of atoms, A and B
+    are atomic labels, X, Y and Z are cartesian coordinates and Pq are
+    momenta for cartesian coordinates q.
+
+    For the time being, the momentum information is ignored in
+    the Geometry.dat format.
+    """
+    if hascomment:
+        comment = infile.readline().strip()
+    else:
+        infile.readline()
+        comment = ''
+    try:
+        natm = int(infile.readline())
+    except ValueError:
+        raise ValueError('geometry not in Geometry.dat format')
+    data = np.array([infile.readline().split() for i in range(natm)])
+    elem = data[:, 0]
+    xyz = data[:, 1:].astype(float) * con.conv('bohr','ang')
+    mom = np.array([infile.readline().split() for i in range(natm)], dtype=float)
+    return elem, xyz, comment
+
+
 def read_zmt(infile, hascomment=False):
     """Reads input file in Z-matrix format.
 
@@ -189,7 +224,7 @@ def read_trajdump(infile, hascomment=False, elem=None, time=None):
 
     TrajDump files do not contain atomic labels. If not provided, they are
     set to dummy atoms which may affect calculations involving atomic
-    properties. A time should be provided, other the first geometry
+    properties. A time should be provided, otherwise the first geometry
     in the file is used.
     """
     if hascomment:
@@ -239,9 +274,22 @@ def write_col(outfile, elem, xyz, comment=''):
     if comment != '':
         outfile.write(comment + '\n')
     for atm, (x, y, z) in zip(elem, xyz * con.conv('ang','bohr')):
-        outfile.write(' {:<2}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'
+        outfile.write(' {:<2s}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'
                       '\n'.format(atm, con.get_num(atm), x, y, z,
                                   con.get_mass(atm)))
+
+
+def write_gdat(outfile, elem, xyz, comment=''):
+    """Writes geometry to an output file in Geometry.dat format.
+
+    Momenta are not currently supported
+    """
+    natm = len(elem)
+    outfile.write('{}\n{}\n'.format(comment, natm))
+    for atm, (x, y, z) in zip(elem, xyz * con.conv('ang','bohr')):
+        outfile.write('{:<2s}{:18.8E}{:18.8E}{:18.8E}\n'.format(atm, x, y, z))
+    for line in range(natm):
+        outfile.write(' {:18.8E}{:18.8E}{:18.8E}\n'.format(0, 0, 0))
 
 
 def write_zmt(outfile, elem, xyz, comment=''):
@@ -347,7 +395,7 @@ def convert_trajdump(infname, outfname, outfmt='xyz', elem=None, times=None):
     with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
         infile.readline()
         alldata = np.array([line.split() for line in infile.readlines()])
-        alldata = alldata[alldata[:,0] != '#Time'].astype(float)
+        alldata = alldata[[dat[0] != '#' for dat in alldata[:,0]]].astype(float)
         if times is None:
             numdata = np.copy(alldata)
         else:
