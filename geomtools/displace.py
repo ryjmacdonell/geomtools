@@ -56,7 +56,12 @@ def tors(xyz, ind, units='rad'):
 
 def oop(xyz, ind, units='rad'):
     """Returns out-of-plane angle of atom 1 connected to atom 4 in the
-    2-3-4 plane."""
+    2-3-4 plane.
+
+    Contains an additional sign convention such that rotation of
+    out-of-plane atom over (under) the central plane atom gives and angle
+    greater than pi/2 (less than -pi/2).
+    """
     e1 = xyz[ind[0]] - xyz[ind[3]]
     e2 = xyz[ind[1]] - xyz[ind[3]]
     e3 = xyz[ind[2]] - xyz[ind[3]]
@@ -64,8 +69,11 @@ def oop(xyz, ind, units='rad'):
     e2 /= np.linalg.norm(e2)
     e3 /= np.linalg.norm(e3)
 
-    coord = np.arcsin(np.dot(np.cross(e2, e3) /
-                             np.sqrt(1 - np.dot(e2, e3) ** 2), e1))
+    sintau = np.dot(np.cross(e2, e3) / np.sqrt(1 - np.dot(e2, e3) ** 2), e1)
+    coord = np.sign(np.dot(e2+e3, e1)) * np.arccos(sintau) + np.pi/2
+    # sign convention for |oop| < pi
+    if coord > np.pi:
+        coord -= 2 * np.pi
     return coord * con.conv('rad', units)
 
 
