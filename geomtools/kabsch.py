@@ -29,7 +29,7 @@ import geomtools.displace as disp
 
 def _tuple2list(tupl):
     """Iteratively converts nested tuple to nested list."""
-    return list((tuple2list(x) if isinstance(x, tuple) else x for x in tupl))
+    return list((_tuple2list(x) if isinstance(x, tuple) else x for x in tupl))
 
 
 def permute(plist):

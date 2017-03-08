@@ -2,7 +2,8 @@
 File input/output functions for molecular geometry files.
 
 Can support XYZ, COLUMBUS and Z-matrix formats. Input and output both
-require an open file to support multiple geometries.
+require an open file to support multiple geometries. Only 3D geometries
+are currently supported.
 TODO: Add custom formats.
 """
 import numpy as np
@@ -37,7 +38,7 @@ def read_xyz(infile, hascomment=False):
         comment = ''
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
-    xyz = data[:, 1:].astype(float)
+    xyz = data[:, 1:4].astype(float)
     return elem, xyz, comment
 
 
@@ -76,7 +77,42 @@ def read_col(infile, hascomment=False):
                 infile.seek(pos)
                 break
     elem = data[:, 0]
-    xyz = data[:, 2:-1].astype(float) * con.conv('bohr','ang')
+    xyz = data[:, 2:5].astype(float) * con.conv('bohr','ang')
+    return elem, xyz, comment
+
+
+def read_gdat(infile, hascomment=False):
+    """Reads input file in FMS90 Geometry.dat format.
+
+    Geometry.dat files are in the format:
+    comment
+    natm
+    A X1 Y1 Z1
+    B X2 Y2 Z2
+    ...
+    Px1 Py1 Pz1
+    Px2 Py2 Pz2
+    ...
+    where comment is a comment line, natm is the number of atoms, A and B
+    are atomic labels, X, Y and Z are cartesian coordinates and Pq are
+    momenta for cartesian coordinates q.
+
+    For the time being, the momentum information is ignored in
+    the Geometry.dat format.
+    """
+    if hascomment:
+        comment = infile.readline().strip()
+    else:
+        infile.readline()
+        comment = ''
+    try:
+        natm = int(infile.readline())
+    except ValueError:
+        raise ValueError('geometry not in Geometry.dat format')
+    data = np.array([infile.readline().split() for i in range(natm)])
+    elem = data[:, 0]
+    xyz = data[:, 1:].astype(float) * con.conv('bohr','ang')
+    mom = np.array([infile.readline().split() for i in range(natm)], dtype=float)
     return elem, xyz, comment
 
 
@@ -90,7 +126,7 @@ def read_zmt(infile, hascomment=False):
     D indR3 R3 indA3 A3 indT3 T3
     E indR4 R4 indA4 A4 indT4 T4
     ...
-    Where A, B, C, D, E are atomic labels, indR, indA, indT are reference
+    where A, B, C, D, E are atomic labels, indR, indA, indT are reference
     atom indices, R are bond lengths (in Angstroms), A are bond angles (in
     degrees) and T are dihedral angles (in degrees). For example, E is a
     distance R from atom indR with an E-indR-indA angle of A and an
@@ -176,6 +212,44 @@ def read_zmt(infile, hascomment=False):
     return elem, xyz, comment
 
 
+def read_trajdump(infile, hascomment=False, elem=None, time=None):
+    """Reads input file in FMS90 TrajDump format
+
+    TrajDump files are in the format:
+    T1 X1 Y1 Z1 X2 Y2 ... Px1 Py1 Pz1 Px2 Py2 ... G Re(A) Im(A) |A| S
+    T2 X1 Y1 Z1 X2 Y2 ... Px1 Py1 Pz1 Px2 Py2 ... G Re(A) Im(A) |A| S
+    ...
+    where T is the time, Pq are the momenta for cartesian coordinates q,
+    G is the phase, A is the amplitude and S is the state label.
+
+    TrajDump files do not contain atomic labels. If not provided, they are
+    set to dummy atoms which may affect calculations involving atomic
+    properties. A time should be provided, otherwise the first geometry
+    in the file is used.
+    """
+    if hascomment:
+        comment = infile.readline().strip()
+    else:
+        comment = ''
+    if time is None:
+        rawline = infile.readline().split()
+        if rawline == []:
+            raise ValueError('empty line provided')
+        elif rawline[0][0] == '#':
+            line = np.array(infile.readline().split(), dtype=float)
+        else:
+            line = np.array(rawline, dtype=float)
+    else:
+        alldata = np.array([line.split() for line in infile.readlines()])
+        alldata = alldata[[dat[0] != '#' for dat in alldata[:,0]]].astype(float)
+        line = alldata[np.abs(alldata[:,0] - t) < 1e-6][0]
+    natm = len(line) // 6 - 1
+    if elem is None:
+        elem = np.array(['X'] * natm)
+    xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv('bohr','ang')
+    return elem, xyz, comment
+
+
 def _valvar(unk, vardict):
     """Determines if an unknown string is a value or a dict variable."""
     try:
@@ -200,9 +274,22 @@ def write_col(outfile, elem, xyz, comment=''):
     if comment != '':
         outfile.write(comment + '\n')
     for atm, (x, y, z) in zip(elem, xyz * con.conv('ang','bohr')):
-        outfile.write(' {:<2}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'
+        outfile.write(' {:<2s}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'
                       '\n'.format(atm, con.get_num(atm), x, y, z,
                                   con.get_mass(atm)))
+
+
+def write_gdat(outfile, elem, xyz, comment=''):
+    """Writes geometry to an output file in Geometry.dat format.
+
+    Momenta are not currently supported
+    """
+    natm = len(elem)
+    outfile.write('{}\n{}\n'.format(comment, natm))
+    for atm, (x, y, z) in zip(elem, xyz * con.conv('ang','bohr')):
+        outfile.write('{:<2s}{:18.8E}{:18.8E}{:18.8E}\n'.format(atm, x, y, z))
+    for line in range(natm):
+        outfile.write(' {:18.8E}{:18.8E}{:18.8E}\n'.format(0, 0, 0))
 
 
 def write_zmt(outfile, elem, xyz, comment=''):
@@ -292,3 +379,36 @@ def convert(infname, outfname, infmt='xyz', outfmt='xyz', hc=False):
                 write_func(outfile, *read_func(infile, hascomment=hc))
             except ValueError:
                 break
+
+
+def convert_trajdump(infname, outfname, outfmt='xyz', elem=None, times=None):
+    """Reads an FMS TrajDump file and writes to a file in format outfmt.
+
+    An element list should be provided, otherwise dummy atoms (X) will be
+    assumed. A time or list of times can be specified. Otherwise, the full
+    trajectory will be read.
+
+    Note: This is the same as using infmt='trajdump' with convert, except
+    for the option to add atomic labels and the automatic comment line.
+    """
+    write_func = globals()['write_' + outfmt]
+    with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
+        infile.readline()
+        alldata = np.array([line.split() for line in infile.readlines()])
+        alldata = alldata[[dat[0] != '#' for dat in alldata[:,0]]].astype(float)
+        if times is None:
+            numdata = np.copy(alldata)
+        else:
+            times = np.atleast_1d(times)
+            numdata = np.empty((len(times), len(alldata[1])))
+            for i, t in enumerate(times):
+                numdata[i] = alldata[np.abs(alldata[:,0] - t) < 1e-6]
+        for line in numdata:
+            natm = len(line) // 6 - 1
+            if elem is None:
+                elem = ['X'] * natm
+            ti = line[0]
+            xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv('bohr','ang')
+            pop = line[-2]
+            write_func(outfile, elem, xyz,
+                       comment='t = {:.2f}, pop = {:.4f}'.format(ti, pop))

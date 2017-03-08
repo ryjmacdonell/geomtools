@@ -54,11 +54,7 @@ def power(mat, k):
     represent the number of k-length paths from element i to element j,
     including repetitions.
     """
-    new_mat = np.copy(mat)
-    for i in range(k-1):
-        new_mat = new_mat.dot(mat)
-
-    return new_mat
+    return np.linalg.matrix_power(mat, k)
 
 
 def path_len(adjmat, k):
