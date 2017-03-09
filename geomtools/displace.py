@@ -161,7 +161,7 @@ def _parse_plane(inp):
                          'normal vector or set of 3 atoms.')
 
 
-def translate(xyz, amp, axis, ind=None, units='ang'):
+def translate(xyz, amp, axis, ind=None, origin=np.zeros(3), units='ang'):
     """Translates a set of atoms along a given vector.
 
     If no indices are specified, all atoms are displaced.
@@ -252,45 +252,62 @@ def centre_mass(elem, xyz, inds=None):
     return xyz - get_centremass(elem[inds], xyz[inds])
 
 
-def combo(funcs, wgts=None):
-    """Creates a combination function of translations and rotations.
+def int_coord(xyz, funcs, axes, relamps=1, inds=None, origins=np.zeros(3)):
+    """Defines a function that will return a displaced geometry based on
+    a set of translations and rotations.
 
-    TODO: Find a better way to right this.
+    At the moment, axes are in the space-fixed frame. Displacement about an
+    atom that has been displaced could cause problems. The order in which
+    funtions are specified is the order of operations.
+
+    The relamps keyword should be changed to not depend on the units.
     """
-    if wgts is None:
-        wgts = np.ones(len(funcs))
+    funcs = np.atleast_1d(funcs)
+    nfuncs = len(funcs)
+    funcnames = np.array([f.__name__ for f in funcs])
+    if not np.all(np.logical_or(funcnames == 'translate',
+                                funcnames == 'rotate')):
+        raise ValueError('internal coordinates must be defined using '
+                         '\'translate\' and \'rotate\' functions')
+    functypes = np.zeros(nfuncs, dtype=int)
+    functypes[funcnames == 'rotate'] = 1
+    axes = np.atleast_2d(axes)
 
-    def _function(xyz, ind, amp, u, orig=np.zeros(3)):
+    if isinstance(relamps, (float,int)):
+        relamps = np.ones(nfuncs)
+
+    if inds is None:
+        inds = np.tile(range(len(xyz)), (nfuncs, 1))
+    elif isinstance(inds[0], int):
+        inds = np.tile(inds, (nfuncs, 1))
+
+    if isinstance(origins[0], (float,int)):
+        origins = np.tile(origins, (nfuncs, 1))
+
+    def _function(amp, units=['ang', 'rad']):
         newxyz = np.copy(xyz)
-        to_list = [u, orig]
-        [u, orig] = [s if isinstance(s, list) else [s] * len(funcs)
-                     for s in to_list]
-        ind = ind if isinstance(ind[0], list) else [ind] * len(funcs)
-
         for i, f in enumerate(funcs):
-            newxyz = f(newxyz, ind[i], amp * wgts[i], u[i], orig[i])
+            newxyz = f(newxyz, amp*relamps[i], axes[i], inds[i],
+                       origins[i], units[functypes[i]])
         return newxyz
+
     return _function
 
 
-def comment(s, func, inds):
-    """Writes a comment line based on a measurement.
+def int_path(coord, amin, amax, n=30, units=['ang', 'rad']):
+    """Returns a list of xyz displaced along an internal coordinate."""
+    alist = np.linspace(amin, amax, n)
+    xyzlist = []
+    for amp in alist:
+        xyzlist.append(coord(amp, units=units))
 
-    TODO: Rewrite this.
+    return np.array(xyzlist)
+
+
+def int_grid(coords, amins, amaxs, n=30, units=['ang', 'rad']):
+    """Returns a grid of xyz of arbitrary dimension displaced along
+    internal coordinates.
+
+    This requires some form of molecular frame axis specification.
     """
-    def _function(xyz):
-        return s.format(func(xyz, inds))
-    return _function
-
-
-def c_loop(outfile, wfunc, disp, n, el, xyz, u, origin, ind, amplim,
-           comm, namp):
-    """Displaces by amplitudes in list and outputs geometries.
-
-    TODO: Rewrite this.
-    """
-    amplist = np.linspace(amplim[0], amplim[1], namp)
-
-    for amp in amplist:
-        newxyz = disp(xyz, ind, amp, u, origin)
-        wfunc(outfile, n, el, newxyz, comm(newxyz))
+    pass
