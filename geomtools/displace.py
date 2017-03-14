@@ -12,7 +12,7 @@ Example axes for displacements:
 1. X1X4 stretch: r14
 2. X1X4 torsion: r14 (for motion of 2, 3)
 3. X1X4X2 bend: r14 x r24
-4. X1 out-of-plane: (r24 x r34) x r14
+4. X1 out-of-plane: r24 - r34 or (r24 x r34) x r14
 """
 import numpy as np
 import geomtools.constants as con
@@ -117,10 +117,41 @@ def planetors(xyz, ind, units='rad'):
     pj1 /= np.linalg.norm(pj1)
     pj2 /= np.linalg.norm(pj2)
 
-    # get cross product of plane norms for signed dihedral angle
+    # get cross product of vectors for signed dihedral angle
     cp3 = np.cross(pj1, pj2)
 
     coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(pj1, pj2))
+    return coord * con.conv('rad', units)
+
+
+def edgetors(xyz, ind, units='rad'):
+    """Returns the torsional angle based on the vector difference of the
+    two external atoms to the central bond"""
+    e1 = xyz[ind[0]] - xyz[ind[2]]
+    e2 = xyz[ind[1]] - xyz[ind[2]]
+    e3 = xyz[ind[3]] - xyz[ind[2]]
+    e4 = xyz[ind[4]] - xyz[ind[3]]
+    e5 = xyz[ind[5]] - xyz[ind[3]]
+    e1 /= np.linalg.norm(e1)
+    e2 /= np.linalg.norm(e2)
+    e3 /= np.linalg.norm(e3)
+    e4 /= np.linalg.norm(e4)
+    e5 /= np.linalg.norm(e5)
+
+    # take the difference between unit vectors of external bonds
+    e2 -= e1
+    e5 -= e4
+
+    # get cross products of difference vectors and the central bond
+    cp1 = np.cross(e2, e3)
+    cp2 = np.cross(e3, e5)
+    cp1 /= np.linalg.norm(cp1)
+    cp2 /= np.linalg.norm(cp2)
+
+    # get cross product of vectors for signed dihedral angle
+    cp3 = np.cross(cp1, cp2)
+
+    coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(cp1, cp2))
     return coord * con.conv('rad', units)
 
 

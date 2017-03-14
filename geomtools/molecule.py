@@ -208,6 +208,10 @@ class Molecule(BaseMolecule):
         """Returns plane dihedral angle based on index in molecule."""
         return displace.planetors(self.xyz, ind, units=units)
 
+    def get_edgetors(self, ind, units='rad'):
+        """Returns edge dihedral angle based on index in molecule."""
+        return displace.edgetors(self.xyz, ind, units=units)
+
     # Displacement
     def centre_mass(self):
         """Places the centre of mass at the origin."""
@@ -301,8 +305,14 @@ class MoleculeBundle(object):
 
     def write(self, outfile, fmt='xyz'):
         """Writes geometries to an output file in provided format."""
-        for mol in self.molecules:
-            mol.write(outfile, fmt=fmt)
+        write_func = getattr(fileio, 'write_' + fmt)
+        if isinstance(outfile, str):
+            with open(outfile, 'w') as f:
+                for mol in self.molecules:
+                    write_func(f, mol.elem[1:], mol.xyz[1:], mol.comment)
+        else:
+            for mol in self.molecules:
+                write_func(outfile, mol.elem[1:], mol.xyz[1:], mol.comment)
 
     # Accessors
     def get_nmol(self):
