@@ -142,7 +142,7 @@ class Molecule(BaseMolecule):
                         comment)
 
     # Input/Output
-    def read(self, infile, fmt='xyz', hc=False):
+    def read(self, infile, fmt='auto', hc=False):
         """Reads single geometry from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
         if isinstance(infile, str):
@@ -153,7 +153,7 @@ class Molecule(BaseMolecule):
         self.natm = len(self.elem)
         self.save()
 
-    def write(self, outfile, fmt='xyz'):
+    def write(self, outfile, fmt='auto'):
         """Writes geometry to an output file in provided format."""
         write_func = getattr(fileio, 'write_' + fmt)
         if isinstance(outfile, str):
@@ -286,7 +286,7 @@ class MoleculeBundle(object):
         self.molecules = np.delete(self.molecules, ind)
 
     # Input/Output
-    def read(self, infile, fmt='xyz', hc=False):
+    def read(self, infile, fmt='auto', hc=False):
         """Reads all geometries from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
         while True:
@@ -299,7 +299,7 @@ class MoleculeBundle(object):
 
         self.save()
 
-    def write(self, outfile, fmt='xyz'):
+    def write(self, outfile, fmt='auto'):
         """Writes geometries to an output file in provided format."""
         for mol in self.molecules:
             mol.write(outfile, fmt=fmt)
@@ -322,14 +322,14 @@ def _rearrange_check(new_ind, old_ind):
         raise IndexError('Old and new indices must be the same length')
 
 
-def import_molecule(fname, fmt='xyz', hc=False):
+def import_molecule(fname, fmt='auto', hc=False):
     """Imports geometry in provided format to Molecule object."""
     read_func = getattr(fileio, 'read_' + fmt)
     with open(fname, 'r') as infile:
         return Molecule(*read_func(infile, hascomment=hc))
 
 
-def import_bundle(fname, fmt='xyz', hc=False):
+def import_bundle(fname, fmt='auto', hc=False):
     """Imports geometries in provided format to MoleculeBundle object."""
     read_func = getattr(fileio, 'read_' + fmt)
     molecules = []
