@@ -252,8 +252,9 @@ def read_trajdump(infile, hascomment=False, elem=None, time=None):
 
 def read_auto(infile, hascomment=False):
     """Reads a molecular geometry file and determines the format."""
+    pos = infile.tell()
     contents = infile.readlines()
-    infile.seek(0)
+    infile.seek(pos)
     nlines = min(len(contents), 4)
     fmt = []
     for i in range(nlines):

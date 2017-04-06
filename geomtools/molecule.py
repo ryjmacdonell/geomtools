@@ -131,7 +131,8 @@ class Molecule(BaseMolecule):
         """Checks that xyz is 3D and len(elem) = len(xyz) and that dummy
         atom is at centre of mass."""
         BaseMolecule._check(self)
-        self._add_centre()
+        if self.natm > 0:
+            self._add_centre()
 
     def copy(self, comment=None):
         """Creates a copy of the Molecule object."""
