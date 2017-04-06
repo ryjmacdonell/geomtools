@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+"""
+Command line script for converting geometries between formats.
+
+Conversion between formats is done by:
+convgeom input output [options]
+-i, --infmt
+    The input format (xyz, col, gdat, ...)
+-o, --outfmt
+    The output format (xyz, col, gdat, ...)
+-h, --hascomment
+    Boolean argment for whether a comment is read
+"""
+from sys import argv
+from geomtools.fileio import convert
+
+def get_optarg(arglist, opt1, opt2, default):
+    """Gets an optional command line argument and returns its value."""
+    if opt1 in arglist:
+        ind = arglist.index(opt1)
+        return arglist[ind+1]
+    elif opt2 in arglist:
+        ind = arglist.index(opt2)
+        return arglist[ind+1]
+    else:
+        return default
+
+frstchar = [l[0] for l in argv]
+nopt = 2 * frstchar.count('-')
+if len(argv) - nopt != 3:
+    raise IndexError('incorrect number of arguments')
+elif nopt == 0:
+    convert(argv[1], argv[2])
+else:
+    inf = get_optarg(argv, '-i', '--infmt', 'auto')
+    ouf = get_optarg(argv, '-o', '--outfmt', 'auto')
+    com = get_optarg(argv, '-h', '--hascomment', 'false')
+    hc = com.lower() not in ['false', 'f', '0']
+
+    convert(argv[1], argv[2], infmt=inf, outfmt=ouf, hc=hc)

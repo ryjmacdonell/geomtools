@@ -250,6 +250,76 @@ def read_trajdump(infile, hascomment=False, elem=None, time=None):
     return elem, xyz, comment
 
 
+def read_auto(infile, hascomment=False):
+    """Reads a molecular geometry file and determines the format."""
+    pos = infile.tell()
+    contents = infile.readlines()
+    infile.seek(pos)
+    nlines = min(len(contents), 4)
+    fmt = []
+    for i in range(nlines):
+        line = contents[i].split()
+        fmt.append(''.join([_get_type(l) for l in line]))
+
+    if nlines == 0:
+        raise ValueError('end of file')
+    elif nlines == 1:
+        if hascomment:
+            raise IOError('cannot have comment with single line file')
+        else:
+            if fmt[0] == 's':
+                return read_zmt(infile, hascomment=False)
+            elif fmt[0].replace('i', 'f') == 'sfffff':
+                return read_col(infile, hascomment=False)
+            elif 'ffffffffffff' in fmt[0].replace('i', 'f'):
+                return read_trajdump(infile, hascomment=False)
+            else:
+                raise IOError('single line input in unrecognized format')
+    elif nlines == 2 and hascomment:
+        if fmt[1] == 's':
+            return read_zmt(infile, hascomment=True)
+        elif fmt[1].replace('i', 'f') == 'sfffff':
+            return read_col(infile, hascomment=True)
+        elif 'ffffffffffff' in fmt[1].replace('i', 'f'):
+            return read_trajdump(infile, hascomment=True)
+        else:
+            raise IOError('single line input in unrecognized format')
+    else:
+        if hascomment:
+            if fmt[1] == 's' and fmt[2] in ['sis', 'sif', 'sii']:
+                return read_zmt(infile, hascomment=True)
+            elif [f.replace('i', 'f') for f in fmt[1:3]] == ['sfffff', 'sfffff']:
+                return read_col(infile, hascomment=True)
+        else:
+            if fmt[0] == 's' and fmt[1] in ['sis', 'sif', 'sii']:
+                return read_zmt(infile, hascomment=False)
+            elif [f.replace('i', 'f') for f in fmt[:2]] == ['sfffff', 'sfffff']:
+                return read_col(infile, hascomment=False)
+
+        if ('ffffffffffff' in fmt[0].replace('i', 'f') or
+            'ffffffffffff' in fmt[1].replace('i', 'f')):
+            return read_trajdump(infile, hascomment=hascomment)
+        elif nlines > 2:
+            if fmt[0] == 'i':
+                return read_xyz(infile, hascomment=hascomment)
+            elif fmt[1] == 'i':
+                return read_gdat(infile, hascomment=hascomment)
+        else:
+            raise IOError('unrecognized file format')
+
+
+def _get_type(s):
+    """Reads a string to see if it can be converted into int or float."""
+    try:
+        float(s)
+        if '.' not in s:
+            return 'i'
+        else:
+            return 'f'
+    except ValueError:
+        return 's'
+
+
 def _valvar(unk, vardict):
     """Determines if an unknown string is a value or a dict variable."""
     try:
@@ -364,7 +434,27 @@ def write_zmtvar(outfile, elem, xyz, comment=''):
         outfile.write('{:4s} = {:14.8f}\n'.format(key, val))
 
 
-def convert(infname, outfname, infmt='xyz', outfmt='xyz', hc=False):
+def write_auto(outfile, elem, xyz, comment=''):
+    """Writes geometry to an output file based on the filename extension.
+
+    Extensions are not case sensitive. If the extension is not recognized,
+    the default format is XYZ.
+    """
+    fname = outfile.name.lower()
+    ext = fname.split('.')[-1]
+    if ext in ['col', 'columbus']:
+        write_col(outfile, elem, xyz, comment=comment)
+    elif ext == 'dat':
+        write_gdat(outfile, elem, xyz, comment=comment)
+    elif ext in ['zmt', 'zmat', 'zmatrix']:
+        write_zmt(outfile, elem, xyz, comment=comment)
+    elif ext in ['zmtvar', 'zmatvar']:
+        write_zmtvar(outfile, elem, xyz, comment=comment)
+    else:
+        write_xyz(outfile, elem, xyz, comment=comment)
+
+
+def convert(infname, outfname, infmt='auto', outfmt='auto', hc=False):
     """Reads a file in format infmt and writes to a file in format
     outfmt.
 
@@ -381,7 +471,7 @@ def convert(infname, outfname, infmt='xyz', outfmt='xyz', hc=False):
                 break
 
 
-def convert_trajdump(infname, outfname, outfmt='xyz', elem=None, times=None):
+def convert_trajdump(infname, outfname, outfmt='auto', elem=None, times=None):
     """Reads an FMS TrajDump file and writes to a file in format outfmt.
 
     An element list should be provided, otherwise dummy atoms (X) will be

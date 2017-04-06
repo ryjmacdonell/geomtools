@@ -41,7 +41,10 @@ onto reference geometries (kabsch).
 Formats
 -------
 Currently supports geometry files in XYZ, COLUMBUS and Z-matrix formats
-for import or export. Formatting details are given in fileio.py.
+as well as custom formats (Geometry.dat and FMS TrajDump) for import or
+export. The format is automatically detected during import if no format
+is given. Output formats are assigned by the filename extension. Formatting
+details are given in fileio.py.
 
 Installation
 ------------
@@ -50,6 +53,9 @@ to install via::
 
     $ git clone https://github.com/ryjmacdonell/geomtools.git
     $ python setup.py install
+
+This will also add a script 'convgeom' to the path which can be used to
+quickly convert files between formats.
 
 Requirements
 ------------
