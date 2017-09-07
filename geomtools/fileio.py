@@ -11,18 +11,19 @@ import geomtools.constants as con
 import geomtools.displace as displace
 
 
-def read_xyz(infile, hascomment=False):
+def read_xyz(infile, hasmomentum=False, hascomment=False):
     """Reads input file in XYZ format.
 
     XYZ files are in the format:
     natm
     comment
-    A X1 Y1 Z1
-    B X2 Y2 Z2
+    A X1 Y1 Z1 [Px1 Py1 Pz1]
+    B X2 Y2 Z2 [Px2 Py2 Pz2]
     ...
     where natm is the number of atoms, comment is a comment line, A and B
     are atomic labels and X, Y and Z are cartesian coordinates (in
-    Angstroms).
+    Angstroms). The momenta Px, Py and Pz are optional and will only be
+    read if hasmomentum = True.
 
     Due to the preceding number of atoms, multiple XYZ format geometries
     can easily be read from a single file.
@@ -39,10 +40,14 @@ def read_xyz(infile, hascomment=False):
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
     xyz = data[:, 1:4].astype(float)
-    return elem, xyz, comment
+    if hasmomentum:
+        mom = data[:, 4:7].astype(float)
+    else:
+        mom = np.zeros_like(xyz)
+    return elem, xyz, mom, comment
 
 
-def read_col(infile, hascomment=False):
+def read_col(infile, hasmomentum=False, hascomment=False):
     """Reads input file in COLUMBUS format.
 
     COLUMBUS geometry files are in the format:
@@ -56,6 +61,9 @@ def read_col(infile, hascomment=False):
     COLUMBUS geometry files do not provide the number of atoms in each
     geometry. A comment line (or blank line) must be used to separate
     molecules.
+
+    For the time being, momentum input is not supported for the
+    COLUMBUS file format.
     """
     if hascomment:
         comment = infile.readline().strip()
@@ -78,10 +86,11 @@ def read_col(infile, hascomment=False):
                 break
     elem = data[:, 0]
     xyz = data[:, 2:5].astype(float) * con.conv('bohr','ang')
-    return elem, xyz, comment
+    mom = np.zeros_like(xyz)
+    return elem, xyz, mom, comment
 
 
-def read_gdat(infile, hascomment=False):
+def read_gdat(infile, hasmomentum=False, hascomment=False):
     """Reads input file in FMS90 Geometry.dat format.
 
     Geometry.dat files are in the format:
@@ -95,10 +104,8 @@ def read_gdat(infile, hascomment=False):
     ...
     where comment is a comment line, natm is the number of atoms, A and B
     are atomic labels, X, Y and Z are cartesian coordinates and Pq are
-    momenta for cartesian coordinates q.
-
-    For the time being, the momentum information is ignored in
-    the Geometry.dat format.
+    momenta for cartesian coordinates q. The momenta are only read if
+    hasmomentum = True.
     """
     if hascomment:
         comment = infile.readline().strip()
@@ -112,11 +119,15 @@ def read_gdat(infile, hascomment=False):
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
     xyz = data[:, 1:].astype(float) * con.conv('bohr','ang')
-    mom = np.array([infile.readline().split() for i in range(natm)], dtype=float)
-    return elem, xyz, comment
+    if hasmomentum:
+        mom = np.array([infile.readline().split() for i in range(natm)],
+                       dtype=float)
+    else:
+        mom = np.zeros_like(xyz)
+    return elem, xyz, mom, comment
 
 
-def read_zmt(infile, hascomment=False):
+def read_zmt(infile, hasmomentum=False, hascomment=False):
     """Reads input file in Z-matrix format.
 
     Z-matrix files are in the format:
@@ -137,6 +148,9 @@ def read_zmt(infile, hascomment=False):
     Although the number of atoms is not provided, the unique format of the
     first atom allows multiple geometries to be read without separation
     by a comment line.
+
+    For the time being, momentum input is not supported for the
+    Z-matrix file format.
     """
     if hascomment:
         comment = infile.readline().strip()
@@ -209,18 +223,21 @@ def read_zmt(infile, hascomment=False):
                                   ind=i, origin=xyz[indR], units='deg')
 
     xyz = displace.centre_mass(elem, xyz)
-    return elem, xyz, comment
+    mom = np.zeros_like(xyz)
+    return elem, xyz, mom, comment
 
 
-def read_trajdump(infile, hascomment=False, elem=None, time=None):
-    """Reads input file in FMS90 TrajDump format
+def read_trajdump(infile, hasmomentum=False, hascomment=False, elem=None,
+                  time=None):
+    """Reads input file in FMS90/FMSpy TrajDump format
 
     TrajDump files are in the format:
     T1 X1 Y1 Z1 X2 Y2 ... Px1 Py1 Pz1 Px2 Py2 ... G Re(A) Im(A) |A| S
     T2 X1 Y1 Z1 X2 Y2 ... Px1 Py1 Pz1 Px2 Py2 ... G Re(A) Im(A) |A| S
     ...
     where T is the time, Pq are the momenta for cartesian coordinates q,
-    G is the phase, A is the amplitude and S is the state label.
+    G is the phase, A is the amplitude and S is the state label. The momenta
+    are only read if hasmomentum = True.
 
     TrajDump files do not contain atomic labels. If not provided, they are
     set to dummy atoms which may affect calculations involving atomic
@@ -247,10 +264,14 @@ def read_trajdump(infile, hascomment=False, elem=None, time=None):
     if elem is None:
         elem = np.array(['X'] * natm)
     xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv('bohr','ang')
-    return elem, xyz, comment
+    if hasmomentum:
+        mom = line[3*natm+1:6*natm+1].reshape(natm, 3)
+    else:
+        mom = np.zeros_like(xyz)
+    return elem, xyz, mom, comment
 
 
-def read_auto(infile, hascomment=False):
+def read_auto(infile, hasmomentum=False, hascomment=False):
     """Reads a molecular geometry file and determines the format."""
     pos = infile.tell()
     contents = infile.readlines()
@@ -268,11 +289,11 @@ def read_auto(infile, hascomment=False):
             raise IOError('cannot have comment with single line file')
         else:
             if fmt[0] == 's':
-                return read_zmt(infile, hascomment=False)
+                return read_zmt(infile)
             elif fmt[0].replace('i', 'f') == 'sfffff':
-                return read_col(infile, hascomment=False)
+                return read_col(infile)
             elif 'ffffffffffff' in fmt[0].replace('i', 'f'):
-                return read_trajdump(infile, hascomment=False)
+                return read_trajdump(infile, hasmomentum=hasmomentum)
             else:
                 raise IOError('single line input in unrecognized format')
     elif nlines == 2 and hascomment:
@@ -281,7 +302,8 @@ def read_auto(infile, hascomment=False):
         elif fmt[1].replace('i', 'f') == 'sfffff':
             return read_col(infile, hascomment=True)
         elif 'ffffffffffff' in fmt[1].replace('i', 'f'):
-            return read_trajdump(infile, hascomment=True)
+            return read_trajdump(infile, hasmomentum=hasmomentum,
+                                 hascomment=True)
         else:
             raise IOError('single line input in unrecognized format')
     else:
@@ -289,21 +311,25 @@ def read_auto(infile, hascomment=False):
             if fmt[1] == 's' and fmt[2] in ['sis', 'sif', 'sii']:
                 return read_zmt(infile, hascomment=True)
             elif [f.replace('i', 'f') for f in fmt[1:3]] == ['sfffff', 'sfffff']:
-                return read_col(infile, hascomment=True)
+                return read_col(infile, hasmomentum=hasmomentum,
+                                hascomment=True)
         else:
             if fmt[0] == 's' and fmt[1] in ['sis', 'sif', 'sii']:
-                return read_zmt(infile, hascomment=False)
+                return read_zmt(infile)
             elif [f.replace('i', 'f') for f in fmt[:2]] == ['sfffff', 'sfffff']:
-                return read_col(infile, hascomment=False)
+                return read_col(infile, hasmomentum=hasmomentum)
 
         if ('ffffffffffff' in fmt[0].replace('i', 'f') or
             'ffffffffffff' in fmt[1].replace('i', 'f')):
-            return read_trajdump(infile, hascomment=hascomment)
+            return read_trajdump(infile, hasmomentum=hasmomentum,
+                                 hascomment=hascomment)
         elif nlines > 2:
             if fmt[0] == 'i':
-                return read_xyz(infile, hascomment=hascomment)
+                return read_xyz(infile, hasmomentum=hasmomentum,
+                                hascomment=hascomment)
             elif fmt[1] == 'i':
-                return read_gdat(infile, hascomment=hascomment)
+                return read_gdat(infile, hasmomentum=hasmomentum,
+                                 hascomment=hascomment)
         else:
             raise IOError('unrecognized file format')
 
@@ -331,16 +357,25 @@ def _valvar(unk, vardict):
             raise KeyError('\'{}\' not found in variable list'.format(unk))
 
 
-def write_xyz(outfile, elem, xyz, comment=''):
+def write_xyz(outfile, elem, xyz, mom=None, comment=''):
     """Writes geometry to an output file in XYZ format."""
     natm = len(elem)
     outfile.write(' {}\n{}\n'.format(natm, comment))
-    for atm, (x, y, z) in zip(elem, xyz):
-        outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(atm, x, y, z))
+    if mom is None:
+        for atm, xyzi in zip(elem, xyz):
+            outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(atm, *xyzi))
+    else:
+        for atm, xyzi, pxyzi in zip(elem, xyz, mom):
+            outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}'.format(atm, *xyzi) +
+                          '{:12.6f}{:12.6f}{:12.6f}\n'.format(*pxyzi))
 
 
-def write_col(outfile, elem, xyz, comment=''):
-    """Writes geometry to an output file in COLUMBUS format."""
+def write_col(outfile, elem, xyz, mom=None, comment=''):
+    """Writes geometry to an output file in COLUMBUS format.
+
+    For the time being, momentum output is not supported for the
+    COLUMBUS file format.
+    """
     if comment != '':
         outfile.write(comment + '\n')
     for atm, (x, y, z) in zip(elem, xyz * con.conv('ang','bohr')):
@@ -349,24 +384,28 @@ def write_col(outfile, elem, xyz, comment=''):
                                   con.get_mass(atm)))
 
 
-def write_gdat(outfile, elem, xyz, comment=''):
-    """Writes geometry to an output file in Geometry.dat format.
-
-    Momenta are not currently supported
-    """
+def write_gdat(outfile, elem, xyz, mom=None, comment=''):
+    """Writes geometry to an output file in Geometry.dat format."""
     natm = len(elem)
     outfile.write('{}\n{}\n'.format(comment, natm))
-    for atm, (x, y, z) in zip(elem, xyz * con.conv('ang','bohr')):
-        outfile.write('{:<2s}{:18.8E}{:18.8E}{:18.8E}\n'.format(atm, x, y, z))
-    for line in range(natm):
-        outfile.write(' {:18.8E}{:18.8E}{:18.8E}\n'.format(0, 0, 0))
+    for atm, xyzi in zip(elem, xyz * con.conv('ang','bohr')):
+        outfile.write('{:<2s}{:18.8E}{:18.8E}{:18.8E}\n'.format(atm, *xyzi))
+    if mom is None:
+        for line in range(natm):
+            outfile.write(' {:18.8E}{:18.8E}{:18.8E}\n'.format(0, 0, 0))
+    else:
+        for pxyzi in mom:
+            outfile.write(' {:18.8E}{:18.8E}{:18.8E}\n'.format(*pxyzi))
 
 
-def write_zmt(outfile, elem, xyz, comment=''):
+def write_zmt(outfile, elem, xyz, mom=None, comment=''):
     """Writes geometry to an output file in Z-matrix format.
 
     TODO: At present, each atom uses the previous atoms in order as
     references. This could be made 'smarter' using the bonding module.
+
+    For the time being, momentum output is not supported for the
+    Z-matrix file format.
     """
     natm = len(elem)
     if comment != '':
@@ -396,9 +435,13 @@ def write_zmt(outfile, elem, xyz, comment=''):
                                                          units='deg')))
 
 
-def write_zmtvar(outfile, elem, xyz, comment=''):
+def write_zmtvar(outfile, elem, xyz, mom=None, comment=''):
     """Writes geometry to an output file in Z-matrix format with
-    variable assignments."""
+    variable assignments.
+
+    For the time being, momentum output is not supported for the
+    Z-matrix file format.
+    """
     natm = len(elem)
     if comment != '':
         outfile.write(comment + '\n')
@@ -434,7 +477,7 @@ def write_zmtvar(outfile, elem, xyz, comment=''):
         outfile.write('{:4s} = {:14.8f}\n'.format(key, val))
 
 
-def write_auto(outfile, elem, xyz, comment=''):
+def write_auto(outfile, elem, xyz, mom=None, comment=''):
     """Writes geometry to an output file based on the filename extension.
 
     Extensions are not case sensitive. If the extension is not recognized,
@@ -443,18 +486,19 @@ def write_auto(outfile, elem, xyz, comment=''):
     fname = outfile.name.lower()
     ext = fname.split('.')[-1]
     if ext in ['col', 'columbus']:
-        write_col(outfile, elem, xyz, comment=comment)
+        write_col(outfile, elem, xyz, mom=mom, comment=comment)
     elif ext == 'dat':
-        write_gdat(outfile, elem, xyz, comment=comment)
+        write_gdat(outfile, elem, xyz, mom=mom, comment=comment)
     elif ext in ['zmt', 'zmat', 'zmatrix']:
-        write_zmt(outfile, elem, xyz, comment=comment)
+        write_zmt(outfile, elem, xyz, mom=mom, comment=comment)
     elif ext in ['zmtvar', 'zmatvar']:
-        write_zmtvar(outfile, elem, xyz, comment=comment)
+        write_zmtvar(outfile, elem, xyz, mom=mom, comment=comment)
     else:
-        write_xyz(outfile, elem, xyz, comment=comment)
+        write_xyz(outfile, elem, xyz, mom=mom, comment=comment)
 
 
-def convert(infname, outfname, infmt='auto', outfmt='auto', hc=False):
+def convert(infname, outfname, infmt='auto', outfmt='auto', hasmom=False,
+            hascom=False):
     """Reads a file in format infmt and writes to a file in format
     outfmt.
 
@@ -466,7 +510,8 @@ def convert(infname, outfname, infmt='auto', outfmt='auto', hc=False):
     with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
         while True:
             try:
-                write_func(outfile, *read_func(infile, hascomment=hc))
+                write_func(outfile, *read_func(infile, hasmomentum=hasmom,
+                                               hascomment=hascom))
             except ValueError:
                 break
 
