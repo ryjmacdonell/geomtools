@@ -30,7 +30,7 @@ def minor(arr, i, j):
     return arr[rows, cols]
 
 
-def build_adjmat(elem, xyz, error=0.56):
+def build_adjmat(elem, xyz, error=0.56, lothresh=0.4):
     """Returns an adjacency matrix from a set of atoms.
 
     At present, thresholds are set to the Rasmol defaults of covalent
@@ -38,10 +38,9 @@ def build_adjmat(elem, xyz, error=0.56):
     """
     rad = con.get_covrad(elem)
     upthresh = np.add.outer(rad, rad) + error
-    lothresh = upthresh - 0.35 - 2*error
 
     xyz_diff = xyz.T[:,:,np.newaxis] - xyz.T[:,np.newaxis,:]
-    blength = np.sqrt(np.sum(xyz_diff ** 2, axis=0))
+    blength = np.sqrt(np.sum(xyz_diff**2, axis=0))
 
     bonded = (blength < upthresh) & (blength > lothresh)
     return bonded.astype(int)

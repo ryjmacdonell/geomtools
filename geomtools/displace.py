@@ -13,18 +13,21 @@ Example axes for displacements:
 2. X1X4 torsion: r14 (for motion of 2, 3)
 3. X1X4X2 bend: r14 x r24
 4. X1 out-of-plane: r24 - r34 or (r24 x r34) x r14
+
+Each internal coordinate measurement has the option of changing the units
+(see the constants module) or taking the absolute value.
 """
 import numpy as np
 import geomtools.constants as con
 
 
-def stre(xyz, ind, units='ang'):
+def stre(xyz, ind, units='ang', absv=False):
     """Returns bond length based on index."""
     coord = np.linalg.norm(xyz[ind[0]] - xyz[ind[1]])
     return coord * con.conv('ang', units)
 
 
-def bend(xyz, ind, units='rad'):
+def bend(xyz, ind, units='rad', absv=False):
     """Returns bending angle for 3 atoms in a chain based on index."""
     e1 = xyz[ind[0]] - xyz[ind[1]]
     e2 = xyz[ind[2]] - xyz[ind[1]]
@@ -35,7 +38,7 @@ def bend(xyz, ind, units='rad'):
     return coord * con.conv('rad', units)
 
 
-def tors(xyz, ind, units='rad'):
+def tors(xyz, ind, units='rad', absv=False):
     """Returns dihedral angle for 4 atoms in a chain based on index."""
     e1 = xyz[ind[0]] - xyz[ind[1]]
     e2 = xyz[ind[2]] - xyz[ind[1]]
@@ -47,19 +50,22 @@ def tors(xyz, ind, units='rad'):
     cp1 /= np.linalg.norm(cp1)
     cp2 /= np.linalg.norm(cp2)
 
-    # get cross product of plane normals for signed dihedral angle
-    cp3 = np.cross(cp1, cp2)
+    if absv:
+        coord = np.arccos(np.dot(cp1, cp2))
+    else:
+        # get cross product of plane normals for signed dihedral angle
+        cp3 = np.cross(cp1, cp2)
+        coord = np.sign(np.dot(cp3, e2)) * np.arccos(np.dot(cp1, cp2))
 
-    coord = np.sign(np.dot(cp3, e2)) * np.arccos(np.dot(cp1, cp2))
     return coord * con.conv('rad', units)
 
 
-def oop(xyz, ind, units='rad'):
+def oop(xyz, ind, units='rad', absv=False):
     """Returns out-of-plane angle of atom 1 connected to atom 4 in the
     2-3-4 plane.
 
-    Contains an additional sign convention such that rotation of
-    out-of-plane atom over (under) the central plane atom gives and angle
+    Contains an additional sign convention such that rotation of the
+    out-of-plane atom over (under) the central plane atom gives an angle
     greater than pi/2 (less than -pi/2).
     """
     e1 = xyz[ind[0]] - xyz[ind[3]]
@@ -71,13 +77,16 @@ def oop(xyz, ind, units='rad'):
 
     sintau = np.dot(np.cross(e2, e3) / np.sqrt(1 - np.dot(e2, e3) ** 2), e1)
     coord = np.sign(np.dot(e2+e3, e1)) * np.arccos(sintau) + np.pi/2
-    # sign convention for |oop| < pi
+    # sign convention to keep |oop| < pi
     if coord > np.pi:
         coord -= 2 * np.pi
-    return coord * con.conv('rad', units)
+    if absv:
+        return abs(coord) * con.conv('rad', units)
+    else:
+        return coord * con.conv('rad', units)
 
 
-def planeang(xyz, ind, units='rad'):
+def planeang(xyz, ind, units='rad', absv=False):
     """Returns the angle between two planes with 3 atoms each."""
     e1 = xyz[ind[0]] - xyz[ind[2]]
     e2 = xyz[ind[1]] - xyz[ind[2]]
@@ -91,14 +100,17 @@ def planeang(xyz, ind, units='rad'):
     cp1 /= np.linalg.norm(cp1)
     cp2 /= np.linalg.norm(cp2)
 
-    # get cross product of plane norms for signed dihedral angle
-    cp3 = np.cross(cp1, cp2)
+    if absv:
+        coord = np.arccos(np.dot(cp1, cp2))
+    else:
+        # get cross product of plane norms for signed dihedral angle
+        cp3 = np.cross(cp1, cp2)
+        coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(cp1, cp2))
 
-    coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(cp1, cp2))
     return coord * con.conv('rad', units)
 
 
-def planetors(xyz, ind, units='rad'):
+def planetors(xyz, ind, units='rad', absv=False):
     """Returns the plane angle with the central bond projected out."""
     e1 = xyz[ind[0]] - xyz[ind[2]]
     e2 = xyz[ind[1]] - xyz[ind[2]]
@@ -117,14 +129,17 @@ def planetors(xyz, ind, units='rad'):
     pj1 /= np.linalg.norm(pj1)
     pj2 /= np.linalg.norm(pj2)
 
-    # get cross product of vectors for signed dihedral angle
-    cp3 = np.cross(pj1, pj2)
+    if absv:
+        coord = np.arccos(np.dot(pj1, pj2))
+    else:
+        # get cross product of vectors for signed dihedral angle
+        cp3 = np.cross(pj1, pj2)
+        coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(pj1, pj2))
 
-    coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(pj1, pj2))
     return coord * con.conv('rad', units)
 
 
-def edgetors(xyz, ind, units='rad'):
+def edgetors(xyz, ind, units='rad', absv=False):
     """Returns the torsional angle based on the vector difference of the
     two external atoms to the central bond"""
     e1 = xyz[ind[0]] - xyz[ind[2]]
@@ -148,10 +163,13 @@ def edgetors(xyz, ind, units='rad'):
     cp1 /= np.linalg.norm(cp1)
     cp2 /= np.linalg.norm(cp2)
 
-    # get cross product of vectors for signed dihedral angle
-    cp3 = np.cross(cp1, cp2)
+    if absv:
+        coord = np.arccos(np.dot(cp1, cp2))
+    else:
+        # get cross product of vectors for signed dihedral angle
+        cp3 = np.cross(cp1, cp2)
+        coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(cp1, cp2))
 
-    coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(cp1, cp2))
     return coord * con.conv('rad', units)
 
 

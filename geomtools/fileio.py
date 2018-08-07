@@ -11,7 +11,7 @@ import geomtools.constants as con
 import geomtools.displace as displace
 
 
-def read_xyz(infile, hasmomentum=False, hascomment=False):
+def read_xyz(infile, units='ang', hasmomentum=False, hascomment=False):
     """Reads input file in XYZ format.
 
     XYZ files are in the format:
@@ -39,7 +39,7 @@ def read_xyz(infile, hasmomentum=False, hascomment=False):
         comment = ''
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
-    xyz = data[:, 1:4].astype(float)
+    xyz = data[:, 1:4].astype(float) * con.conv(units, 'ang')
     if hasmomentum:
         mom = data[:, 4:7].astype(float)
     else:
@@ -47,7 +47,7 @@ def read_xyz(infile, hasmomentum=False, hascomment=False):
     return elem, xyz, mom, comment
 
 
-def read_col(infile, hasmomentum=False, hascomment=False):
+def read_col(infile, units='bohr', hasmomentum=False, hascomment=False):
     """Reads input file in COLUMBUS format.
 
     COLUMBUS geometry files are in the format:
@@ -85,12 +85,12 @@ def read_col(infile, hasmomentum=False, hascomment=False):
                 infile.seek(pos)
                 break
     elem = data[:, 0]
-    xyz = data[:, 2:5].astype(float) * con.conv('bohr','ang')
+    xyz = data[:, 2:5].astype(float) * con.conv(units, 'ang')
     mom = np.zeros_like(xyz)
     return elem, xyz, mom, comment
 
 
-def read_gdat(infile, hasmomentum=False, hascomment=False):
+def read_gdat(infile, units='bohr', hasmomentum=False, hascomment=False):
     """Reads input file in FMS90 Geometry.dat format.
 
     Geometry.dat files are in the format:
@@ -118,7 +118,7 @@ def read_gdat(infile, hasmomentum=False, hascomment=False):
         raise ValueError('geometry not in Geometry.dat format')
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
-    xyz = data[:, 1:].astype(float) * con.conv('bohr','ang')
+    xyz = data[:, 1:].astype(float) * con.conv(units, 'ang')
     if hasmomentum:
         mom = np.array([infile.readline().split() for i in range(natm)],
                        dtype=float)
@@ -127,7 +127,7 @@ def read_gdat(infile, hasmomentum=False, hascomment=False):
     return elem, xyz, mom, comment
 
 
-def read_zmt(infile, hasmomentum=False, hascomment=False):
+def read_zmt(infile, units='ang', hasmomentum=False, hascomment=False):
     """Reads input file in Z-matrix format.
 
     Z-matrix files are in the format:
@@ -222,13 +222,13 @@ def read_zmt(infile, hasmomentum=False, hascomment=False):
                                   xyz[indR]-xyz[indA],
                                   ind=i, origin=xyz[indR], units='deg')
 
-    xyz = displace.centre_mass(elem, xyz)
+    xyz = displace.centre_mass(elem, xyz) * con.conv(units, 'ang')
     mom = np.zeros_like(xyz)
     return elem, xyz, mom, comment
 
 
-def read_trajdump(infile, hasmomentum=False, hascomment=False, elem=None,
-                  time=None):
+def read_trajdump(infile, units='bohr', hasmomentum=False, hascomment=False,
+                  elem=None, time=None):
     """Reads input file in FMS90/FMSpy TrajDump format
 
     TrajDump files are in the format:
@@ -263,7 +263,7 @@ def read_trajdump(infile, hasmomentum=False, hascomment=False, elem=None,
     natm = len(line) // 6 - 1
     if elem is None:
         elem = np.array(['X'] * natm)
-    xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv('bohr','ang')
+    xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv(units,'ang')
     if hasmomentum:
         mom = line[3*natm+1:6*natm+1].reshape(natm, 3)
     else:
@@ -271,8 +271,10 @@ def read_trajdump(infile, hasmomentum=False, hascomment=False, elem=None,
     return elem, xyz, mom, comment
 
 
-def read_auto(infile, hasmomentum=False, hascomment=False):
+def read_auto(infile, **kwargs):
     """Reads a molecular geometry file and determines the format."""
+    if 'hascomment' in kwargs:
+        hascomment = kwargs['hascomment']
     pos = infile.tell()
     contents = infile.readlines()
     infile.seek(pos)
@@ -289,47 +291,42 @@ def read_auto(infile, hasmomentum=False, hascomment=False):
             raise IOError('cannot have comment with single line file')
         else:
             if fmt[0] == 's':
-                return read_zmt(infile)
+                return read_zmt(infile, **kwargs)
             elif fmt[0].replace('i', 'f') == 'sfffff':
-                return read_col(infile)
+                return read_col(infile, **kwargs)
             elif 'ffffffffffff' in fmt[0].replace('i', 'f'):
-                return read_trajdump(infile, hasmomentum=hasmomentum)
+                return read_trajdump(infile, **kwargs)
             else:
                 raise IOError('single line input in unrecognized format')
     elif nlines == 2 and hascomment:
         if fmt[1] == 's':
-            return read_zmt(infile, hascomment=True)
+            return read_zmt(infile, **kwargs)
         elif fmt[1].replace('i', 'f') == 'sfffff':
-            return read_col(infile, hascomment=True)
+            return read_col(infile, **kwargs)
         elif 'ffffffffffff' in fmt[1].replace('i', 'f'):
-            return read_trajdump(infile, hasmomentum=hasmomentum,
-                                 hascomment=True)
+            return read_trajdump(infile, **kwargs)
         else:
             raise IOError('single line input in unrecognized format')
     else:
         if hascomment:
             if fmt[1] == 's' and fmt[2] in ['sis', 'sif', 'sii']:
-                return read_zmt(infile, hascomment=True)
+                return read_zmt(infile, **kwargs)
             elif [f.replace('i', 'f') for f in fmt[1:3]] == ['sfffff', 'sfffff']:
-                return read_col(infile, hasmomentum=hasmomentum,
-                                hascomment=True)
+                return read_col(infile, **kwargs)
         else:
             if fmt[0] == 's' and fmt[1] in ['sis', 'sif', 'sii']:
-                return read_zmt(infile)
+                return read_zmt(infile, **kwargs)
             elif [f.replace('i', 'f') for f in fmt[:2]] == ['sfffff', 'sfffff']:
-                return read_col(infile, hasmomentum=hasmomentum)
+                return read_col(infile, **kwargs)
 
         if ('ffffffffffff' in fmt[0].replace('i', 'f') or
             'ffffffffffff' in fmt[1].replace('i', 'f')):
-            return read_trajdump(infile, hasmomentum=hasmomentum,
-                                 hascomment=hascomment)
+            return read_trajdump(infile, **kwargs)
         elif nlines > 2:
             if fmt[0] == 'i':
-                return read_xyz(infile, hasmomentum=hasmomentum,
-                                hascomment=hascomment)
+                return read_xyz(infile, **kwargs)
             elif fmt[1] == 'i':
-                return read_gdat(infile, hasmomentum=hasmomentum,
-                                 hascomment=hascomment)
+                return read_gdat(infile, **kwargs)
         else:
             raise IOError('unrecognized file format')
 
@@ -357,38 +354,41 @@ def _valvar(unk, vardict):
             raise KeyError('\'{}\' not found in variable list'.format(unk))
 
 
-def write_xyz(outfile, elem, xyz, mom=None, comment=''):
+def write_xyz(outfile, elem, xyz, mom=None, comment='', units='ang'):
     """Writes geometry to an output file in XYZ format."""
     natm = len(elem)
+    write_xyz = xyz * con.conv('ang', units)
     outfile.write(' {}\n{}\n'.format(natm, comment))
     if mom is None:
-        for atm, xyzi in zip(elem, xyz):
+        for atm, xyzi in zip(elem, write_xyz):
             outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(atm, *xyzi))
     else:
-        for atm, xyzi, pxyzi in zip(elem, xyz, mom):
+        for atm, xyzi, pxyzi in zip(elem, write_xyz, mom):
             outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}'.format(atm, *xyzi) +
                           '{:12.6f}{:12.6f}{:12.6f}\n'.format(*pxyzi))
 
 
-def write_col(outfile, elem, xyz, mom=None, comment=''):
+def write_col(outfile, elem, xyz, mom=None, comment='', units='bohr'):
     """Writes geometry to an output file in COLUMBUS format.
 
     For the time being, momentum output is not supported for the
     COLUMBUS file format.
     """
+    write_xyz = xyz * con.conv('ang', units)
     if comment != '':
         outfile.write(comment + '\n')
-    for atm, (x, y, z) in zip(elem, xyz * con.conv('ang','bohr')):
+    for atm, (x, y, z) in zip(elem, write_xyz):
         outfile.write(' {:<2s}{:7.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}'
                       '\n'.format(atm, con.get_num(atm), x, y, z,
                                   con.get_mass(atm)))
 
 
-def write_gdat(outfile, elem, xyz, mom=None, comment=''):
+def write_gdat(outfile, elem, xyz, mom=None, comment='', units='bohr'):
     """Writes geometry to an output file in Geometry.dat format."""
     natm = len(elem)
+    write_xyz = xyz * con.conv('ang', units)
     outfile.write('{}\n{}\n'.format(comment, natm))
-    for atm, xyzi in zip(elem, xyz * con.conv('ang','bohr')):
+    for atm, xyzi in zip(elem, write_xyz):
         outfile.write('{:<2s}{:18.8E}{:18.8E}{:18.8E}\n'.format(atm, *xyzi))
     if mom is None:
         for line in range(natm):
@@ -398,7 +398,7 @@ def write_gdat(outfile, elem, xyz, mom=None, comment=''):
             outfile.write(' {:18.8E}{:18.8E}{:18.8E}\n'.format(*pxyzi))
 
 
-def write_zmt(outfile, elem, xyz, mom=None, comment=''):
+def write_zmt(outfile, elem, xyz, mom=None, comment='', units='ang'):
     """Writes geometry to an output file in Z-matrix format.
 
     TODO: At present, each atom uses the previous atoms in order as
@@ -417,25 +417,28 @@ def write_zmt(outfile, elem, xyz, mom=None, comment=''):
         elif i == 1:
             # second element has symbol, index, bond length
             outfile.write('{:<2}{:3d}{:12.6f}'
-                          '\n'.format(elem[1], 1, displace.stre(xyz, [0,1])))
+                          '\n'.format(elem[1], 1, displace.stre(xyz, [0,1],
+                                                                units=units)))
         elif i == 2:
             # third element has symbol, index, bond length, index, bond angle
             outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}'
-                          '\n'.format(elem[2], 2, displace.stre(xyz, [1,2]),
+                          '\n'.format(elem[2], 2, displace.stre(xyz, [1,2],
+                                                                units=units),
                                       1, displace.bend(xyz, [0,1,2],
                                                        units='deg')))
         else:
             # all other elements have symbol, index, bond length, index,
             # bond angle, index, dihedral angle
             outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}{:3d}{:12.6f}'
-                          '\n'.format(elem[i], i, displace.stre(xyz, [i-1,i]),
+                          '\n'.format(elem[i], i, displace.stre(xyz, [i-1,i],
+                                                                units=units),
                                       i-1, displace.bend(xyz, [i-2,i-1,i],
                                                          units='deg'),
                                       i-2, displace.tors(xyz, [i-3,i-2,i-1,i],
                                                          units='deg')))
 
 
-def write_zmtvar(outfile, elem, xyz, mom=None, comment=''):
+def write_zmtvar(outfile, elem, xyz, mom=None, comment='', units='ang'):
     """Writes geometry to an output file in Z-matrix format with
     variable assignments.
 
@@ -454,12 +457,12 @@ def write_zmtvar(outfile, elem, xyz, mom=None, comment=''):
             # second element has symbol, index, bond length
             outfile.write('{:<2}{:3d}  R{:<2d}'
                           '\n'.format(elem[1], 1, 1))
-            vlist['R1'] = displace.stre(xyz, [0,1])
+            vlist['R1'] = displace.stre(xyz, [0,1], units=units)
         elif i == 2:
             # third element has symbol, index, bond length, index, bond angle
             outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d}'
                           '\n'.format(elem[2], 2, 2, 1, 1))
-            vlist['R2'] = displace.stre(xyz, [1,2])
+            vlist['R2'] = displace.stre(xyz, [1,2], units=units)
             vlist['A1'] = displace.bend(xyz, [0,1,2], units='deg')
         else:
             # all other elements have symbol, index, bond length, index,
@@ -467,7 +470,7 @@ def write_zmtvar(outfile, elem, xyz, mom=None, comment=''):
             outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d} '
                           '{:3d}  T{:<2d}'
                           '\n'.format(elem[i], i, i, i-1, i-1, i-2, i-2))
-            vlist['R'+str(i)] = displace.stre(xyz, [i-1,i])
+            vlist['R'+str(i)] = displace.stre(xyz, [i-1,i], units=units)
             vlist['A'+str(i-1)] = displace.bend(xyz, [i-2,i-1,i],
                                                 units='deg')
             vlist['T'+str(i-2)] = displace.tors(xyz, [i-3,i-2,i-1,i],
@@ -477,7 +480,7 @@ def write_zmtvar(outfile, elem, xyz, mom=None, comment=''):
         outfile.write('{:4s} = {:14.8f}\n'.format(key, val))
 
 
-def write_auto(outfile, elem, xyz, mom=None, comment=''):
+def write_auto(outfile, elem, xyz, **kwargs):
     """Writes geometry to an output file based on the filename extension.
 
     Extensions are not case sensitive. If the extension is not recognized,
@@ -486,32 +489,45 @@ def write_auto(outfile, elem, xyz, mom=None, comment=''):
     fname = outfile.name.lower()
     ext = fname.split('.')[-1]
     if ext in ['col', 'columbus']:
-        write_col(outfile, elem, xyz, mom=mom, comment=comment)
+        write_col(outfile, elem, xyz, **kwargs)
     elif ext == 'dat':
-        write_gdat(outfile, elem, xyz, mom=mom, comment=comment)
+        write_gdat(outfile, elem, xyz, **kwargs)
     elif ext in ['zmt', 'zmat', 'zmatrix']:
-        write_zmt(outfile, elem, xyz, mom=mom, comment=comment)
+        write_zmt(outfile, elem, xyz, **kwargs)
     elif ext in ['zmtvar', 'zmatvar']:
-        write_zmtvar(outfile, elem, xyz, mom=mom, comment=comment)
+        write_zmtvar(outfile, elem, xyz, **kwargs)
     else:
-        write_xyz(outfile, elem, xyz, mom=mom, comment=comment)
+        write_xyz(outfile, elem, xyz, **kwargs)
 
 
-def convert(infname, outfname, infmt='auto', outfmt='auto', hasmom=False,
-            hascom=False):
+def convert(infname, outfname, infmt='auto', outfmt='auto',
+            inunits=None, outunits=None, hasmom=False, hascom=False):
     """Reads a file in format infmt and writes to a file in format
     outfmt.
 
     Input (and output) may have multiple geometries. Z-matrix index
     ordering is not conserved.
     """
+    if inunits is None:
+        inkw = dict(hasmomentum = hasmom, hascomment = hascom)
+    else:
+        inkw = dict(hasmomentum = hasmom, hascomment = hascom, units = inunits)
+    if outunits is None:
+        outkw = dict()
+    else:
+        outkw = dict(units = outunits)
+
     read_func = globals()['read_' + infmt]
     write_func = globals()['write_' + outfmt]
     with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
         while True:
             try:
-                write_func(outfile, *read_func(infile, hasmomentum=hasmom,
-                                               hascomment=hascom))
+                elem, xyz, mom, comment = read_func(infile, **inkw)
+                if hasmom:
+                    outkw.update(mom = mom)
+                if hascom:
+                    outkw.update(comment = comment)
+                write_func(outfile, elem, xyz, **outkw)
             except ValueError:
                 break
 

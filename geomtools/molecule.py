@@ -220,33 +220,33 @@ class Molecule(BaseMolecule):
         return con.get_mass(self.elem[1:])
 
     # Internal geometry
-    def get_stre(self, ind, units='ang'):
+    def get_stre(self, ind, units='ang', absv=False):
         """Returns bond length based on index in molecule."""
-        return displace.stre(self.xyz, ind, units=units)
+        return displace.stre(self.xyz, ind, units=units, absv=absv)
 
-    def get_bend(self, ind, units='rad'):
+    def get_bend(self, ind, units='rad', absv=False):
         """Returns bond angle based on index in molecule."""
-        return displace.bend(self.xyz, ind, units=units)
+        return displace.bend(self.xyz, ind, units=units, absv=absv)
 
-    def get_tors(self, ind, units='rad'):
+    def get_tors(self, ind, units='rad', absv=False):
         """Returns dihedral angle based on index in molecule."""
-        return displace.tors(self.xyz, ind, units=units)
+        return displace.tors(self.xyz, ind, units=units, absv=absv)
 
-    def get_oop(self, ind, units='rad'):
+    def get_oop(self, ind, units='rad', absv=False):
         """Returns out-of-plane angle based on index in molecule."""
-        return displace.oop(self.xyz, ind, units=units)
+        return displace.oop(self.xyz, ind, units=units, absv=absv)
 
-    def get_planeang(self, ind, units='rad'):
+    def get_planeang(self, ind, units='rad', absv=False):
         """Returns plane angle based on index in molecule."""
-        return displace.planeang(self.xyz, ind, units=units)
+        return displace.planeang(self.xyz, ind, units=units, absv=absv)
 
-    def get_planetors(self, ind, units='rad'):
+    def get_planetors(self, ind, units='rad', absv=False):
         """Returns plane dihedral angle based on index in molecule."""
-        return displace.planetors(self.xyz, ind, units=units)
+        return displace.planetors(self.xyz, ind, units=units, absv=absv)
 
-    def get_edgetors(self, ind, units='rad'):
+    def get_edgetors(self, ind, units='rad', absv=False):
         """Returns edge dihedral angle based on index in molecule."""
-        return displace.edgetors(self.xyz, ind, units=units)
+        return displace.edgetors(self.xyz, ind, units=units, absv=absv)
 
     # Displacement
     def centre_mass(self):
@@ -276,10 +276,19 @@ class Molecule(BaseMolecule):
         else:
             wgt = None
         reflist = [mol.get_xyz() for mol in ref_bundle.get_molecules()]
+        newplist = np.copy(plist)
+        if plist is not None:
+            for i in range(len(plist)):
+                if isinstance(plist[i], int):
+                    newplist[i] -= 1
+                else:
+                    for j in range(len(plist[i])):
+                        newplist[i][j] -= 1
 
         xyz, ind = kabsch.opt_ref(self.get_elem(), self.get_xyz(), reflist,
-                                  wgt=wgt, plist=plist, invert=invert)
-        return Molecule(self.get_elem(), xyz), ind
+                                  wgt=wgt, plist=newplist, invert=invert)
+        return Molecule(self.get_elem(), xyz, self.get_mom(),
+                        self.get_comment()), ind
 
 
 class MoleculeBundle(object):
@@ -375,6 +384,12 @@ class MoleculeBundle(object):
         """Returns the list of molecules."""
         return self.molecules
 
+    # Internal coordinates
+    def get_coord(self, ctyp, inds, units='auto', absv=False):
+        """Returns a list of coordinates based on index in molecule."""
+        return np.array([getattr(mol, 'get_'+ctyp)(inds, units=units, absv=absv)
+                         for mol in self.molecules])
+
     # Kabsch geometry matching
     def match_to_ref(self, ref_bundle, weighted=False, plist=None, invert=True):
         """Tests the molecules in the current bundle against
@@ -382,18 +397,23 @@ class MoleculeBundle(object):
 
         Returns a set of bundles correcponding to the reference indices.
         """
-        elem = self.molecules[0].elem
-        if weighted:
-            wgt = con.get_mass(elem)
-        else:
-            wgt = None
-        testlist = [mol.xyz for mol in self.get_molecules()]
-        reflist = [mol.xyz for mol in ref_bundle.get_molecules()]
+        #elem = self.molecules[0].elem
+        #if weighted:
+        #    wgt = con.get_mass(elem)
+        #else:
+        #    wgt = None
+        bundles = [MoleculeBundle() for mol in ref_bundle.get_molecules()]
+        for mol in self.get_molecules():
+            newmol, ind = mol.match_to_ref(ref_bundle, weighted=weighted,
+                                           plist=plist, invert=invert)
+            bundles[ind].add_molecules(newmol)
+        #testlist = [mol.xyz for mol in self.get_molecules()]
+        #reflist = [mol.xyz for mol in ref_bundle.get_molecules()]
 
-        kabsch_out = kabsch.opt_multi(elem, testlist, reflist, wgt=wgt,
-                                      plist=plist, invert=invert)
-        molecules = [[Molecule(elem, xyz) for xyz in ind] for ind in kabsch_out]
-        return [MoleculeBundle(gtype) for gtype in molecules]
+        #kabsch_out = kabsch.opt_multi(elem, testlist, reflist, wgt=wgt,
+        #                              plist=plist, invert=invert)
+        #molecules = [[Molecule(elem, xyz) for xyz in ind] for ind in kabsch_out]
+        return bundles #[MoleculeBundle(gtype) for gtype in molecules]
 
 
 def _rearrange_check(new_ind, old_ind):
@@ -420,7 +440,7 @@ def import_bundle(fnamelist, fmt='auto', hasmom=False, hascom=False):
     """
     read_func = getattr(fileio, 'read_' + fmt)
     molecules = []
-    if not isinstance(fnamelist, list):
+    if not isinstance(fnamelist, (list, tuple, np.ndarray)):
         fnamelist = [fnamelist]
 
     for fname in fnamelist:
