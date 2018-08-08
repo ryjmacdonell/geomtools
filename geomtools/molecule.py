@@ -13,6 +13,7 @@ import numpy as np
 import geomtools.fileio as fileio
 import geomtools.displace as displace
 import geomtools.constants as con
+import geomtools.kabsch as kabsch
 
 
 class BaseMolecule(object):
@@ -24,11 +25,15 @@ class BaseMolecule(object):
     geometry. There are no dependancies to other geomtools modules.
     """
     def __init__(self, elem=np.array([], dtype=str), xyz=np.empty((0, 3)),
-                 comment=''):
+                 mom=None, comment=''):
         self.elem = np.array(elem, dtype=str)
         self.xyz = np.array(xyz, dtype=float)
         self.comment = comment
         self.natm = len(elem)
+        if mom is None:
+            self.mom = np.zeros((self.natm, 3))
+        else:
+            self.mom = np.array(mom, dtype=float)
         self.saved = True
         self.save()
 
@@ -42,20 +47,24 @@ class BaseMolecule(object):
             raise ValueError('Number of element labels ({:d}) not equal '
                              'to number of cartesian vectors '
                              '({:d}).'.format(len_elem, len_xyz))
+        elif self.xyz.shape != self.mom.shape:
+            raise ValueError('Cartesian geometry and momenta must have '
+                             'the same number of elements.')
 
     def copy(self, comment=None):
         """Creates a copy of the BaseMolecule object."""
         self._check()
         if comment is None:
             comment = 'Copy of ' + self.comment
-        return BaseMolecule(np.copy(self.elem[1:]), np.copy(self.xyz[1:]),
-                            comment)
+        return BaseMolecule(np.copy(self.elem), np.copy(self.xyz),
+                            np.copy(self.mom), comment)
 
     def save(self):
         """Saves molecular properties to 'orig' variables."""
         self._check()
         self.orig_elem = np.copy(self.elem)
         self.orig_xyz = np.copy(self.xyz)
+        self.orig_mom = np.copy(self.mom)
         self.orig_comment = np.copy(self.comment)
         self.saved = True
 
@@ -64,6 +73,7 @@ class BaseMolecule(object):
         if not self.saved:
             self.elem = np.copy(self.orig_elem)
             self.xyz = np.copy(self.orig_xyz)
+            self.mom = np.copy(self.orig_mom)
         self.saved = True
 
     def set_geom(self, elem, xyz):
@@ -71,6 +81,13 @@ class BaseMolecule(object):
         if elem is not None:
             self.elem = elem
         self.xyz = np.array(xyz, dtype=float)
+        self.mom = np.zeros_like(xyz)
+        self._check()
+        self.saved = False
+
+    def set_mom(self, mom):
+        """Sets molecular momentum."""
+        self.mom = np.array(mom, dtype=float)
         self._check()
         self.saved = False
 
@@ -79,11 +96,15 @@ class BaseMolecule(object):
         self.comment = comment
         self.saved = False
 
-    def add_atoms(self, new_elem, new_xyz):
+    def add_atoms(self, new_elem, new_xyz, new_mom=None):
         """Adds atoms(s) to molecule."""
         self.natm += 1 if isinstance(new_elem, str) else len(new_elem)
         self.elem = np.hstack((self.elem, new_elem))
         self.xyz = np.vstack((self.xyz, new_xyz))
+        if new_mom is None:
+            self.mom = np.vstack((self.mom, np.zeros((len(new_xyz), 3))))
+        else:
+            self.mom = np.vstack((self.mom, new_mom))
         self._check()
         self.saved = False
 
@@ -92,6 +113,7 @@ class BaseMolecule(object):
         self.natm -= 1 if isinstance(ind, int) else len(ind)
         self.elem = np.delete(self.elem, ind)
         self.xyz = np.delete(self.xyz, ind, axis=0)
+        self.mom = np.delete(self.mom, ind, axis=0)
         self._check()
         self.saved = False
 
@@ -103,6 +125,7 @@ class BaseMolecule(object):
         old = np.hstack((new_ind, old_ind))
         new = np.hstack((old_ind, new_ind))
         self.xyz[old] = self.xyz[new]
+        self.mom[old] = self.mom[new]
         self.elem[old] = self.elem[new]
         self.saved = False
 
@@ -126,6 +149,7 @@ class Molecule(BaseMolecule):
         else:
             self.elem = np.hstack(('XM', self.elem))
             self.xyz = np.vstack((pos, self.xyz))
+            self.mom = np.vstack(([0, 0, 0], self.mom))
 
     def _check(self):
         """Checks that xyz is 3D and len(elem) = len(xyz) and that dummy
@@ -140,17 +164,21 @@ class Molecule(BaseMolecule):
         if comment is None:
             comment = 'Copy of ' + self.comment
         return Molecule(np.copy(self.elem[1:]), np.copy(self.xyz[1:]),
-                        comment)
+                        np.copy(self.mom[1:]), comment)
 
     # Input/Output
-    def read(self, infile, fmt='auto', hc=False):
+    def read(self, infile, fmt='auto', hasmom=False, hascom=False):
         """Reads single geometry from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
         if isinstance(infile, str):
             with open(infile, 'r') as f:
-                self.elem, self.xyz, self.comment = read_func(f, hascomment=hc)
+                (self.elem, self.xyz,
+                 self.mom, self.comment) = read_func(f, hasmomentum=hasmom,
+                                                     hascomment=hascom)
         else:
-            self.elem, self.xyz, self.comment = read_func(infile, hascomment=hc)
+            (self.elem, self.xyz,
+             self.mom, self.comment) = read_func(infile, hasmomentum=hasmom,
+                                                 hascomment=hascom)
         self.natm = len(self.elem)
         self.save()
 
@@ -159,9 +187,12 @@ class Molecule(BaseMolecule):
         write_func = getattr(fileio, 'write_' + fmt)
         if isinstance(outfile, str):
             with open(outfile, 'w') as f:
-                write_func(f, self.elem[1:], self.xyz[1:], self.comment)
+                write_func(f, self.elem[1:], self.xyz[1:], mom=self.mom[1:],
+                           comment=self.comment)
         else:
-            write_func(outfile, self.elem[1:], self.xyz[1:], self.comment)
+            write_func(outfile, self.elem[1:], self.xyz[1:], mom=self.mom[1:],
+                       comment=self.comment)
+
 
     # Accessors
     def get_natm(self):
@@ -176,6 +207,10 @@ class Molecule(BaseMolecule):
         """Returns cartesian geometry."""
         return self.xyz[1:]
 
+    def get_mom(self):
+        """Return cartesian momenta."""
+        return self.mom[1:]
+
     def get_comment(self):
         """Returns comment line."""
         return self.comment
@@ -185,33 +220,33 @@ class Molecule(BaseMolecule):
         return con.get_mass(self.elem[1:])
 
     # Internal geometry
-    def get_stre(self, ind, units='ang'):
+    def get_stre(self, ind, units='ang', absv=False):
         """Returns bond length based on index in molecule."""
-        return displace.stre(self.xyz, ind, units=units)
+        return displace.stre(self.xyz, ind, units=units, absv=absv)
 
-    def get_bend(self, ind, units='rad'):
+    def get_bend(self, ind, units='rad', absv=False):
         """Returns bond angle based on index in molecule."""
-        return displace.bend(self.xyz, ind, units=units)
+        return displace.bend(self.xyz, ind, units=units, absv=absv)
 
-    def get_tors(self, ind, units='rad'):
+    def get_tors(self, ind, units='rad', absv=False):
         """Returns dihedral angle based on index in molecule."""
-        return displace.tors(self.xyz, ind, units=units)
+        return displace.tors(self.xyz, ind, units=units, absv=absv)
 
-    def get_oop(self, ind, units='rad'):
+    def get_oop(self, ind, units='rad', absv=False):
         """Returns out-of-plane angle based on index in molecule."""
-        return displace.oop(self.xyz, ind, units=units)
+        return displace.oop(self.xyz, ind, units=units, absv=absv)
 
-    def get_planeang(self, ind, units='rad'):
+    def get_planeang(self, ind, units='rad', absv=False):
         """Returns plane angle based on index in molecule."""
-        return displace.planeang(self.xyz, ind, units=units)
+        return displace.planeang(self.xyz, ind, units=units, absv=absv)
 
-    def get_planetors(self, ind, units='rad'):
+    def get_planetors(self, ind, units='rad', absv=False):
         """Returns plane dihedral angle based on index in molecule."""
-        return displace.planetors(self.xyz, ind, units=units)
+        return displace.planetors(self.xyz, ind, units=units, absv=absv)
 
-    def get_edgetors(self, ind, units='rad'):
+    def get_edgetors(self, ind, units='rad', absv=False):
         """Returns edge dihedral angle based on index in molecule."""
-        return displace.edgetors(self.xyz, ind, units=units)
+        return displace.edgetors(self.xyz, ind, units=units, absv=absv)
 
     # Displacement
     def centre_mass(self):
@@ -232,6 +267,28 @@ class Molecule(BaseMolecule):
                                    origin=origin, units=units)
         self._add_centre()
         self.saved = False
+
+    # Kabsch geometry matching
+    def match_to_ref(self, ref_bundle, weighted=False, plist=None, invert=True):
+        """Tests the molecule against a set of references in a bundle."""
+        if weighted:
+            wgt = self.get_mass()
+        else:
+            wgt = None
+        reflist = [mol.get_xyz() for mol in ref_bundle.get_molecules()]
+        newplist = np.copy(plist)
+        if plist is not None:
+            for i in range(len(plist)):
+                if isinstance(plist[i], int):
+                    newplist[i] -= 1
+                else:
+                    for j in range(len(plist[i])):
+                        newplist[i][j] -= 1
+
+        xyz, ind = kabsch.opt_ref(self.get_elem(), self.get_xyz(), reflist,
+                                  wgt=wgt, plist=newplist, invert=invert)
+        return Molecule(self.get_elem(), xyz, self.get_mom(),
+                        self.get_comment()), ind
 
 
 class MoleculeBundle(object):
@@ -291,12 +348,13 @@ class MoleculeBundle(object):
         self.molecules = np.delete(self.molecules, ind)
 
     # Input/Output
-    def read(self, infile, fmt='auto', hc=False):
+    def read(self, infile, fmt='auto', hasmom=False, hascom=False):
         """Reads all geometries from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
         while True:
             try:
-                new_mol = Molecule(*read_func(infile, hascomment=hc))
+                new_mol = Molecule(*read_func(infile, hasmomentum=hasmom,
+                                              hascomment=hasccom))
                 self.molecules = np.hstack((self.molecules, new_mol))
                 self.nmol += 1
             except ValueError:
@@ -310,10 +368,12 @@ class MoleculeBundle(object):
         if isinstance(outfile, str):
             with open(outfile, 'w') as f:
                 for mol in self.molecules:
-                    write_func(f, mol.elem[1:], mol.xyz[1:], mol.comment)
+                    write_func(f, mol.elem[1:], mol.xyz[1:], mom=mol.mom[1:],
+                               comment=mol.comment)
         else:
             for mol in self.molecules:
-                write_func(outfile, mol.elem[1:], mol.xyz[1:], mol.comment)
+                write_func(outfile, mol.elem[1:], mol.xyz[1:], mom=mol.mom[1:],
+                           comment=mol.comment)
 
     # Accessors
     def get_nmol(self):
@@ -324,6 +384,37 @@ class MoleculeBundle(object):
         """Returns the list of molecules."""
         return self.molecules
 
+    # Internal coordinates
+    def get_coord(self, ctyp, inds, units='auto', absv=False):
+        """Returns a list of coordinates based on index in molecule."""
+        return np.array([getattr(mol, 'get_'+ctyp)(inds, units=units, absv=absv)
+                         for mol in self.molecules])
+
+    # Kabsch geometry matching
+    def match_to_ref(self, ref_bundle, weighted=False, plist=None, invert=True):
+        """Tests the molecules in the current bundle against
+        a set of references in another bundle.
+
+        Returns a set of bundles correcponding to the reference indices.
+        """
+        #elem = self.molecules[0].elem
+        #if weighted:
+        #    wgt = con.get_mass(elem)
+        #else:
+        #    wgt = None
+        bundles = [MoleculeBundle() for mol in ref_bundle.get_molecules()]
+        for mol in self.get_molecules():
+            newmol, ind = mol.match_to_ref(ref_bundle, weighted=weighted,
+                                           plist=plist, invert=invert)
+            bundles[ind].add_molecules(newmol)
+        #testlist = [mol.xyz for mol in self.get_molecules()]
+        #reflist = [mol.xyz for mol in ref_bundle.get_molecules()]
+
+        #kabsch_out = kabsch.opt_multi(elem, testlist, reflist, wgt=wgt,
+        #                              plist=plist, invert=invert)
+        #molecules = [[Molecule(elem, xyz) for xyz in ind] for ind in kabsch_out]
+        return bundles #[MoleculeBundle(gtype) for gtype in molecules]
+
 
 def _rearrange_check(new_ind, old_ind):
     """Checks indices of rearrangement routines for errors."""
@@ -333,22 +424,33 @@ def _rearrange_check(new_ind, old_ind):
         raise IndexError('Old and new indices must be the same length')
 
 
-def import_molecule(fname, fmt='auto', hc=False):
+def import_molecule(fname, fmt='auto', hasmom=False, hascom=False):
     """Imports geometry in provided format to Molecule object."""
     read_func = getattr(fileio, 'read_' + fmt)
     with open(fname, 'r') as infile:
-        return Molecule(*read_func(infile, hascomment=hc))
+        return Molecule(*read_func(infile, hasmomentum=hasmom,
+                                   hascomment=hascom))
 
 
-def import_bundle(fname, fmt='auto', hc=False):
-    """Imports geometries in provided format to MoleculeBundle object."""
+def import_bundle(fnamelist, fmt='auto', hasmom=False, hascom=False):
+    """Imports geometries in provided format to MoleculeBundle object.
+
+    The fnamelist keyword can be a single filename or a list of
+    filenames. If fmt='auto', different files may have different formats.
+    """
     read_func = getattr(fileio, 'read_' + fmt)
     molecules = []
-    with open(fname, 'r') as infile:
-        while True:
-            try:
-                molecules.append(Molecule(*read_func(infile, hascomment=hc)))
-            except ValueError:
-                break
+    if not isinstance(fnamelist, (list, tuple, np.ndarray)):
+        fnamelist = [fnamelist]
+
+    for fname in fnamelist:
+        with open(fname, 'r') as infile:
+            while True:
+                try:
+                    molecules.append(Molecule(*read_func(infile,
+                                                         hasmomentum=hasmom,
+                                                         hascomment=hascom)))
+                except ValueError:
+                    break
 
     return MoleculeBundle(molecules)
