@@ -19,17 +19,6 @@ from scipy import linalg
 import geomtools.constants as con
 
 
-def minor(arr, i, j):
-    """Returns the minor of an array.
-
-    Given indices i, j, the minor of the matrix is defined as the original
-    matrix excluding row i and column j.
-    """
-    rows = np.array(range(i) + range(i + 1, arr.shape[0]))[:, np.newaxis]
-    cols = np.array(range(j) + range(j + 1, arr.shape[1]))
-    return arr[rows, cols]
-
-
 def build_adjmat(elem, xyz, error=0.56, lothresh=0.4):
     """Returns an adjacency matrix from a set of atoms.
 
@@ -90,3 +79,14 @@ def num_loops(adjmat, k):
     elif k == 4:
         adj2 = power(adjmat, 2)
         loop = (np.sum(eigs ** 4) - 2 * np.sum(adj2) + np.sum(adjmat)) / 8
+
+
+def _minor(arr, i, j):
+    """Returns the minor of an array.
+
+    Given indices i, j, the minor of the matrix is defined as the original
+    matrix excluding row i and column j.
+    """
+    rows = np.array(range(i) + range(i + 1, arr.shape[0]))[:, np.newaxis]
+    cols = np.array(range(j) + range(j + 1, arr.shape[1]))
+    return arr[rows, cols]

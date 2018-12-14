@@ -11,7 +11,7 @@ import geomtools.constants as con
 import geomtools.displace as displace
 
 
-def read_xyz(infile, units='ang', hasmomentum=False, hascomment=False):
+def read_xyz(infile, units='ang', hasmom=False, hascom=False):
     """Reads input file in XYZ format.
 
     XYZ files are in the format:
@@ -23,7 +23,7 @@ def read_xyz(infile, units='ang', hasmomentum=False, hascomment=False):
     where natm is the number of atoms, comment is a comment line, A and B
     are atomic labels and X, Y and Z are cartesian coordinates (in
     Angstroms). The momenta Px, Py and Pz are optional and will only be
-    read if hasmomentum = True.
+    read if hasmom = True.
 
     Due to the preceding number of atoms, multiple XYZ format geometries
     can easily be read from a single file.
@@ -32,7 +32,7 @@ def read_xyz(infile, units='ang', hasmomentum=False, hascomment=False):
         natm = int(infile.readline())
     except ValueError:
         raise ValueError('Geometry not in XYZ format.')
-    if hascomment:
+    if hascom:
         comment = infile.readline().strip()
     else:
         infile.readline()
@@ -40,14 +40,14 @@ def read_xyz(infile, units='ang', hasmomentum=False, hascomment=False):
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
     xyz = data[:, 1:4].astype(float) * con.conv(units, 'ang')
-    if hasmomentum:
+    if hasmom:
         mom = data[:, 4:7].astype(float)
     else:
-        mom = np.zeros_like(xyz)
+        mom = None
     return elem, xyz, mom, comment
 
 
-def read_col(infile, units='bohr', hasmomentum=False, hascomment=False):
+def read_col(infile, units='bohr', hasmom=False, hascom=False):
     """Reads input file in COLUMBUS format.
 
     COLUMBUS geometry files are in the format:
@@ -65,7 +65,7 @@ def read_col(infile, units='bohr', hasmomentum=False, hascomment=False):
     For the time being, momentum input is not supported for the
     COLUMBUS file format.
     """
-    if hascomment:
+    if hascom:
         comment = infile.readline().strip()
     else:
         comment = ''
@@ -90,7 +90,7 @@ def read_col(infile, units='bohr', hasmomentum=False, hascomment=False):
     return elem, xyz, mom, comment
 
 
-def read_gdat(infile, units='bohr', hasmomentum=False, hascomment=False):
+def read_gdat(infile, units='bohr', hasmom=False, hascom=False):
     """Reads input file in FMS90 Geometry.dat format.
 
     Geometry.dat files are in the format:
@@ -105,9 +105,9 @@ def read_gdat(infile, units='bohr', hasmomentum=False, hascomment=False):
     where comment is a comment line, natm is the number of atoms, A and B
     are atomic labels, X, Y and Z are cartesian coordinates and Pq are
     momenta for cartesian coordinates q. The momenta are only read if
-    hasmomentum = True.
+    hasmom = True.
     """
-    if hascomment:
+    if hascom:
         comment = infile.readline().strip()
     else:
         infile.readline()
@@ -119,15 +119,15 @@ def read_gdat(infile, units='bohr', hasmomentum=False, hascomment=False):
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
     xyz = data[:, 1:].astype(float) * con.conv(units, 'ang')
-    if hasmomentum:
+    if hasmom:
         mom = np.array([infile.readline().split() for i in range(natm)],
                        dtype=float)
     else:
-        mom = np.zeros_like(xyz)
+        mom = None
     return elem, xyz, mom, comment
 
 
-def read_zmt(infile, units='ang', hasmomentum=False, hascomment=False):
+def read_zmt(infile, units='ang', hasmom=False, hascom=False):
     """Reads input file in Z-matrix format.
 
     Z-matrix files are in the format:
@@ -152,7 +152,7 @@ def read_zmt(infile, units='ang', hasmomentum=False, hascomment=False):
     For the time being, momentum input is not supported for the
     Z-matrix file format.
     """
-    if hascomment:
+    if hascom:
         comment = infile.readline().strip()
     else:
         comment = ''
@@ -223,11 +223,14 @@ def read_zmt(infile, units='ang', hasmomentum=False, hascomment=False):
                                   ind=i, origin=xyz[indR], units='deg')
 
     xyz = displace.centre_mass(elem, xyz) * con.conv(units, 'ang')
-    mom = np.zeros_like(xyz)
+    if hasmom:
+        mom = np.zeros_like(xyz)
+    else:
+        mom = None
     return elem, xyz, mom, comment
 
 
-def read_trajdump(infile, units='bohr', hasmomentum=False, hascomment=False,
+def read_trajdump(infile, units='bohr', hasmom=False, hascom=False,
                   elem=None, time=None):
     """Reads input file in FMS90/FMSpy TrajDump format
 
@@ -237,14 +240,14 @@ def read_trajdump(infile, units='bohr', hasmomentum=False, hascomment=False,
     ...
     where T is the time, Pq are the momenta for cartesian coordinates q,
     G is the phase, A is the amplitude and S is the state label. The momenta
-    are only read if hasmomentum = True.
+    are only read if hasmom = True.
 
     TrajDump files do not contain atomic labels. If not provided, they are
     set to dummy atoms which may affect calculations involving atomic
     properties. A time should be provided, otherwise the first geometry
     in the file is used.
     """
-    if hascomment:
+    if hascom:
         comment = infile.readline().strip()
     else:
         comment = ''
@@ -264,17 +267,17 @@ def read_trajdump(infile, units='bohr', hasmomentum=False, hascomment=False,
     if elem is None:
         elem = np.array(['X'] * natm)
     xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv(units,'ang')
-    if hasmomentum:
+    if hasmom:
         mom = line[3*natm+1:6*natm+1].reshape(natm, 3)
     else:
-        mom = np.zeros_like(xyz)
+        mom = None
     return elem, xyz, mom, comment
 
 
 def read_auto(infile, **kwargs):
     """Reads a molecular geometry file and determines the format."""
-    if 'hascomment' in kwargs:
-        hascomment = kwargs['hascomment']
+    if 'hascom' in kwargs:
+        hascom = kwargs['hascom']
     pos = infile.tell()
     contents = infile.readlines()
     infile.seek(pos)
@@ -287,7 +290,7 @@ def read_auto(infile, **kwargs):
     if nlines == 0:
         raise ValueError('end of file')
     elif nlines == 1:
-        if hascomment:
+        if hascom:
             raise IOError('cannot have comment with single line file')
         else:
             if fmt[0] == 's':
@@ -298,7 +301,7 @@ def read_auto(infile, **kwargs):
                 return read_trajdump(infile, **kwargs)
             else:
                 raise IOError('single line input in unrecognized format')
-    elif nlines == 2 and hascomment:
+    elif nlines == 2 and hascom:
         if fmt[1] == 's':
             return read_zmt(infile, **kwargs)
         elif fmt[1].replace('i', 'f') == 'sfffff':
@@ -308,7 +311,7 @@ def read_auto(infile, **kwargs):
         else:
             raise IOError('single line input in unrecognized format')
     else:
-        if hascomment:
+        if hascom:
             if fmt[1] == 's' and fmt[2] in ['sis', 'sif', 'sii']:
                 return read_zmt(infile, **kwargs)
             elif [f.replace('i', 'f') for f in fmt[1:3]] == ['sfffff', 'sfffff']:
@@ -509,13 +512,13 @@ def convert(infname, outfname, infmt='auto', outfmt='auto',
     ordering is not conserved.
     """
     if inunits is None:
-        inkw = dict(hasmomentum = hasmom, hascomment = hascom)
+        inkw = dict(hasmom=hasmom, hascom=hascom)
     else:
-        inkw = dict(hasmomentum = hasmom, hascomment = hascom, units = inunits)
+        inkw = dict(hasmom=hasmom, hascom=hascom, units=inunits)
     if outunits is None:
         outkw = dict()
     else:
-        outkw = dict(units = outunits)
+        outkw = dict(units=outunits)
 
     read_func = globals()['read_' + infmt]
     write_func = globals()['write_' + outfmt]

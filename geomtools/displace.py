@@ -290,15 +290,13 @@ def get_centremass(elem, xyz):
         return np.sum(mass[:,np.newaxis] * xyz, axis=0) / np.sum(mass)
 
 
-def centre_mass(elem, xyz, inds=None):
+def centre_mass(elem, xyz):
     """Returns xyz with centre of mass at the origin.
 
     If an index list is provided to inds, only the centre of mass of
     atoms at those indices will be used.
     """
-    if inds is None:
-        inds = range(len(elem))
-    return xyz - get_centremass(elem[inds], xyz[inds])
+    return xyz - get_centremass(elem, xyz)
 
 
 def int_coord(xyz, funcs, axes, relamps=1, inds=None, origins=np.zeros(3)):

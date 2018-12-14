@@ -32,8 +32,10 @@ class BaseMolecule(object):
         self.natm = len(elem)
         if mom is None:
             self.mom = np.zeros((self.natm, 3))
+            self.print_mom = False
         else:
             self.mom = np.array(mom, dtype=float)
+            self.print_mom = True
         self.saved = True
         self.save()
 
@@ -88,6 +90,7 @@ class BaseMolecule(object):
     def set_mom(self, mom):
         """Sets molecular momentum."""
         self.mom = np.array(mom, dtype=float)
+        self.print_mom = True
         self._check()
         self.saved = False
 
@@ -105,6 +108,7 @@ class BaseMolecule(object):
             self.mom = np.vstack((self.mom, np.zeros((len(new_xyz), 3))))
         else:
             self.mom = np.vstack((self.mom, new_mom))
+            self.print_mom = True
         self._check()
         self.saved = False
 
@@ -161,10 +165,11 @@ class Molecule(BaseMolecule):
     def copy(self, comment=None):
         """Creates a copy of the Molecule object."""
         self._check()
+        mom = self.mom[1:] if self.print_mom else None
         if comment is None:
             comment = 'Copy of ' + self.comment
         return Molecule(np.copy(self.elem[1:]), np.copy(self.xyz[1:]),
-                        np.copy(self.mom[1:]), comment)
+                        mom, comment)
 
     # Input/Output
     def read(self, infile, fmt='auto', hasmom=False, hascom=False):
@@ -173,24 +178,25 @@ class Molecule(BaseMolecule):
         if isinstance(infile, str):
             with open(infile, 'r') as f:
                 (self.elem, self.xyz,
-                 self.mom, self.comment) = read_func(f, hasmomentum=hasmom,
-                                                     hascomment=hascom)
+                 self.mom, self.comment) = read_func(f, hasmom=hasmom,
+                                                     hascom=hascom)
         else:
             (self.elem, self.xyz,
-             self.mom, self.comment) = read_func(infile, hasmomentum=hasmom,
-                                                 hascomment=hascom)
+             self.mom, self.comment) = read_func(infile, hasmom=hasmom,
+                                                 hascom=hascom)
         self.natm = len(self.elem)
         self.save()
 
     def write(self, outfile, fmt='auto'):
         """Writes geometry to an output file in provided format."""
         write_func = getattr(fileio, 'write_' + fmt)
+        mom = self.mom[1:] if self.print_mom else None
         if isinstance(outfile, str):
             with open(outfile, 'w') as f:
-                write_func(f, self.elem[1:], self.xyz[1:], mom=self.mom[1:],
+                write_func(f, self.elem[1:], self.xyz[1:], mom=mom,
                            comment=self.comment)
         else:
-            write_func(outfile, self.elem[1:], self.xyz[1:], mom=self.mom[1:],
+            write_func(outfile, self.elem[1:], self.xyz[1:], mom=mom,
                        comment=self.comment)
 
 
@@ -269,25 +275,19 @@ class Molecule(BaseMolecule):
         self.saved = False
 
     # Kabsch geometry matching
-    def match_to_ref(self, ref_bundle, weighted=False, plist=None, invert=True):
-        """Tests the molecule against a set of references in a bundle."""
-        if weighted:
-            wgt = self.get_mass()
-        else:
-            wgt = None
-        reflist = [mol.get_xyz() for mol in ref_bundle.get_molecules()]
-        newplist = np.copy(plist)
-        if plist is not None:
-            for i in range(len(plist)):
-                if isinstance(plist[i], int):
-                    newplist[i] -= 1
-                else:
-                    for j in range(len(plist[i])):
-                        newplist[i][j] -= 1
+    def match_to_ref(self, ref_bundle, plist=None, equiv=None, wgt=None,
+                     ind=None, cent=None):
+        """Tests the molecule against a set of references in a bundle.
 
+        Note: momenta are not properly rotated.
+        """
+        mom = self.mom[1:] if self.print_mom else None
+        reflist = [mol.get_xyz() for mol in ref_bundle.get_molecules()]
+        kwargs = dict(plist=_atm_inds(plist), equiv=_atm_inds(equiv),
+                      wgt=wgt, ind=ind, cent=cent)
         xyz, ind = kabsch.opt_ref(self.get_elem(), self.get_xyz(), reflist,
-                                  wgt=wgt, plist=newplist, invert=invert)
-        return Molecule(self.get_elem(), xyz, self.get_mom(),
+                                  **kwargs)
+        return Molecule(self.get_elem(), xyz, mom,
                         self.get_comment()), ind
 
 
@@ -353,8 +353,8 @@ class MoleculeBundle(object):
         read_func = getattr(fileio, 'read_' + fmt)
         while True:
             try:
-                new_mol = Molecule(*read_func(infile, hasmomentum=hasmom,
-                                              hascomment=hasccom))
+                new_mol = Molecule(*read_func(infile, hasmom=hasmom,
+                                              hascom=hasccom))
                 self.molecules = np.hstack((self.molecules, new_mol))
                 self.nmol += 1
             except ValueError:
@@ -368,12 +368,10 @@ class MoleculeBundle(object):
         if isinstance(outfile, str):
             with open(outfile, 'w') as f:
                 for mol in self.molecules:
-                    write_func(f, mol.elem[1:], mol.xyz[1:], mom=mol.mom[1:],
-                               comment=mol.comment)
+                    mol.write(f, fmt=fmt)
         else:
             for mol in self.molecules:
-                write_func(outfile, mol.elem[1:], mol.xyz[1:], mom=mol.mom[1:],
-                           comment=mol.comment)
+                mol.write(outfile, fmt=fmt)
 
     # Accessors
     def get_nmol(self):
@@ -391,45 +389,27 @@ class MoleculeBundle(object):
                          for mol in self.molecules])
 
     # Kabsch geometry matching
-    def match_to_ref(self, ref_bundle, weighted=False, plist=None, invert=True):
+    def match_to_ref(self, ref_bundle, plist=None, equiv=None, wgt=None,
+                     ind=None, cent=None):
         """Tests the molecules in the current bundle against
         a set of references in another bundle.
 
-        Returns a set of bundles correcponding to the reference indices.
+        Returns a set of bundles corresponding to the reference indices.
         """
-        #elem = self.molecules[0].elem
-        #if weighted:
-        #    wgt = con.get_mass(elem)
-        #else:
-        #    wgt = None
+        kwargs = dict(plist=plist, equiv=equiv, wgt=wgt, ind=ind, cent=cent)
         bundles = [MoleculeBundle() for mol in ref_bundle.get_molecules()]
         for mol in self.get_molecules():
-            newmol, ind = mol.match_to_ref(ref_bundle, weighted=weighted,
-                                           plist=plist, invert=invert)
+            newmol, ind = mol.match_to_ref(ref_bundle, **kwargs)
             bundles[ind].add_molecules(newmol)
-        #testlist = [mol.xyz for mol in self.get_molecules()]
-        #reflist = [mol.xyz for mol in ref_bundle.get_molecules()]
-
-        #kabsch_out = kabsch.opt_multi(elem, testlist, reflist, wgt=wgt,
-        #                              plist=plist, invert=invert)
-        #molecules = [[Molecule(elem, xyz) for xyz in ind] for ind in kabsch_out]
-        return bundles #[MoleculeBundle(gtype) for gtype in molecules]
-
-
-def _rearrange_check(new_ind, old_ind):
-    """Checks indices of rearrangement routines for errors."""
-    new = [new_ind] if isinstance(new_ind, int) else new_ind
-    old = [old_ind] if isinstance(old_ind, int) else old_ind
-    if len(new) != len(old):
-        raise IndexError('Old and new indices must be the same length')
+        return bundles
 
 
 def import_molecule(fname, fmt='auto', hasmom=False, hascom=False):
     """Imports geometry in provided format to Molecule object."""
     read_func = getattr(fileio, 'read_' + fmt)
     with open(fname, 'r') as infile:
-        return Molecule(*read_func(infile, hasmomentum=hasmom,
-                                   hascomment=hascom))
+        return Molecule(*read_func(infile, hasmom=hasmom,
+                                   hascom=hascom))
 
 
 def import_bundle(fnamelist, fmt='auto', hasmom=False, hascom=False):
@@ -447,10 +427,28 @@ def import_bundle(fnamelist, fmt='auto', hasmom=False, hascom=False):
         with open(fname, 'r') as infile:
             while True:
                 try:
-                    molecules.append(Molecule(*read_func(infile,
-                                                         hasmomentum=hasmom,
-                                                         hascomment=hascom)))
+                    molecules.append(Molecule(*read_func(infile, hasmom=hasmom,
+                                                         hascom=hascom)))
                 except ValueError:
                     break
 
     return MoleculeBundle(molecules)
+
+
+def _rearrange_check(new_ind, old_ind):
+    """Checks indices of rearrangement routines for errors."""
+    new = [new_ind] if isinstance(new_ind, int) else new_ind
+    old = [old_ind] if isinstance(old_ind, int) else old_ind
+    if len(new) != len(old):
+        raise IndexError('Old and new indices must be the same length')
+
+
+def _atm_inds(inds):
+    """Substracts one from a list (or list of lists) of indices."""
+    if inds is not None:
+        if isinstance(inds[0], int):
+            return [i - 1 for i in inds]
+        else:
+            return [[i - 1 for i in sub] for sub in inds]
+    else:
+        return None
