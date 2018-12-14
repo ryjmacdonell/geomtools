@@ -93,8 +93,6 @@ def opt_permute(elem, test, ref, plist=None, equiv=None, wgt=None, ind=None,
         eqs = _permute_group(equiv)
         prs = _permute_elmnt(plist)
 
-        #geoms = np.empty((len(perms),) + test.shape)
-
         min_geom = test
         min_err = 1e10
         for i in eqs:
@@ -105,15 +103,9 @@ def opt_permute(elem, test, ref, plist=None, equiv=None, wgt=None, ind=None,
                 geom = map_onto(elem, xyz, ref, **kwargs)
                 err = rmsd(geom, ref, wgt=wgt)
                 if err < min_err:
-                    min_geom = np.copy(geom)
-                    min_err = np.copy(err)
+                    min_geom = geom
+                    min_err = err
 
-        #if ind is None:
-        #    err = np.array([rmsd(xyz, ref, wgt=wgt) for xyz in geoms])
-        #else:
-        #    err = np.array([rmsd(xyz[ind], ref[ind], wgt=wgt) for xyz in geoms])
-
-        #return geoms[np.argmin(err)], np.min(err)
         return min_geom, min_err
 
 
