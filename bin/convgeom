@@ -4,12 +4,18 @@ Command line script for converting geometries between formats.
 
 Conversion between formats is done by:
 convgeom input output [options]
--i, --infmt
+-i, --in-format
     The input format (xyz, col, gdat, ...)
--o, --outfmt
+-o, --out-format
     The output format (xyz, col, gdat, ...)
--h, --hascomment
-    Boolean argment for whether a comment is read
+-iu, --in-units
+    The input distance units (ang, bohr, ...)
+-ou, --out-units
+    The output distance units (ang, bohr, ...)
+-c, --has-comment
+    Boolean argument, whether or not comment is read
+-m, --has-momentum
+    Boolean argument, whether or not momentum is read
 """
 from sys import argv
 from geomtools.fileio import convert
@@ -32,9 +38,15 @@ if len(argv) - nopt != 3:
 elif nopt == 0:
     convert(argv[1], argv[2])
 else:
-    inf = get_optarg(argv, '-i', '--infmt', 'auto')
-    ouf = get_optarg(argv, '-o', '--outfmt', 'auto')
-    com = get_optarg(argv, '-h', '--hascomment', 'false')
-    hc = com.lower() not in ['false', 'f', '0']
+    com = get_optarg(argv, '-c', '--has-comment', 'false')
+    mom = get_optarg(argv, '-m', '--has-momentum', 'false')
+    kwargs = dict(
+        infmt = get_optarg(argv, '-i', '--in-format', 'auto'),
+        outfmt = get_optarg(argv, '-o', '--out-format', 'auto'),
+        inunits = get_optarg(argv, '-iu', '--in-units', None),
+        outunits = get_optarg(argv, '-ou', '--out-units', None),
+        hasmom = mom.lower() not in ['false', 'f', '0'],
+        hascom = com.lower() not in ['false', 'f', '0']
+                  )
 
-    convert(argv[1], argv[2], infmt=inf, outfmt=ouf, hc=hc)
+    convert(argv[1], argv[2], **kwargs)

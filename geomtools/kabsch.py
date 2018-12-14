@@ -18,34 +18,12 @@ U = W |  0 1 0  | V^T
 (See en.wikipedia.org/wiki/Kabsch_algorithm)
 
 The best match for multiple references can be found by the minimum RMSD.
-Sets of equivalent vectors (atoms) can be permuted as well. In cases that
-are independent of chirality, the vectors may also be inverted.
+Sets of equivalent vectors (atoms) can be permuted as well.
 """
 import itertools
 import numpy as np
 from scipy import linalg
 import geomtools.displace as disp
-
-
-def _tuple2list(tupl):
-    """Iteratively converts nested tuple to nested list."""
-    return list((_tuple2list(x) if isinstance(x, tuple) else x for x in tupl))
-
-
-def permute(plist):
-    """Generates an array of permutations of a list of lists of permutable
-    indices."""
-    if plist is None:
-        return 0, [0]
-    elif not isinstance(plist[0], list):
-        plist = [plist]
-
-    unperm = [item for sublist in plist for item in sublist]
-    single_perms = [list(itertools.permutations(i)) for i in plist]
-    prod_perms = _tuple2list(itertools.product(*single_perms))
-    final_perms = [[item for sublist in i for item in sublist]
-                   for i in prod_perms]
-    return unperm, final_perms
 
 
 def rmsd(test, ref, wgt=None):
@@ -56,10 +34,10 @@ def rmsd(test, ref, wgt=None):
     variable wgt.
     """
     if wgt is None:
-        return np.sqrt(np.sum((test - ref) ** 2) / np.size(test))
+        return np.sqrt(np.sum((test - ref) ** 2) / (3 * np.size(test)))
     else:
         return np.sqrt(np.sum(wgt[:,np.newaxis] * (test - ref) ** 2) /
-                       (np.sum(wgt) * np.size(test)))
+                       (3 * np.sum(wgt) * np.size(test)))
 
 
 def kabsch(test, ref, wgt=None):
@@ -67,7 +45,8 @@ def kabsch(test, ref, wgt=None):
     a reference.
 
     If weights are provided, they are used to weight the test vectors
-    before forming the covariance matrix.
+    before forming the covariance matrix. This minimizes the weighted
+    RMSD between the two geometries.
     """
     if wgt is None:
         cov = test.T.dot(ref)
@@ -88,54 +67,103 @@ def map_onto(elem, test, ref, wgt=None, ind=None, cent=None):
     be provided to only map a subset of atoms.
     """
     if cent is None:
-        cent = range(len(elem))
-
-    new_test = disp.centre_mass(elem, test, inds=cent)
-    new_ref = disp.centre_mass(elem, ref, inds=cent)
+        new_test = disp.centre_mass(elem, test)
+        new_ref = disp.centre_mass(elem, ref)
+    else:
+        new_test = disp.centre_mass(elem[cent], test[cent])
+        new_ref = disp.centre_mass(elem[cent], ref[cent])
     if ind is None:
         return new_test.dot(kabsch(new_test, new_ref, wgt=wgt))
     else:
         return new_test.dot(kabsch(new_test[ind], new_ref[ind], wgt=wgt))
 
 
-def opt_permute(elem, test, ref, wgt=None, plist=None, invert=True):
+def opt_permute(elem, test, ref, plist=None, equiv=None, wgt=None, ind=None,
+                cent=None):
     """Determines optimal permutation of test geometry indices for
     mapping onto reference."""
-    ind0, perms = permute(plist)
-    geoms = np.empty((2 * len(perms) if invert else len(perms),) + test.shape)
+    kwargs = dict(wgt=wgt, ind=ind, cent=cent)
+    if plist is None and equiv is None:
+        geom = map_onto(elem, test, ref, **kwargs)
+        if ind is None:
+            return geom, rmsd(test, ref, wgt=wgt)
+        else:
+            return geom, rmsd(test[ind], ref[ind], wgt=wgt)
+    else:
+        eqs = _permute_group(equiv)
+        prs = _permute_elmnt(plist)
 
-    for i, ind in enumerate(perms):
-        j = 2 * i if invert else i
-        xyz = np.copy(test)
-        xyz[ind0] = xyz[ind]
-        geoms[j] = map_onto(elem, xyz, ref, wgt=wgt)
-        if invert:
-            geoms[j+1] = map_onto(elem, -xyz, ref, wgt=wgt)
+        #geoms = np.empty((len(perms),) + test.shape)
 
-    err = np.array([rmsd(xyz, ref, wgt=wgt) for xyz in geoms])
-    return geoms[np.argmin(err)], np.min(err)
+        min_geom = test
+        min_err = 1e10
+        for i in eqs:
+            for j in prs:
+                xyz = np.copy(test)
+                xyz[eqs[0]] = xyz[i]
+                xyz[prs[0]] = xyz[j]
+                geom = map_onto(elem, xyz, ref, **kwargs)
+                err = rmsd(geom, ref, wgt=wgt)
+                if err < min_err:
+                    min_geom = np.copy(geom)
+                    min_err = np.copy(err)
+
+        #if ind is None:
+        #    err = np.array([rmsd(xyz, ref, wgt=wgt) for xyz in geoms])
+        #else:
+        #    err = np.array([rmsd(xyz[ind], ref[ind], wgt=wgt) for xyz in geoms])
+
+        #return geoms[np.argmin(err)], np.min(err)
+        return min_geom, min_err
 
 
-def opt_ref(elem, test, reflist, wgt=None, plist=None, invert=True):
+def opt_ref(elem, test, reflist, **kwargs):
     """Determines optimal reference geometry for a given test geometry."""
     nrefs = len(reflist)
     geoms = np.empty((nrefs,) + test.shape)
     err = np.empty(nrefs)
     for i in range(nrefs):
-        geoms[i], err[i] = opt_permute(elem, test, reflist[i], wgt=wgt,
-                                       plist=plist, invert=invert)
+        geoms[i], err[i] = opt_permute(elem, test, reflist[i], **kwargs)
 
     optref = np.argmin(err)
     return geoms[optref], optref
 
 
-def opt_multi(elem, testlist, reflist, wgt=None, plist=None, invert=True):
+def opt_multi(elem, testlist, reflist, **kwargs):
     """Determines the optimal geometries of a set of test geometries
     against a set of reference geometries."""
     geomlist = [[] for i in range(len(reflist))]
     for test in testlist:
-        geom, ind = opt_ref(elem, test, reflist, wgt=wgt, plist=plist,
-                            invert=invert)
+        geom, ind = opt_ref(elem, test, reflist, **kwargs)
         geomlist[ind].append(geom)
 
     return geomlist
+
+
+def _tuple2list(tupl):
+    """Iteratively converts nested tuple to nested list."""
+    return list((_tuple2list(x) if isinstance(x, tuple) else x for x in tupl))
+
+
+def _permute_elmnt(plist):
+    """Generates an array of permutations of a list of lists of permutable
+    indices and a list of permutable groups of indices."""
+    if plist is None:
+        return [0]
+    elif isinstance(plist[0], int):
+        plist = [plist]
+
+    multi_perms = [itertools.permutations(i) for i in plist]
+    multi_perms = _tuple2list(itertools.product(*multi_perms))
+    return [[item for sublist in i for item in sublist] for i in multi_perms]
+
+
+def _permute_group(plist):
+    """Generates an array of permutations of groups of indices."""
+    if plist is None:
+        return [0]
+    elif isinstance(plist[0], int):
+        plist = [plist]
+
+    group_perms = _tuple2list(itertools.permutations(plist))
+    return [[item for sublist in i for item in sublist] for i in group_perms]
