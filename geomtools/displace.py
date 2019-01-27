@@ -216,141 +216,99 @@ def translate(xyz, amp, axis, ind=None, origin=np.zeros(3), units='ang'):
     return newxyz
 
 
-def refmat_ax(ax):
-    """Returns the reflection matrix based on an axis.
-
-    The reflection matrix in 3D about the plane with plane normal u is
-
-    P = I - 2 u (x) u
-
-    where I is the identity matrix and (x) is the outer product. Action
-    of the reflection matrix occurs about the origin. See
-    en.wikipedia.org/wiki/Transformation_matrix#Reflection_2
-    """
-    u = _parse_axis(ax)
-    return np.eye(3) - 2*np.outer(u, u)
-
-
-def ax_refmat(refmat):
-    """Returns the axis of reflection based on the reflection matrix.
-
-    The magnitude of u can be found from the diagonal elements of P by
-
-    p_ii = 1 - 2 u_i^2
-    |u_i| = sqrt((1 - p_ii) / 2)
-
-    The sign can be found by letting sign(u_3) = +1 and solving
-
-    sign(u_i) = sign(u_i) sign(u_3) = -sign(p_i3), i != 3
-
-    Note that reflections along antiparallel axes are equivalent.
-    """
-    if not np.isclose(np.linalg.det(refmat), -1):
-        raise ValueError('det(P) != -1, not a reflection matrix.')
-
-    u = np.sqrt((1 - np.diag(refmat)) / 2)
-    u[0] *= -np.sign(refmat[0,2])
-    u[1] *= -np.sign(refmat[1,2])
-    return u
-
-
-def reflect(xyz, axis, ind=None, origin=np.zeros(3)):
-    """Reflects a set of atoms across a given plane.
-
-    An origin can be specified for reflection about a specific point. If
-    no indices are specified, all atoms are displaced.
-    """
-    if ind is None:
-        ind = range(len(xyz))
-    origin = np.array(origin, dtype=float)
-    newxyz = xyz - origin
-    newxyz[ind] = np.dot(refmat_ax(axis), newxyz[ind].T).T
-    return newxyz + origin
-
-
-def rotmat_angax(ang, ax, units='rad'):
+def rotmat(ang, ax, det=1, units='rad'):
     """Returns the rotational matrix based on an angle and axis.
 
-    The rotational matrix in 3D can be formed given an angle and an axis by
+    A general rotational matrix in 3D can be formed given an angle and
+    an axis by
 
-    R = cos(a) I + sin(a) [u]_x + (1 - cos(a)) u (x) u
+    R = cos(a) I + (det(R) - cos(a)) u (x) u + sin(a) [u]_x
 
-    for identity matrix I, angle a, axis u, cross-product matrix [u]_x and
-    outer product (x). Action of the rotational matrix occurs about the
-    origin. See en.wikipedia.org/wiki/Rotation_matrix
+    for identity matrix I, angle a, axis u, outer product (x) and
+    cross-product matrix [u]_x. Determinants of +1 and -1 give proper
+    and improper rotation, respectively. Thus, det(R) = -1 and a = 0
+    is a reflection along the axis. Action of the rotational matrix occurs
+    about the origin. See en.wikipedia.org/wiki/Rotation_matrix
+    and http://scipp.ucsc.edu/~haber/ph251/rotreflect_17.pdf
     """
+    if not np.isclose(np.abs(det), 1):
+        raise ValueError('Determinant of a rotational matrix must be +/- 1')
+
     u = _parse_axis(ax)
     amp = ang * con.conv(units, 'rad')
     ucross = np.array([[0, -u[2], u[1]], [u[2], 0, -u[0]], [-u[1], u[0], 0]])
     return (np.cos(amp) * np.eye(3) + np.sin(amp) * ucross +
-            (1 - np.cos(amp)) * np.outer(u, u))
+            (det - np.cos(amp)) * np.outer(u, u))
 
 
-def angax_rotmat(rotmat, units='rad'):
+def angax(rotmat, units='rad'):
     """Returns the angle and axis of rotation based on a rotational matrix.
 
     Based on the form of R, it can be separated into symmetric
     and antisymmetric components with (r_ij + r_ji)/2 and
     (r_ij - r_ji)/2, respectively. Then,
 
-    r_ii = cos(a) + u_i^2 (1 - cos(a)),
-    cos(a) = (-1 + sum_j r_jj) / 2 = (-1 + tr(R)) / 2.
+    r_ii = cos(a) + u_i^2 (det(R) - cos(a)),
+    cos(a) = (-det(R) + sum_j r_jj) / 2 = (tr(R) - det(R)) / 2.
 
     From the expression for r_ii, the magnitude of u_i can be found
 
-    |u_i| = sqrt((1 + 2*r_ii - tr(R)) / 2),
+    |u_i| = sqrt((1 + det(R) [2 r_ii - tr(R)]) / 2),
 
-    which satisfies u.u = 1. The sign can be found from the antisymmetric
-    component of R
+    which satisfies u.u = 1. Note that if det(R) tr(R) = 3, the axis
+    is arbitrary (identity or inversion). Otherwise, the sign can be found
+    from the antisymmetric component of R
 
     u_i sin(a) = (r_jk - r_kj) / 2, i != j != k,
-    sign(u_i) = sign(r_jk - r_kj)
+    sign(u_i) = sign(r_jk - r_kj),
 
     since sin(a) is positive in the range 0 to pi. i, j and k obey the
     cyclic relation 3 -> 2 -> 1 -> 3 -> ...
 
-    This fails when a = pi, in which case the symmetric component of
-    R is used
+    This fails when det(R) tr(R) = -1, in which case the symmetric
+    component of R is used
 
-    u_i u_j (1 - cos(a)) = (r_ij + r_ji) / 2
-    sign(u_i) sign(u_j) = sign(r_ij + r_ji)
+    u_i u_j (det(R) - cos(a)) = (r_ij + r_ji) / 2,
+    sign(u_i) sign(u_j) = det(R) sign(r_ij + r_ji).
 
     The signs can then be found by letting sign(u_3) = +1, since a rotation
-    of pi is equivalent for antiparallel axes.
-
-    Credit for angle derivation:
-    euclideanspace.com/maths/geometry/rotations/conversions/matrixToAngle/
+    of pi or a reflection are equivalent for antiparallel axes. See
+    http://scipp.ucsc.edu/~haber/ph251/rotreflect_17.pdf
     """
-    if not np.isclose(np.linalg.det(rotmat), 1):
-        raise ValueError('det(R) != 1, not a rotational matrix')
+    det = np.linalg.det(rotmat)
+    if not np.isclose(np.abs(det), 1):
+        raise ValueError('Determinant of a rotational matrix must be +/- 1')
 
     tr = np.trace(rotmat)
-    if np.isclose(tr, 3):
-        return 0, np.array([0, 0, 1])
-
-    u = np.sqrt((1 + 2*np.diag(rotmat) - tr) / (3 - tr))
-    if np.isclose(tr, -1):
-        u[1] *= np.sign(rotmat[1,2] + rotmat[2,1])
-        u[0] *= np.sign(u[1]) * np.sign(rotmat[0,1] + rotmat[1,0])
-        return np.pi * con.conv('rad', units), u
+    ang = np.arccos((tr - det) / 2) * con.conv('rad', units)
+    if np.isclose(det*tr, 3):
+        u = np.array([0, 0, 1])
     else:
-        u[0] *= np.sign(rotmat[2,1] - rotmat[1,2])
-        u[1] *= np.sign(rotmat[0,2] - rotmat[2,0])
-        u[2] *= np.sign(rotmat[1,0] - rotmat[0,1])
-        return np.arccos((tr - 1) / 2) * con.conv('rad', units), u
+        u = np.sqrt((1 + det*(2*np.diag(rotmat) - tr)) / (3 - det*tr))
+        if np.isclose(det*tr, -1):
+            u[1] *= det * np.sign(rotmat[1,2] + rotmat[2,1])
+            u[0] *= det * np.sign(u[1]) * np.sign(rotmat[0,1] + rotmat[1,0])
+        else:
+            u[0] *= np.sign(rotmat[2,1] - rotmat[1,2])
+            u[1] *= np.sign(rotmat[0,2] - rotmat[2,0])
+            u[2] *= np.sign(rotmat[1,0] - rotmat[0,1])
+
+    return ang, u, det
 
 
-def rotate(xyz, ang, axis, ind=None, origin=np.zeros(3), units='rad'):
+def rotate(xyz, ang, axis, ind=None, origin=np.zeros(3), det=1, units='rad'):
     """Rotates a set of atoms about a given vector.
 
     An origin can be specified for rotation about a specific point. If
-    no indices are specified, all atoms are displaced.
+    no indices are specified, all atoms are displaced. Setting det=-1
+    leads to an improper rotation.
     """
     if ind is None:
         ind = range(len(xyz))
     origin = np.array(origin, dtype=float)
     newxyz = xyz - origin
-    newxyz[ind] = np.dot(rotmat_angax(ang, axis, units=units), newxyz[ind].T).T
+    newxyz[ind] = np.dot(rotmat(ang, axis, det=det, units=units),
+                         newxyz[ind].T).T
     return newxyz + origin
 
 

@@ -204,7 +204,6 @@ class Molecule(BaseMolecule):
             write_func(outfile, self.elem[1:], self.xyz[1:], mom=mom,
                        comment=self.comment)
 
-
     # Accessors
     def get_natm(self):
         """Returns number of atoms."""
@@ -275,30 +274,18 @@ class Molecule(BaseMolecule):
         self._add_centre()
         self.saved = False
 
-    def reflect(self, axis, ind=None, origin=np.zeros(3)):
-        """Reflects the molecule across a given plane.
-
-        If momenta are non-zero, they will be reflected about the
-        same origin.
-        """
-        self.xyz = displace.reflect(self.xyz, axis, ind=ind, origin=origin)
-        if self.print_mom:
-            self.mom = displace.reflect(self.mom, axiz, ind=ind, origin=origin)
-
-        self._add_centre()
-        self.saved = False
-
-    def rotate(self, amp, axis, ind=None, origin=np.zeros(3), units='rad'):
+    def rotate(self, amp, axis, ind=None, origin=np.zeros(3), det=1,
+               units='rad'):
         """Rotates the molecule about a given axis from a given origin.
 
         If momenta are non-zero, they will be rotated about the
-        same origin.
+        same origin. Reflections and improper rotations can be done
+        by setting det=-1.
         """
-        self.xyz = displace.rotate(self.xyz, amp, axis, ind=ind,
-                                   origin=origin, units=units)
+        kwargs = dict(ind=ind, origin=origin, det=det, units=units)
+        self.xyz = displace.rotate(self.xyz, amp, axis, **kwargs)
         if self.print_mom:
-            self.mom = displace.rotate(self.mom, amp, axis, ind=ind,
-                                       origin=origin, units=units)
+            self.mom = displace.rotate(self.mom, amp, axis, **kwargs)
         self._add_centre()
         self.saved = False
 
