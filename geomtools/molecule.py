@@ -171,6 +171,11 @@ class Molecule(BaseMolecule):
         return Molecule(np.copy(self.elem[1:]), np.copy(self.xyz[1:]),
                         mom, comment)
 
+    def set_mom(self, mom):
+        """Sets the molecular momentum."""
+        new_mom = np.vstack(([0, 0, 0], mom))
+        BaseMolecule.set_mom(self, new_mom)
+
     # Input/Output
     def read(self, infile, fmt='auto', hasmom=False, hascom=False):
         """Reads single geometry from input file in provided format."""
@@ -261,16 +266,39 @@ class Molecule(BaseMolecule):
         self.saved = False
 
     def translate(self, amp, axis, ind=None, units='ang'):
-        """Translates the molecule along a given axis."""
+        """Translates the molecule along a given axis.
+
+        Momenta are difference vectors and are not translated.
+        """
         self.xyz = displace.translate(self.xyz, amp, axis, ind=ind,
                                       units=units)
         self._add_centre()
         self.saved = False
 
+    def reflect(self, axis, ind=None, origin=np.zeros(3)):
+        """Reflects the molecule across a given plane.
+
+        If momenta are non-zero, they will be reflected about the
+        same origin.
+        """
+        self.xyz = displace.reflect(self.xyz, axis, ind=ind, origin=origin)
+        if self.print_mom:
+            self.mom = displace.reflect(self.mom, axiz, ind=ind, origin=origin)
+
+        self._add_centre()
+        self.saved = False
+
     def rotate(self, amp, axis, ind=None, origin=np.zeros(3), units='rad'):
-        """Rotates the molecule about a given axis from a given origin."""
+        """Rotates the molecule about a given axis from a given origin.
+
+        If momenta are non-zero, they will be rotated about the
+        same origin.
+        """
         self.xyz = displace.rotate(self.xyz, amp, axis, ind=ind,
                                    origin=origin, units=units)
+        if self.print_mom:
+            self.mom = displace.rotate(self.mom, amp, axis, ind=ind,
+                                       origin=origin, units=units)
         self._add_centre()
         self.saved = False
 
@@ -404,15 +432,14 @@ class MoleculeBundle(object):
         return bundles
 
 
-def import_molecule(fname, fmt='auto', hasmom=False, hascom=False):
+def import_molecule(fname, fmt='auto', **kwargs):
     """Imports geometry in provided format to Molecule object."""
     read_func = getattr(fileio, 'read_' + fmt)
     with open(fname, 'r') as infile:
-        return Molecule(*read_func(infile, hasmom=hasmom,
-                                   hascom=hascom))
+        return Molecule(*read_func(infile, **kwargs))
 
 
-def import_bundle(fnamelist, fmt='auto', hasmom=False, hascom=False):
+def import_bundle(fnamelist, fmt='auto', **kwargs):
     """Imports geometries in provided format to MoleculeBundle object.
 
     The fnamelist keyword can be a single filename or a list of
@@ -427,8 +454,7 @@ def import_bundle(fnamelist, fmt='auto', hasmom=False, hascom=False):
         with open(fname, 'r') as infile:
             while True:
                 try:
-                    molecules.append(Molecule(*read_func(infile, hasmom=hasmom,
-                                                         hascom=hascom)))
+                    molecules.append(Molecule(*read_func(infile, **kwargs)))
                 except ValueError:
                     break
 

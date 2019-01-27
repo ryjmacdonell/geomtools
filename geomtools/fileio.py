@@ -255,7 +255,7 @@ def read_trajdump(infile, units='bohr', hasmom=False, hascom=False,
         rawline = infile.readline().split()
         if rawline == []:
             raise ValueError('empty line provided')
-        elif rawline[0][0] == '#':
+        elif 'Time' in rawline:
             line = np.array(infile.readline().split(), dtype=float)
         else:
             line = np.array(rawline, dtype=float)
@@ -274,10 +274,8 @@ def read_trajdump(infile, units='bohr', hasmom=False, hascom=False,
     return elem, xyz, mom, comment
 
 
-def read_auto(infile, **kwargs):
+def read_auto(infile, hascom=False, **kwargs):
     """Reads a molecular geometry file and determines the format."""
-    if 'hascom' in kwargs:
-        hascom = kwargs['hascom']
     pos = infile.tell()
     contents = infile.readlines()
     infile.seek(pos)
