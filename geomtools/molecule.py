@@ -39,6 +39,60 @@ class BaseMolecule(object):
         self.saved = True
         self.save()
 
+    def __repr__(self):
+        nelem = len(self.elem)
+        fmt = '[{:>2s},' + 2*'{:16.8e},' + '{:16.8e}'
+        if self.print_mom:
+            xyzmom = np.hstack((self.xyz, self.mom))
+            fmt += ',\n' + 6*' ' + 2*'{:16.8e},' + '{:16.8e}]'
+        else:
+            xyzmom = self.xyz
+            fmt += ']'
+        fstr = 'BaseMolecule({!r},\n ['.format(self.comment)
+        if nelem > 10:
+            fstr += fmt.format(self.elem[0], *xyzmom[0])
+            for i in range(1, 3):
+                fstr += ',\n  ' + fmt.format(self.elem[i], *xyzmom[i])
+            fstr += ',\n  ...'
+            for i in range(-3, 0):
+                fstr += ',\n  ' + fmt.format(self.elem[i], *xyzmom[i])
+        else:
+            for i in range(nelem):
+                if i != 0:
+                    fstr += ',\n  '
+                fstr += fmt.format(self.elem[i], *xyzmom[i])
+        fstr += '])'
+        return fstr
+
+    def __str__(self):
+        nelem = len(self.elem)
+        fmt = '[{:>2s}' + 3*'{:14.8f}'
+        if self.print_mom:
+            xyzmom = np.hstack((self.xyz, self.mom))
+            fmt += '\n' + 4*' ' + 3*'{:14.8f}' + ']'
+        else:
+            xyzmom = self.xyz
+            fmt += ']'
+        fstr = ''
+        if self.comment != '':
+            fstr += '{!s}\n['.format(self.comment)
+        else:
+            fstr += '['
+        if nelem > 10:
+            fstr += fmt.format(self.elem[0], *xyzmom[0])
+            for i in range(1, 3):
+                fstr += '\n ' + fmt.format(self.elem[i], *xyzmom[i])
+            fstr += '\n ...'
+            for i in range(-3, 0):
+                fstr += '\n ' + fmt.format(self.elem[i], *xyzmom[i])
+        else:
+            for i in range(nelem):
+                if i != 0:
+                    fstr += '\n '
+                fstr += fmt.format(self.elem[i], *xyzmom[i])
+        fstr += ']'
+        return fstr
+
     def _check(self):
         """Checks that xyz is 3D and len(elem) = len(xyz)."""
         if self.xyz.shape[1] != 3:
@@ -145,6 +199,19 @@ class Molecule(BaseMolecule):
     Molecule can also read from and write to input files given by a filename
     or an open file object. Other methods are derived from geomtools modules.
     """
+    def __repr__(self):
+        baserepr = BaseMolecule.__repr__(self)
+        return baserepr.replace('BaseMolecule', 'Molecule', 1)
+
+    def __str__(self):
+        base = BaseMolecule(self.elem[1:], self.xyz[1:],
+                            self.mom[1:] if self.print_mom else None,
+                            self.comment)
+        return base.__str__()
+
+    def __add__(self, other):
+        return MoleculeBundle(_add_type(self, other))
+
     def _add_centre(self):
         """Adds a dummy atom at index 0 at molecular centre of mass."""
         pos = displace.get_centremass(self.elem, self.xyz)
@@ -167,9 +234,14 @@ class Molecule(BaseMolecule):
         self._check()
         mom = self.mom[1:] if self.print_mom else None
         if comment is None:
-            comment = 'Copy of ' + self.comment
+            comment = self.comment
         return Molecule(np.copy(self.elem[1:]), np.copy(self.xyz[1:]),
                         mom, comment)
+
+    def set_mom(self, mom):
+        """Sets the molecular momentum."""
+        new_mom = np.vstack(([0, 0, 0], mom))
+        BaseMolecule.set_mom(self, new_mom)
 
     # Input/Output
     def read(self, infile, fmt='auto', hasmom=False, hascom=False):
@@ -199,7 +271,6 @@ class Molecule(BaseMolecule):
             write_func(outfile, self.elem[1:], self.xyz[1:], mom=mom,
                        comment=self.comment)
 
-
     # Accessors
     def get_natm(self):
         """Returns number of atoms."""
@@ -224,6 +295,18 @@ class Molecule(BaseMolecule):
     def get_mass(self):
         """Returns atomic masses."""
         return con.get_mass(self.elem[1:])
+
+    def get_form(self):
+        """Gets the atomic formula based on the element list."""
+        elem = [sym for sym in self.elem if 'X' not in sym]
+        atm, num = np.unique(elem, return_counts=True)
+        fstr = ''
+        for a, n in zip(atm, num):
+            if n == 1:
+                fstr += a
+            else:
+                fstr += a + str(n)
+        return fstr
 
     # Internal geometry
     def get_stre(self, ind, units='ang', absv=False):
@@ -261,16 +344,27 @@ class Molecule(BaseMolecule):
         self.saved = False
 
     def translate(self, amp, axis, ind=None, units='ang'):
-        """Translates the molecule along a given axis."""
+        """Translates the molecule along a given axis.
+
+        Momenta are difference vectors and are not translated.
+        """
         self.xyz = displace.translate(self.xyz, amp, axis, ind=ind,
                                       units=units)
         self._add_centre()
         self.saved = False
 
-    def rotate(self, amp, axis, ind=None, origin=np.zeros(3), units='rad'):
-        """Rotates the molecule about a given axis from a given origin."""
-        self.xyz = displace.rotate(self.xyz, amp, axis, ind=ind,
-                                   origin=origin, units=units)
+    def rotate(self, amp, axis, ind=None, origin=np.zeros(3), det=1,
+               units='rad'):
+        """Rotates the molecule about a given axis from a given origin.
+
+        If momenta are non-zero, they will be rotated about the
+        same origin. Reflections and improper rotations can be done
+        by setting det=-1.
+        """
+        kwargs = dict(ind=ind, origin=origin, det=det, units=units)
+        self.xyz = displace.rotate(self.xyz, amp, axis, **kwargs)
+        if self.print_mom:
+            self.mom = displace.rotate(self.mom, amp, axis, **kwargs)
         self._add_centre()
         self.saved = False
 
@@ -300,7 +394,34 @@ class MoleculeBundle(object):
         if molecules is None:
             self.molecules = np.array([], dtype=object)
         else:
-            self.molecules = np.array(molecules, dtype=object)
+            self.molecules = np.array(molecules, copy=False)
+        self.nmol = len(self.molecules)
+        self._check()
+
+    def __repr__(self):
+        fstr = '\n '
+        if self.nmol > 6:
+            fstr += self._join_str(',\n\n ', self.molecules[:2], 'r')
+            fstr += ',\n\n ...,\n\n '
+            fstr += self._join_str(',\n\n ', self.molecules[-2:], 'r')
+        else:
+            fstr += self._join_str(',\n\n ', self.molecules, 'r')
+        return 'MoleculeBundle({:s})'.format(fstr)
+
+    def __str__(self):
+        if self.nmol > 6:
+            fstr = self._join_str('\n\n ', self.molecules[:2], 's')
+            fstr += '\n\n ...\n\n '
+            fstr += self._join_str('\n\n ', self.molecules[-2:], 's')
+        else:
+            fstr = self._join_str('\n\n ', self.molecules, 's')
+        return '[{:s}]'.format(fstr)
+
+    def __add__(self, other):
+        return MoleculeBundle(_add_type(self, other))
+
+    def __iadd__(self, other):
+        self.molecules = _add_type(self, other)
         self.nmol = len(self.molecules)
         self._check()
 
@@ -310,6 +431,13 @@ class MoleculeBundle(object):
             if not isinstance(mol, Molecule):
                 raise TypeError('Elements of molecule bundle must be '
                                 'Molecule type.')
+
+    def _join_str(self, jn, lst, typ):
+        """Returns a string of list elements joined by a separator with
+        newline characters added."""
+        fmt = '{!' + typ + '}'
+        return jn.join(fmt.format(l, t=typ).replace('\n', '\n ')
+                       for l in lst)
 
     def copy(self):
         """Returns a copy of the MoleculeBundle object."""
@@ -404,15 +532,14 @@ class MoleculeBundle(object):
         return bundles
 
 
-def import_molecule(fname, fmt='auto', hasmom=False, hascom=False):
+def import_molecule(fname, fmt='auto', **kwargs):
     """Imports geometry in provided format to Molecule object."""
     read_func = getattr(fileio, 'read_' + fmt)
     with open(fname, 'r') as infile:
-        return Molecule(*read_func(infile, hasmom=hasmom,
-                                   hascom=hascom))
+        return Molecule(*read_func(infile, **kwargs))
 
 
-def import_bundle(fnamelist, fmt='auto', hasmom=False, hascom=False):
+def import_bundle(fnamelist, fmt='auto', **kwargs):
     """Imports geometries in provided format to MoleculeBundle object.
 
     The fnamelist keyword can be a single filename or a list of
@@ -427,8 +554,7 @@ def import_bundle(fnamelist, fmt='auto', hasmom=False, hascom=False):
         with open(fname, 'r') as infile:
             while True:
                 try:
-                    molecules.append(Molecule(*read_func(infile, hasmom=hasmom,
-                                                         hascom=hascom)))
+                    molecules.append(Molecule(*read_func(infile, **kwargs)))
                 except ValueError:
                     break
 
@@ -441,6 +567,22 @@ def _rearrange_check(new_ind, old_ind):
     old = [old_ind] if isinstance(old_ind, int) else old_ind
     if len(new) != len(old):
         raise IndexError('Old and new indices must be the same length')
+
+
+def _add_type(inp1, inp2):
+    """Checks the type of an object being added to a bundle."""
+    if isinstance(inp1, MoleculeBundle) and isinstance(inp2, MoleculeBundle):
+        molecules = np.hstack((inp1.molecules, inp2.molecules))
+    elif isinstance(inp1, MoleculeBundle) and isinstance(inp2, Molecule):
+        molecules = np.hstack((inp1.molecules, inp2))
+    elif isinstance(inp1, Molecule) and isinstance(inp2, MoleculeBundle):
+        molecules = np.hstack((inp1, inp2.molecules))
+    elif isinstance(inp1, Molecule) and isinstance(inp2, Molecule):
+        molecules = np.hstack((inp1, inp2))
+    else:
+        raise TypeError('Addition not supported for types \'{:s}\' and '
+                        '\'{:s}\'.'.format(type(inp1), type(inp2)))
+    return molecules
 
 
 def _atm_inds(inds):
