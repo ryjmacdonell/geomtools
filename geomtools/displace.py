@@ -242,7 +242,8 @@ def rotmat(ang, ax, det=1, units='rad'):
 
 
 def angax(rotmat, units='rad'):
-    """Returns the angle and axis of rotation based on a rotational matrix.
+    """Returns the angle, axis of rotation and determinant of a
+    rotational matrix.
 
     Based on the form of R, it can be separated into symmetric
     and antisymmetric components with (r_ij + r_ji)/2 and
