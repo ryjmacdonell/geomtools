@@ -48,7 +48,12 @@ class BaseMolecule(object):
         else:
             xyzmom = self.xyz
             fmt += ']'
-        fstr = 'BaseMolecule({!r},\n ['.format(self.comment)
+
+        if nelem == 0:
+            fstr = 'BaseMolecule({!r}, ['.format(self.comment)
+        else:
+            fstr = 'BaseMolecule({!r},\n ['.format(self.comment)
+
         if nelem > 10:
             fstr += fmt.format(self.elem[0], *xyzmom[0])
             for i in range(1, 3):
@@ -61,6 +66,7 @@ class BaseMolecule(object):
                 if i != 0:
                     fstr += ',\n  '
                 fstr += fmt.format(self.elem[i], *xyzmom[i])
+
         fstr += '])'
         return fstr
 
@@ -399,17 +405,22 @@ class MoleculeBundle(object):
         self._check()
 
     def __repr__(self):
-        fstr = '\n '
-        if self.nmol > 6:
-            fstr += self._join_str(',\n\n ', self.molecules[:2], 'r')
-            fstr += ',\n\n ...,\n\n '
-            fstr += self._join_str(',\n\n ', self.molecules[-2:], 'r')
+        if self.nmol == 0:
+            fstr = ''
         else:
-            fstr += self._join_str(',\n\n ', self.molecules, 'r')
+            fstr = '\n '
+            if self.nmol > 6:
+                fstr += self._join_str(',\n\n ', self.molecules[:2], 'r')
+                fstr += ',\n\n ...,\n\n '
+                fstr += self._join_str(',\n\n ', self.molecules[-2:], 'r')
+            else:
+                fstr += self._join_str(',\n\n ', self.molecules, 'r')
         return 'MoleculeBundle({:s})'.format(fstr)
 
     def __str__(self):
-        if self.nmol > 6:
+        if self.nmol == 0:
+            fstr = ''
+        elif self.nmol > 6:
             fstr = self._join_str('\n\n ', self.molecules[:2], 's')
             fstr += '\n\n ...\n\n '
             fstr += self._join_str('\n\n ', self.molecules[-2:], 's')
@@ -421,9 +432,7 @@ class MoleculeBundle(object):
         return MoleculeBundle(_add_type(self, other))
 
     def __iadd__(self, other):
-        self.molecules = _add_type(self, other)
-        self.nmol = len(self.molecules)
-        self._check()
+        return MoleculeBundle(_add_type(self, other))
 
     def _check(self):
         """Check that all bundle objects are Molecule type."""

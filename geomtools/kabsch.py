@@ -40,20 +40,22 @@ def rmsd(test, ref, wgt=None):
                        (3 * np.sum(wgt) * np.size(test)))
 
 
-def kabsch(test, ref, wgt=None):
+def kabsch(test, ref, wgt=None, refl=True):
     """Returns the Kabsch rotational matrix to map a test geometry onto
     a reference.
 
     If weights are provided, they are used to weight the test vectors
     before forming the covariance matrix. This minimizes the weighted
-    RMSD between the two geometries.
+    RMSD between the two geometries. If refl=True, improper rotations
+    are also permitted.
     """
     if wgt is None:
         cov = test.T.dot(ref)
     else:
         cov = (wgt[:,np.newaxis] * test).T.dot(ref)
     rot1, scale, rot2 = linalg.svd(cov)
-    rot1[:,-1] *= np.sign(linalg.det(rot1) * linalg.det(rot2))
+    if not refl:
+        rot1[:,-1] *= np.sign(linalg.det(rot1) * linalg.det(rot2))
     return rot1.dot(rot2)
 
 
