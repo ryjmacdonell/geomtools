@@ -86,7 +86,10 @@ def read_col(infile, units='bohr', hasmom=False, hascom=False):
                 break
     elem = data[:, 0]
     xyz = data[:, 2:5].astype(float) * con.conv(units, 'ang')
-    mom = np.zeros_like(xyz)
+    if hasmom:
+        mom = np.zeros_like(xyz)
+    else:
+        mom = None
     return elem, xyz, mom, comment
 
 

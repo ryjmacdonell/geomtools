@@ -12,6 +12,7 @@ geometries. Input files with multiple geometries can be read to a bundle.
 import numpy as np
 import geomtools.fileio as fileio
 import geomtools.displace as displace
+import geomtools.substitute as substitute
 import geomtools.constants as con
 import geomtools.kabsch as kabsch
 
@@ -103,6 +104,8 @@ class BaseMolecule(object):
         """Checks that xyz is 3D and len(elem) = len(xyz)."""
         if self.xyz.shape[1] != 3:
             raise ValueError('Molecular geometry must be 3-dimensional.')
+        if self.mom.shape[1] != 3:
+            raise ValueError('Molecular momentum must be 3-dimensional.')
         len_elem = len(self.elem)
         len_xyz = len(self.xyz)
         if len_elem != len_xyz:
@@ -162,11 +165,13 @@ class BaseMolecule(object):
     def add_atoms(self, new_elem, new_xyz, new_mom=None):
         """Adds atoms(s) to molecule."""
         self.natm += 1 if isinstance(new_elem, str) else len(new_elem)
+        new_xyz = np.atleast_2d(new_xyz)
         self.elem = np.hstack((self.elem, new_elem))
         self.xyz = np.vstack((self.xyz, new_xyz))
         if new_mom is None:
             self.mom = np.vstack((self.mom, np.zeros((len(new_xyz), 3))))
         else:
+            new_mom = np.atleast_2d(new_mom)
             self.mom = np.vstack((self.mom, new_mom))
             self.print_mom = True
         self._check()
@@ -389,6 +394,13 @@ class Molecule(BaseMolecule):
                                   **kwargs)
         return Molecule(self.get_elem(), xyz, mom,
                         self.get_comment()), ind
+
+    # Functional group substitution
+    def subst(self, lbl, isub, ibond, iplane=None):
+        """Replaces an atom or set of atoms with a substituent."""
+        args = (self.elem, self.xyz, lbl, isub, ibond)
+        kwargs = dict(iplane=iplane, mom=self.mom)
+        self.elem, self.xyz, self.mom = substitute.subst(*args, **kwargs)
 
 
 class MoleculeBundle(object):
