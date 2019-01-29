@@ -80,7 +80,7 @@ def subst(elem, xyz, sublbl, isub, ibond, iplane=None, mom=None):
     ax /= np.linalg.norm(ax)
     origin = xyz[ibond]
     if iplane is None:
-        pl = np.array([0, 1, 0])
+        pl = np.array([0., 1., 0.])
         pl -= np.dot(pl, ax)
     else:
         pl = np.cross(xyz[ipos] - xyz[ibond], xyz[iplane] - xyz[ibond])
@@ -90,7 +90,7 @@ def subst(elem, xyz, sublbl, isub, ibond, iplane=None, mom=None):
 
     # rotate to correct orientation
     sub_xyz = displace.align_axis(sub_xyz, 'z', ax)
-    sub_pl = displace.align_axis([0, 1, 0], 'z', ax)
+    sub_pl = displace.align_axis([0., 1., 0.], 'z', ax)
     sub_xyz = displace.align_axis(sub_xyz, sub_pl, pl)
 
     # displace to correct position
