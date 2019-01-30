@@ -20,29 +20,49 @@ class SubLib(object):
     Object containing a library of substituent geometries.
     """
     def __init__(self):
-        self.subs = ['cn', 'ch3']
         self.elem = dict()
         self.xyz = dict()
+        self.syn = dict()
         self._populate_elem()
         self._populate_xyz()
+        self._populate_syn()
 
     def _populate_elem(self):
         """Adds element labels to self.elem."""
-        self.elem['cn'] = np.array(['C', 'N'])
         self.elem['ch3'] = np.array(['C', 'H', 'H', 'H'])
+        self.elem['nh2'] = np.array(['N', 'H', 'H'])
+        self.elem['oh'] = np.array(['O', 'H'])
+        self.elem['f'] = np.array(['F'])
+        self.elem['cn'] = np.array(['C', 'N'])
+        self.elem['cl'] = np.array(['Cl'])
 
     def _populate_xyz(self):
         """Adds cartesian geometries to self.xyz."""
-        self.xyz['cn'] = np.array([[0.000, 0.000, 0.000],
-                                   [0.000, 0.000, 1.136]])
         self.xyz['ch3'] = np.array([[0.000, 0.000, 0.000],
                                     [-1.023, 0.000, 0.377],
                                     [0.511, -0.886, 0.377],
                                     [0.511, 0.886, 0.377]])
+        self.xyz['nh2'] = np.array([[0.000, 0.000, 0.000],
+                                    [-0.577, -0.771,  0.332],
+                                    [-0.577, 0.771,  0.332]])
+        self.xyz['oh'] = np.array([[0.000, 0.000, 0.000],
+                                   [-0.913, 0.000, 0.297]])
+        self.xyz['f'] = np.array([[0.000, 0.000, 0.000]])
+        self.xyz['cn'] = np.array([[0.000, 0.000, 0.000],
+                                   [0.000, 0.000, 1.136]])
+        self.xyz['cl'] = np.array([[0.000, 0.000, 0.000]])
+
+    def _populate_syn(self):
+        """Adds a dictionary of synonyms for labels."""
+        synlist = [['ch3', 'h3c', 'me'], ['nh2', 'h2n', 'am'], ['oh', 'ho'],
+                   ['f'], ['cn', 'nc'], ['cl']]
+        for subl in synlist:
+            for item in subl:
+                self.syn[item] = subl[0]
 
     def _parse_label(self, label):
         """Returns a label in a single format."""
-        return label.lower()
+        return self.syn[label.lower()]
 
     def get_sub(self, label):
         lbl = self._parse_label(label)
@@ -80,8 +100,8 @@ def subst(elem, xyz, sublbl, isub, ibond, iplane=None, mom=None):
     ax /= np.linalg.norm(ax)
     origin = xyz[ibond]
     if iplane is None:
-        pl = np.array([0., 1., 0.])
-        pl -= np.dot(pl, ax)
+        pl = np.array([1., 1., 1.])
+        pl -= np.dot(pl, ax) * ax
     else:
         pl = np.cross(xyz[ipos] - xyz[ibond], xyz[iplane] - xyz[ibond])
 
