@@ -396,10 +396,10 @@ class Molecule(BaseMolecule):
                         self.get_comment()), ind
 
     # Functional group substitution
-    def subst(self, lbl, isub, ibond, iplane=None):
+    def subst(self, lbl, isub, ibond, pl=None):
         """Replaces an atom or set of atoms with a substituent."""
         args = (self.elem, self.xyz, lbl, isub, ibond)
-        kwargs = dict(iplane=iplane, mom=self.mom)
+        kwargs = dict(pl=pl, mom=self.mom)
         self.elem, self.xyz, self.mom = substitute.subst(*args, **kwargs)
 
 
