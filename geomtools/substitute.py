@@ -201,15 +201,15 @@ def import_sub(label):
     return lib.get_sub(label)
 
 
-def subst(elem, xyz, sublbl, isub, ibond, pl=None, vec=None):
+def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
     """Returns a molecular geometry with an specified atom replaced by
     substituent.
 
-    Labels are case-insensitive. Indices isub and ibond give
-    the position to be substituted, the position that will be bonded to
-    the substituent (i.e. the axis). The orientation of the substituent
-    can be given as a vector (the plane normal) or an index (the plane
-    containing isub, ibond and pl).
+    Labels are case-insensitive. The index isub gives the position to be
+    substituted. If specified, ibond gives the atom bonded to the
+    substituent. Otherwise, the nearest atom to isub is used. The
+    orientation of the substituent can be given as a vector (the plane
+    normal) or an index (the plane containing isub, ibond and pl).
 
     If isub is given as a list, the entire list of atoms is be removed
     and the first index is treated as the position of the substituent.
@@ -221,6 +221,11 @@ def subst(elem, xyz, sublbl, isub, ibond, pl=None, vec=None):
     else:
         isub = [isub]
         ipos = isub[0]
+
+    if ibond is None:
+        dist = np.linalg.norm(xyz - xyz[isub], axis=1)
+        dist[isub] += np.max(dist)
+        ibond = np.argmin(dist)
 
     ax = xyz[ipos] - xyz[ibond]
     ax /= np.linalg.norm(ax)
