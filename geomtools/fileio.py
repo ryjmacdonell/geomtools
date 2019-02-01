@@ -11,19 +11,19 @@ import geomtools.constants as con
 import geomtools.displace as displace
 
 
-def read_xyz(infile, units='ang', hasmom=False, hascom=False):
+def read_xyz(infile, units='ang', hasvec=False, hascom=False):
     """Reads input file in XYZ format.
 
     XYZ files are in the format:
     natm
     comment
-    A X1 Y1 Z1 [Px1 Py1 Pz1]
-    B X2 Y2 Z2 [Px2 Py2 Pz2]
+    A X1 Y1 Z1 [Vx1 Vy1 Vz1]
+    B X2 Y2 Z2 [Vx2 Vy2 Vz2]
     ...
     where natm is the number of atoms, comment is a comment line, A and B
     are atomic labels and X, Y and Z are cartesian coordinates (in
-    Angstroms). The momenta Px, Py and Pz are optional and will only be
-    read if hasmom = True.
+    Angstroms). The vectors Vx, Vy and Vz are optional and will only be
+    read if hasvec = True.
 
     Due to the preceding number of atoms, multiple XYZ format geometries
     can easily be read from a single file.
@@ -40,14 +40,14 @@ def read_xyz(infile, units='ang', hasmom=False, hascom=False):
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
     xyz = data[:, 1:4].astype(float) * con.conv(units, 'ang')
-    if hasmom:
-        mom = data[:, 4:7].astype(float)
+    if hasvec:
+        vec = data[:, 4:7].astype(float)
     else:
-        mom = None
-    return elem, xyz, mom, comment
+        vec = None
+    return elem, xyz, vec, comment
 
 
-def read_col(infile, units='bohr', hasmom=False, hascom=False):
+def read_col(infile, units='bohr', hasvec=False, hascom=False):
     """Reads input file in COLUMBUS format.
 
     COLUMBUS geometry files are in the format:
@@ -62,7 +62,7 @@ def read_col(infile, units='bohr', hasmom=False, hascom=False):
     geometry. A comment line (or blank line) must be used to separate
     molecules.
 
-    For the time being, momentum input is not supported for the
+    For the time being, vector input is not supported for the
     COLUMBUS file format.
     """
     if hascom:
@@ -86,11 +86,14 @@ def read_col(infile, units='bohr', hasmom=False, hascom=False):
                 break
     elem = data[:, 0]
     xyz = data[:, 2:5].astype(float) * con.conv(units, 'ang')
-    mom = np.zeros_like(xyz)
-    return elem, xyz, mom, comment
+    if hasvec:
+        vec = np.zeros_like(xyz)
+    else:
+        vec = None
+    return elem, xyz, vec, comment
 
 
-def read_gdat(infile, units='bohr', hasmom=False, hascom=False):
+def read_gdat(infile, units='bohr', hasvec=False, hascom=False):
     """Reads input file in FMS90 Geometry.dat format.
 
     Geometry.dat files are in the format:
@@ -99,13 +102,13 @@ def read_gdat(infile, units='bohr', hasmom=False, hascom=False):
     A X1 Y1 Z1
     B X2 Y2 Z2
     ...
-    Px1 Py1 Pz1
-    Px2 Py2 Pz2
+    Vx1 Vy1 Vz1
+    Vx2 Vy2 Vz2
     ...
     where comment is a comment line, natm is the number of atoms, A and B
-    are atomic labels, X, Y and Z are cartesian coordinates and Pq are
-    momenta for cartesian coordinates q. The momenta are only read if
-    hasmom = True.
+    are atomic labels, X, Y and Z are cartesian coordinates and Vq are
+    vectors for cartesian coordinates q. The vectors are only read if
+    hasvec = True.
     """
     if hascom:
         comment = infile.readline().strip()
@@ -119,15 +122,15 @@ def read_gdat(infile, units='bohr', hasmom=False, hascom=False):
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
     xyz = data[:, 1:].astype(float) * con.conv(units, 'ang')
-    if hasmom:
-        mom = np.array([infile.readline().split() for i in range(natm)],
+    if hasvec:
+        vec = np.array([infile.readline().split() for i in range(natm)],
                        dtype=float)
     else:
-        mom = None
-    return elem, xyz, mom, comment
+        vec = None
+    return elem, xyz, vec, comment
 
 
-def read_zmt(infile, units='ang', hasmom=False, hascom=False):
+def read_zmt(infile, units='ang', hasvec=False, hascom=False):
     """Reads input file in Z-matrix format.
 
     Z-matrix files are in the format:
@@ -149,7 +152,7 @@ def read_zmt(infile, units='ang', hasmom=False, hascom=False):
     first atom allows multiple geometries to be read without separation
     by a comment line.
 
-    For the time being, momentum input is not supported for the
+    For the time being, vector input is not supported for the
     Z-matrix file format.
     """
     if hascom:
@@ -223,24 +226,24 @@ def read_zmt(infile, units='ang', hasmom=False, hascom=False):
                                   ind=i, origin=xyz[indR], units='deg')
 
     xyz = displace.centre_mass(elem, xyz) * con.conv(units, 'ang')
-    if hasmom:
-        mom = np.zeros_like(xyz)
+    if hasvec:
+        vec = np.zeros_like(xyz)
     else:
-        mom = None
-    return elem, xyz, mom, comment
+        vec = None
+    return elem, xyz, vec, comment
 
 
-def read_trajdump(infile, units='bohr', hasmom=False, hascom=False,
+def read_trajdump(infile, units='bohr', hasvec=False, hascom=False,
                   elem=None, time=None):
     """Reads input file in FMS90/FMSpy TrajDump format
 
     TrajDump files are in the format:
-    T1 X1 Y1 Z1 X2 Y2 ... Px1 Py1 Pz1 Px2 Py2 ... G Re(A) Im(A) |A| S
-    T2 X1 Y1 Z1 X2 Y2 ... Px1 Py1 Pz1 Px2 Py2 ... G Re(A) Im(A) |A| S
+    T1 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
+    T2 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
     ...
-    where T is the time, Pq are the momenta for cartesian coordinates q,
-    G is the phase, A is the amplitude and S is the state label. The momenta
-    are only read if hasmom = True.
+    where T is the time, Vq are the vectors (momenta) for cartesian
+    coordinates q, G is the phase, A is the amplitude and S is the state
+    label. The vectors are only read if hasvec = True.
 
     TrajDump files do not contain atomic labels. If not provided, they are
     set to dummy atoms which may affect calculations involving atomic
@@ -267,11 +270,11 @@ def read_trajdump(infile, units='bohr', hasmom=False, hascom=False,
     if elem is None:
         elem = np.array(['X'] * natm)
     xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv(units,'ang')
-    if hasmom:
-        mom = line[3*natm+1:6*natm+1].reshape(natm, 3)
+    if hasvec:
+        vec = line[3*natm+1:6*natm+1].reshape(natm, 3)
     else:
-        mom = None
-    return elem, xyz, mom, comment
+        vec = None
+    return elem, xyz, vec, comment
 
 
 def read_auto(infile, hascom=False, **kwargs):
@@ -355,24 +358,24 @@ def _valvar(unk, vardict):
             raise KeyError('\'{}\' not found in variable list'.format(unk))
 
 
-def write_xyz(outfile, elem, xyz, mom=None, comment='', units='ang'):
+def write_xyz(outfile, elem, xyz, vec=None, comment='', units='ang'):
     """Writes geometry to an output file in XYZ format."""
     natm = len(elem)
     write_xyz = xyz * con.conv('ang', units)
     outfile.write(' {}\n{}\n'.format(natm, comment))
-    if mom is None:
+    if vec is None:
         for atm, xyzi in zip(elem, write_xyz):
             outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(atm, *xyzi))
     else:
-        for atm, xyzi, pxyzi in zip(elem, write_xyz, mom):
+        for atm, xyzi, pxyzi in zip(elem, write_xyz, vec):
             outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}'.format(atm, *xyzi) +
                           '{:12.6f}{:12.6f}{:12.6f}\n'.format(*pxyzi))
 
 
-def write_col(outfile, elem, xyz, mom=None, comment='', units='bohr'):
+def write_col(outfile, elem, xyz, vec=None, comment='', units='bohr'):
     """Writes geometry to an output file in COLUMBUS format.
 
-    For the time being, momentum output is not supported for the
+    For the time being, vector output is not supported for the
     COLUMBUS file format.
     """
     write_xyz = xyz * con.conv('ang', units)
@@ -384,28 +387,28 @@ def write_col(outfile, elem, xyz, mom=None, comment='', units='bohr'):
                                   con.get_mass(atm)))
 
 
-def write_gdat(outfile, elem, xyz, mom=None, comment='', units='bohr'):
+def write_gdat(outfile, elem, xyz, vec=None, comment='', units='bohr'):
     """Writes geometry to an output file in Geometry.dat format."""
     natm = len(elem)
     write_xyz = xyz * con.conv('ang', units)
     outfile.write('{}\n{}\n'.format(comment, natm))
     for atm, xyzi in zip(elem, write_xyz):
         outfile.write('{:<2s}{:18.8E}{:18.8E}{:18.8E}\n'.format(atm, *xyzi))
-    if mom is None:
+    if vec is None:
         for line in range(natm):
             outfile.write(' {:18.8E}{:18.8E}{:18.8E}\n'.format(0, 0, 0))
     else:
-        for pxyzi in mom:
+        for pxyzi in vec:
             outfile.write(' {:18.8E}{:18.8E}{:18.8E}\n'.format(*pxyzi))
 
 
-def write_zmt(outfile, elem, xyz, mom=None, comment='', units='ang'):
+def write_zmt(outfile, elem, xyz, vec=None, comment='', units='ang'):
     """Writes geometry to an output file in Z-matrix format.
 
     TODO: At present, each atom uses the previous atoms in order as
     references. This could be made 'smarter' using the bonding module.
 
-    For the time being, momentum output is not supported for the
+    For the time being, vector output is not supported for the
     Z-matrix file format.
     """
     natm = len(elem)
@@ -439,11 +442,11 @@ def write_zmt(outfile, elem, xyz, mom=None, comment='', units='ang'):
                                                          units='deg')))
 
 
-def write_zmtvar(outfile, elem, xyz, mom=None, comment='', units='ang'):
+def write_zmtvar(outfile, elem, xyz, vec=None, comment='', units='ang'):
     """Writes geometry to an output file in Z-matrix format with
     variable assignments.
 
-    For the time being, momentum output is not supported for the
+    For the time being, vector output is not supported for the
     Z-matrix file format.
     """
     natm = len(elem)
@@ -502,7 +505,7 @@ def write_auto(outfile, elem, xyz, **kwargs):
 
 
 def convert(infname, outfname, infmt='auto', outfmt='auto',
-            inunits=None, outunits=None, hasmom=False, hascom=False):
+            inunits=None, outunits=None, hasvec=False, hascom=False):
     """Reads a file in format infmt and writes to a file in format
     outfmt.
 
@@ -510,9 +513,9 @@ def convert(infname, outfname, infmt='auto', outfmt='auto',
     ordering is not conserved.
     """
     if inunits is None:
-        inkw = dict(hasmom=hasmom, hascom=hascom)
+        inkw = dict(hasvec=hasvec, hascom=hascom)
     else:
-        inkw = dict(hasmom=hasmom, hascom=hascom, units=inunits)
+        inkw = dict(hasvec=hasvec, hascom=hascom, units=inunits)
     if outunits is None:
         outkw = dict()
     else:
@@ -523,9 +526,9 @@ def convert(infname, outfname, infmt='auto', outfmt='auto',
     with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
         while True:
             try:
-                elem, xyz, mom, comment = read_func(infile, **inkw)
-                if hasmom:
-                    outkw.update(mom = mom)
+                elem, xyz, vec, comment = read_func(infile, **inkw)
+                if hasvec:
+                    outkw.update(vec = vec)
                 if hascom:
                     outkw.update(comment = comment)
                 write_func(outfile, elem, xyz, **outkw)

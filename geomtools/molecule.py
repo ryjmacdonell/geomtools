@@ -12,6 +12,7 @@ geometries. Input files with multiple geometries can be read to a bundle.
 import numpy as np
 import geomtools.fileio as fileio
 import geomtools.displace as displace
+import geomtools.substitute as substitute
 import geomtools.constants as con
 import geomtools.kabsch as kabsch
 
@@ -25,28 +26,28 @@ class BaseMolecule(object):
     geometry. There are no dependancies to other geomtools modules.
     """
     def __init__(self, elem=np.array([], dtype=str), xyz=np.empty((0, 3)),
-                 mom=None, comment=''):
+                 vec=None, comment=''):
         self.elem = np.array(elem, dtype=str)
         self.xyz = np.array(xyz, dtype=float)
         self.comment = comment
         self.natm = len(elem)
-        if mom is None:
-            self.mom = np.zeros((self.natm, 3))
-            self.print_mom = False
+        if vec is None:
+            self.vec = np.zeros((self.natm, 3))
+            self.print_vec = False
         else:
-            self.mom = np.array(mom, dtype=float)
-            self.print_mom = True
+            self.vec = np.array(vec, dtype=float)
+            self.print_vec = True
         self.saved = True
         self.save()
 
     def __repr__(self):
         nelem = len(self.elem)
         fmt = '[{:>2s},' + 2*'{:16.8e},' + '{:16.8e}'
-        if self.print_mom:
-            xyzmom = np.hstack((self.xyz, self.mom))
+        if self.print_vec:
+            xyzvec = np.hstack((self.xyz, self.vec))
             fmt += ',\n' + 6*' ' + 2*'{:16.8e},' + '{:16.8e}]'
         else:
-            xyzmom = self.xyz
+            xyzvec = self.xyz
             fmt += ']'
 
         if nelem == 0:
@@ -55,17 +56,17 @@ class BaseMolecule(object):
             fstr = 'BaseMolecule({!r},\n ['.format(self.comment)
 
         if nelem > 10:
-            fstr += fmt.format(self.elem[0], *xyzmom[0])
+            fstr += fmt.format(self.elem[0], *xyzvec[0])
             for i in range(1, 3):
-                fstr += ',\n  ' + fmt.format(self.elem[i], *xyzmom[i])
+                fstr += ',\n  ' + fmt.format(self.elem[i], *xyzvec[i])
             fstr += ',\n  ...'
             for i in range(-3, 0):
-                fstr += ',\n  ' + fmt.format(self.elem[i], *xyzmom[i])
+                fstr += ',\n  ' + fmt.format(self.elem[i], *xyzvec[i])
         else:
             for i in range(nelem):
                 if i != 0:
                     fstr += ',\n  '
-                fstr += fmt.format(self.elem[i], *xyzmom[i])
+                fstr += fmt.format(self.elem[i], *xyzvec[i])
 
         fstr += '])'
         return fstr
@@ -73,11 +74,11 @@ class BaseMolecule(object):
     def __str__(self):
         nelem = len(self.elem)
         fmt = '[{:>2s}' + 3*'{:14.8f}'
-        if self.print_mom:
-            xyzmom = np.hstack((self.xyz, self.mom))
+        if self.print_vec:
+            xyzvec = np.hstack((self.xyz, self.vec))
             fmt += '\n' + 4*' ' + 3*'{:14.8f}' + ']'
         else:
-            xyzmom = self.xyz
+            xyzvec = self.xyz
             fmt += ']'
         fstr = ''
         if self.comment != '':
@@ -85,17 +86,17 @@ class BaseMolecule(object):
         else:
             fstr += '['
         if nelem > 10:
-            fstr += fmt.format(self.elem[0], *xyzmom[0])
+            fstr += fmt.format(self.elem[0], *xyzvec[0])
             for i in range(1, 3):
-                fstr += '\n ' + fmt.format(self.elem[i], *xyzmom[i])
+                fstr += '\n ' + fmt.format(self.elem[i], *xyzvec[i])
             fstr += '\n ...'
             for i in range(-3, 0):
-                fstr += '\n ' + fmt.format(self.elem[i], *xyzmom[i])
+                fstr += '\n ' + fmt.format(self.elem[i], *xyzvec[i])
         else:
             for i in range(nelem):
                 if i != 0:
                     fstr += '\n '
-                fstr += fmt.format(self.elem[i], *xyzmom[i])
+                fstr += fmt.format(self.elem[i], *xyzvec[i])
         fstr += ']'
         return fstr
 
@@ -103,14 +104,16 @@ class BaseMolecule(object):
         """Checks that xyz is 3D and len(elem) = len(xyz)."""
         if self.xyz.shape[1] != 3:
             raise ValueError('Molecular geometry must be 3-dimensional.')
+        if self.vec.shape[1] != 3:
+            raise ValueError('Molecular vector must be 3-dimensional.')
         len_elem = len(self.elem)
         len_xyz = len(self.xyz)
         if len_elem != len_xyz:
             raise ValueError('Number of element labels ({:d}) not equal '
                              'to number of cartesian vectors '
                              '({:d}).'.format(len_elem, len_xyz))
-        elif self.xyz.shape != self.mom.shape:
-            raise ValueError('Cartesian geometry and momenta must have '
+        elif self.xyz.shape != self.vec.shape:
+            raise ValueError('Cartesian geometry and vector must have '
                              'the same number of elements.')
 
     def copy(self, comment=None):
@@ -119,14 +122,14 @@ class BaseMolecule(object):
         if comment is None:
             comment = 'Copy of ' + self.comment
         return BaseMolecule(np.copy(self.elem), np.copy(self.xyz),
-                            np.copy(self.mom), comment)
+                            np.copy(self.vec), comment)
 
     def save(self):
         """Saves molecular properties to 'orig' variables."""
         self._check()
         self.orig_elem = np.copy(self.elem)
         self.orig_xyz = np.copy(self.xyz)
-        self.orig_mom = np.copy(self.mom)
+        self.orig_vec = np.copy(self.vec)
         self.orig_comment = np.copy(self.comment)
         self.saved = True
 
@@ -135,7 +138,7 @@ class BaseMolecule(object):
         if not self.saved:
             self.elem = np.copy(self.orig_elem)
             self.xyz = np.copy(self.orig_xyz)
-            self.mom = np.copy(self.orig_mom)
+            self.vec = np.copy(self.orig_vec)
         self.saved = True
 
     def set_geom(self, elem, xyz):
@@ -143,14 +146,14 @@ class BaseMolecule(object):
         if elem is not None:
             self.elem = elem
         self.xyz = np.array(xyz, dtype=float)
-        self.mom = np.zeros_like(xyz)
+        self.vec = np.zeros_like(xyz)
         self._check()
         self.saved = False
 
-    def set_mom(self, mom):
-        """Sets molecular momentum."""
-        self.mom = np.array(mom, dtype=float)
-        self.print_mom = True
+    def set_vec(self, vec):
+        """Sets molecular vector."""
+        self.vec = np.array(vec, dtype=float)
+        self.print_vec = True
         self._check()
         self.saved = False
 
@@ -159,16 +162,18 @@ class BaseMolecule(object):
         self.comment = comment
         self.saved = False
 
-    def add_atoms(self, new_elem, new_xyz, new_mom=None):
+    def add_atoms(self, new_elem, new_xyz, new_vec=None):
         """Adds atoms(s) to molecule."""
         self.natm += 1 if isinstance(new_elem, str) else len(new_elem)
+        new_xyz = np.atleast_2d(new_xyz)
         self.elem = np.hstack((self.elem, new_elem))
         self.xyz = np.vstack((self.xyz, new_xyz))
-        if new_mom is None:
-            self.mom = np.vstack((self.mom, np.zeros((len(new_xyz), 3))))
+        if new_vec is None:
+            self.vec = np.vstack((self.vec, np.zeros((len(new_xyz), 3))))
         else:
-            self.mom = np.vstack((self.mom, new_mom))
-            self.print_mom = True
+            new_vec = np.atleast_2d(new_vec)
+            self.vec = np.vstack((self.vec, new_vec))
+            self.print_vec = True
         self._check()
         self.saved = False
 
@@ -177,7 +182,7 @@ class BaseMolecule(object):
         self.natm -= 1 if isinstance(ind, int) else len(ind)
         self.elem = np.delete(self.elem, ind)
         self.xyz = np.delete(self.xyz, ind, axis=0)
-        self.mom = np.delete(self.mom, ind, axis=0)
+        self.vec = np.delete(self.vec, ind, axis=0)
         self._check()
         self.saved = False
 
@@ -189,7 +194,7 @@ class BaseMolecule(object):
         old = np.hstack((new_ind, old_ind))
         new = np.hstack((old_ind, new_ind))
         self.xyz[old] = self.xyz[new]
-        self.mom[old] = self.mom[new]
+        self.vec[old] = self.vec[new]
         self.elem[old] = self.elem[new]
         self.saved = False
 
@@ -211,7 +216,7 @@ class Molecule(BaseMolecule):
 
     def __str__(self):
         base = BaseMolecule(self.elem[1:], self.xyz[1:],
-                            self.mom[1:] if self.print_mom else None,
+                            self.vec[1:] if self.print_vec else None,
                             self.comment)
         return base.__str__()
 
@@ -226,7 +231,7 @@ class Molecule(BaseMolecule):
         else:
             self.elem = np.hstack(('XM', self.elem))
             self.xyz = np.vstack((pos, self.xyz))
-            self.mom = np.vstack(([0, 0, 0], self.mom))
+            self.vec = np.vstack(([0, 0, 0], self.vec))
 
     def _check(self):
         """Checks that xyz is 3D and len(elem) = len(xyz) and that dummy
@@ -238,29 +243,29 @@ class Molecule(BaseMolecule):
     def copy(self, comment=None):
         """Creates a copy of the Molecule object."""
         self._check()
-        mom = self.mom[1:] if self.print_mom else None
+        vec = self.vec[1:] if self.print_vec else None
         if comment is None:
             comment = self.comment
         return Molecule(np.copy(self.elem[1:]), np.copy(self.xyz[1:]),
-                        mom, comment)
+                        vec, comment)
 
-    def set_mom(self, mom):
-        """Sets the molecular momentum."""
-        new_mom = np.vstack(([0, 0, 0], mom))
-        BaseMolecule.set_mom(self, new_mom)
+    def set_vec(self, vec):
+        """Sets the molecular vector."""
+        new_vec = np.vstack(([0, 0, 0], vec))
+        BaseMolecule.set_vec(self, new_vec)
 
     # Input/Output
-    def read(self, infile, fmt='auto', hasmom=False, hascom=False):
+    def read(self, infile, fmt='auto', hasvec=False, hascom=False):
         """Reads single geometry from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
         if isinstance(infile, str):
             with open(infile, 'r') as f:
                 (self.elem, self.xyz,
-                 self.mom, self.comment) = read_func(f, hasmom=hasmom,
+                 self.vec, self.comment) = read_func(f, hasvec=hasvec,
                                                      hascom=hascom)
         else:
             (self.elem, self.xyz,
-             self.mom, self.comment) = read_func(infile, hasmom=hasmom,
+             self.vec, self.comment) = read_func(infile, hasvec=hasvec,
                                                  hascom=hascom)
         self.natm = len(self.elem)
         self.save()
@@ -268,13 +273,13 @@ class Molecule(BaseMolecule):
     def write(self, outfile, fmt='auto'):
         """Writes geometry to an output file in provided format."""
         write_func = getattr(fileio, 'write_' + fmt)
-        mom = self.mom[1:] if self.print_mom else None
+        vec = self.vec[1:] if self.print_vec else None
         if isinstance(outfile, str):
             with open(outfile, 'w') as f:
-                write_func(f, self.elem[1:], self.xyz[1:], mom=mom,
+                write_func(f, self.elem[1:], self.xyz[1:], vec=vec,
                            comment=self.comment)
         else:
-            write_func(outfile, self.elem[1:], self.xyz[1:], mom=mom,
+            write_func(outfile, self.elem[1:], self.xyz[1:], vec=vec,
                        comment=self.comment)
 
     # Accessors
@@ -290,9 +295,9 @@ class Molecule(BaseMolecule):
         """Returns cartesian geometry."""
         return self.xyz[1:]
 
-    def get_mom(self):
-        """Return cartesian momenta."""
-        return self.mom[1:]
+    def get_vec(self):
+        """Return cartesian vector."""
+        return self.vec[1:]
 
     def get_comment(self):
         """Returns comment line."""
@@ -363,14 +368,14 @@ class Molecule(BaseMolecule):
                units='rad'):
         """Rotates the molecule about a given axis from a given origin.
 
-        If momenta are non-zero, they will be rotated about the
+        If vectors are non-zero, they will be rotated about the
         same origin. Reflections and improper rotations can be done
         by setting det=-1.
         """
         kwargs = dict(ind=ind, origin=origin, det=det, units=units)
         self.xyz = displace.rotate(self.xyz, amp, axis, **kwargs)
-        if self.print_mom:
-            self.mom = displace.rotate(self.mom, amp, axis, **kwargs)
+        if self.print_vec:
+            self.vec = displace.rotate(self.vec, amp, axis, **kwargs)
         self._add_centre()
         self.saved = False
 
@@ -379,16 +384,23 @@ class Molecule(BaseMolecule):
                      ind=None, cent=None):
         """Tests the molecule against a set of references in a bundle.
 
-        Note: momenta are not properly rotated.
+        Note: vectors are not properly rotated.
         """
-        mom = self.mom[1:] if self.print_mom else None
+        vec = self.vec[1:] if self.print_vec else None
         reflist = [mol.get_xyz() for mol in ref_bundle.get_molecules()]
         kwargs = dict(plist=_atm_inds(plist), equiv=_atm_inds(equiv),
                       wgt=wgt, ind=ind, cent=cent)
         xyz, ind = kabsch.opt_ref(self.get_elem(), self.get_xyz(), reflist,
                                   **kwargs)
-        return Molecule(self.get_elem(), xyz, mom,
+        return Molecule(self.get_elem(), xyz, vec,
                         self.get_comment()), ind
+
+    # Functional group substitution
+    def subst(self, lbl, isub, ibond=None, pl=None):
+        """Replaces an atom or set of atoms with a substituent."""
+        args = (self.elem, self.xyz, lbl, isub)
+        kwargs = dict(ibond=ibond, pl=pl, vec=self.vec)
+        self.elem, self.xyz, self.vec = substitute.subst(*args, **kwargs)
 
 
 class MoleculeBundle(object):
@@ -485,12 +497,12 @@ class MoleculeBundle(object):
         self.molecules = np.delete(self.molecules, ind)
 
     # Input/Output
-    def read(self, infile, fmt='auto', hasmom=False, hascom=False):
+    def read(self, infile, fmt='auto', hasvec=False, hascom=False):
         """Reads all geometries from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
         while True:
             try:
-                new_mol = Molecule(*read_func(infile, hasmom=hasmom,
+                new_mol = Molecule(*read_func(infile, hasvec=hasvec,
                                               hascom=hasccom))
                 self.molecules = np.hstack((self.molecules, new_mol))
                 self.nmol += 1
