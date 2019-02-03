@@ -9,6 +9,7 @@ TODO: Add custom formats.
 import numpy as np
 import geomtools.constants as con
 import geomtools.displace as displace
+import geomtools.measure as measure
 
 
 def read_xyz(infile, units='ang', hasvec=False, hascom=False):
@@ -421,25 +422,25 @@ def write_zmt(outfile, elem, xyz, vec=None, comment='', units='ang'):
         elif i == 1:
             # second element has symbol, index, bond length
             outfile.write('{:<2}{:3d}{:12.6f}'
-                          '\n'.format(elem[1], 1, displace.stre(xyz, [0,1],
-                                                                units=units)))
+                          '\n'.format(elem[1], 1, measure.stre(xyz, 0, 1,
+                                                               units=units)))
         elif i == 2:
             # third element has symbol, index, bond length, index, bond angle
             outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}'
-                          '\n'.format(elem[2], 2, displace.stre(xyz, [1,2],
-                                                                units=units),
-                                      1, displace.bend(xyz, [0,1,2],
-                                                       units='deg')))
+                          '\n'.format(elem[2], 2, measure.stre(xyz, 1, 2,
+                                                               units=units),
+                                      1, measure.bend(xyz, 0, 1, 2,
+                                                      units='deg')))
         else:
             # all other elements have symbol, index, bond length, index,
             # bond angle, index, dihedral angle
             outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}{:3d}{:12.6f}'
-                          '\n'.format(elem[i], i, displace.stre(xyz, [i-1,i],
-                                                                units=units),
-                                      i-1, displace.bend(xyz, [i-2,i-1,i],
-                                                         units='deg'),
-                                      i-2, displace.tors(xyz, [i-3,i-2,i-1,i],
-                                                         units='deg')))
+                          '\n'.format(elem[i], i, measure.stre(xyz, i-1, i,
+                                                               units=units),
+                                      i-1, measure.bend(xyz, i-2, i-1, i,
+                                                        units='deg'),
+                                      i-2, measure.tors(xyz, i-3, i-2, i-1, i,
+                                                        units='deg')))
 
 
 def write_zmtvar(outfile, elem, xyz, vec=None, comment='', units='ang'):
@@ -461,24 +462,23 @@ def write_zmtvar(outfile, elem, xyz, vec=None, comment='', units='ang'):
             # second element has symbol, index, bond length
             outfile.write('{:<2}{:3d}  R{:<2d}'
                           '\n'.format(elem[1], 1, 1))
-            vlist['R1'] = displace.stre(xyz, [0,1], units=units)
+            vlist['R1'] = measure.stre(xyz, 0, 1, units=units)
         elif i == 2:
             # third element has symbol, index, bond length, index, bond angle
             outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d}'
                           '\n'.format(elem[2], 2, 2, 1, 1))
-            vlist['R2'] = displace.stre(xyz, [1,2], units=units)
-            vlist['A1'] = displace.bend(xyz, [0,1,2], units='deg')
+            vlist['R2'] = measure.stre(xyz, 1, 2, units=units)
+            vlist['A1'] = measure.bend(xyz, 0, 1, 2, units='deg')
         else:
             # all other elements have symbol, index, bond length, index,
             # bond angle, index, dihedral angle
             outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d} '
                           '{:3d}  T{:<2d}'
                           '\n'.format(elem[i], i, i, i-1, i-1, i-2, i-2))
-            vlist['R'+str(i)] = displace.stre(xyz, [i-1,i], units=units)
-            vlist['A'+str(i-1)] = displace.bend(xyz, [i-2,i-1,i],
-                                                units='deg')
-            vlist['T'+str(i-2)] = displace.tors(xyz, [i-3,i-2,i-1,i],
-                                                units='deg')
+            vlist['R'+str(i)] = measure.stre(xyz, i-1, i, units=units)
+            vlist['A'+str(i-1)] = measure.bend(xyz, i-2, i-1, i, units='deg')
+            vlist['T'+str(i-2)] = measure.tors(xyz, i-3, i-2, i-1, i,
+                                               units='deg')
     outfile.write('\n')
     for key, val in vlist.items():
         outfile.write('{:4s} = {:14.8f}\n'.format(key, val))

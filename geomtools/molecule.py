@@ -12,6 +12,7 @@ geometries. Input files with multiple geometries can be read to a bundle.
 import numpy as np
 import geomtools.fileio as fileio
 import geomtools.displace as displace
+import geomtools.measure as measure
 import geomtools.substitute as substitute
 import geomtools.constants as con
 import geomtools.kabsch as kabsch
@@ -320,33 +321,10 @@ class Molecule(BaseMolecule):
         return fstr
 
     # Internal geometry
-    def get_stre(self, ind, units='ang', absv=False):
-        """Returns bond length based on index in molecule."""
-        return displace.stre(self.xyz, ind, units=units, absv=absv)
-
-    def get_bend(self, ind, units='rad', absv=False):
-        """Returns bond angle based on index in molecule."""
-        return displace.bend(self.xyz, ind, units=units, absv=absv)
-
-    def get_tors(self, ind, units='rad', absv=False):
-        """Returns dihedral angle based on index in molecule."""
-        return displace.tors(self.xyz, ind, units=units, absv=absv)
-
-    def get_oop(self, ind, units='rad', absv=False):
-        """Returns out-of-plane angle based on index in molecule."""
-        return displace.oop(self.xyz, ind, units=units, absv=absv)
-
-    def get_planeang(self, ind, units='rad', absv=False):
-        """Returns plane angle based on index in molecule."""
-        return displace.planeang(self.xyz, ind, units=units, absv=absv)
-
-    def get_planetors(self, ind, units='rad', absv=False):
-        """Returns plane dihedral angle based on index in molecule."""
-        return displace.planetors(self.xyz, ind, units=units, absv=absv)
-
-    def get_edgetors(self, ind, units='rad', absv=False):
-        """Returns edge dihedral angle based on index in molecule."""
-        return displace.edgetors(self.xyz, ind, units=units, absv=absv)
+    def measure(self, coord, *inds, units='auto', absv=False):
+        """Returns a coordinate based on its indices in the molecule."""
+        coord_func = getattr(measure, coord)
+        return coord_func(self.xyz, *inds, units=units, absv=absv)
 
     # Displacement
     def centre_mass(self):
@@ -532,9 +510,10 @@ class MoleculeBundle(object):
         return self.molecules
 
     # Internal coordinates
-    def get_coord(self, ctyp, inds, units='auto', absv=False):
-        """Returns a list of coordinates based on index in molecule."""
-        return np.array([getattr(mol, 'get_'+ctyp)(inds, units=units, absv=absv)
+    def measure(self, coord, *inds, units='auto', absv=False):
+        """Returns a list of coordinates based on index in molecules."""
+        kwargs = dict(units=units, absv=absv)
+        return np.array([mol.measure(coord, *inds, **kwargs)
                          for mol in self.molecules])
 
     # Kabsch geometry matching
