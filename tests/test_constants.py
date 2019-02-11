@@ -18,23 +18,23 @@ def test_covrad_lookup():
 
 
 def test_lenunits_lookup():
-    assert np.isclose(conv.lenunits['auto'], 1.)
+    assert np.isclose(con.lenunits['auto'], 1.)
 
 
 def test_angunits_lookup():
-    assert np.isclose(conv.angunits['auto'], 1.)
+    assert np.isclose(con.angunits['auto'], 1.)
 
 
 def test_timunits_lookup():
-    assert np.isclose(conv.timunits['auto'], 1.)
+    assert np.isclose(con.timunits['auto'], 1.)
 
 
 def test_masunits_lookup():
-    assert np.isclose(conv.masunits['auto'], 1.)
+    assert np.isclose(con.masunits['auto'], 1.)
 
 
 def test_eneunits_lookup():
-    assert np.isclose(conv.eneunits['auto'], 1.)
+    assert np.isclose(con.eneunits['auto'], 1.)
 
 
 def test_get_num():
