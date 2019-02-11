@@ -10,9 +10,9 @@ and orientation of the substituent (relative to an axis) and the
 bond length of the substituent. For now, only single bonds are treated.
 """
 import numpy as np
-import geomtools.displace as displace
-import geomtools.fileio as fileio
-import geomtools.constants as con
+import gimbal.displace as displace
+import gimbal.fileio as fileio
+import gimbal.constants as con
 
 
 class SubLib(object):
@@ -27,6 +27,37 @@ class SubLib(object):
         self._populate_elem()
         self._populate_xyz()
         self._add_comb()
+
+    def _populate_syn(self):
+        """Adds a dictionary of synonyms for labels."""
+        synlist = [['me', 'ch3', 'h3c'],
+                   ['et', 'ch2ch3', 'c2h5', 'ch3ch2'],
+                   ['npr', 'ch2ch2ch3', 'c3h7', 'ch3ch2ch2'],
+                   ['ipr', 'chch3ch3', 'ch(ch3)2', '(ch3)2ch', 'ch3chch3'],
+                   ['nbu', 'ch2ch2ch2ch3', 'c4h9', 'ch3ch2ch2ch2'],
+                   ['ibu', 'chch3ch2ch3', 'ch3chch2ch3', 'ch3ch3chch3'],
+                   ['tbu', 'cch3ch3ch3', 'c(ch3)3', 'ch3ch3ch3c', '(ch3)3c'],
+                   ['vi', 'chch2', 'c2h3', 'h2chc', 'h3c2'],
+                   ['ey', 'cch', 'c2h', 'hcc', 'hc2'],
+                   ['ph', 'c6h5', 'h5c6'],
+                   ['am', 'nh2', 'h2n'],
+                   ['im', 'chnh', 'cnh2', 'nhch'],
+                   ['cn', 'nc'],
+                   ['oh', 'ho'],
+                   ['ome', 'meo', 'och3', 'ch3o'],
+                   ['al', 'cho', 'coh', 'och', 'ohc'],
+                   ['ac', 'coch3', 'cch3o'],
+                   ['ca', 'cooh', 'co2h', 'hooc', 'ho2c'],
+                   ['nt', 'no2', 'o2n'],
+                   ['f'],
+                   ['tfm', 'cf3', 'f3c'],
+                   ['sh', 'hs'],
+                   ['sf', 'so2h', 'sooh', 'sho2', 'ho2s', 'hso2'],
+                   ['ms', 'sfme', 'mesf', 'sfch3', 'so2me', 'so2ch3'],
+                   ['cl']]
+        for subl in synlist:
+            for item in subl:
+                self.syn[item] = subl[0]
 
     def _populate_elem(self):
         """Adds element labels to self.elem."""
@@ -121,37 +152,6 @@ class SubLib(object):
                                                           inds=1)
         self.elem['ms'], self.xyz['ms'] = self.add_subs('sf', 'me')
 
-    def _populate_syn(self):
-        """Adds a dictionary of synonyms for labels."""
-        synlist = [['me', 'ch3', 'h3c'],
-                   ['et', 'ch2ch3', 'c2h5', 'ch3ch2'],
-                   ['npr', 'ch2ch2ch3', 'c3h7', 'ch3ch2ch2'],
-                   ['ipr', 'chch3ch3', 'ch(ch3)2', '(ch3)2ch', 'ch3chch3'],
-                   ['nbu', 'ch2ch2ch2ch3', 'c4h9', 'ch3ch2ch2ch2'],
-                   ['ibu', 'chch3ch2ch3', 'ch3chch2ch3', 'ch3ch3chch3'],
-                   ['tbu', 'cch3ch3ch3', 'c(ch3)3', 'ch3ch3ch3c', '(ch3)3c'],
-                   ['vi', 'chch2', 'c2h3', 'h2chc', 'h3c2'],
-                   ['ey', 'cch', 'c2h', 'hcc', 'hc2'],
-                   ['ph', 'c6h5', 'h5c6'],
-                   ['am', 'nh2', 'h2n'],
-                   ['im', 'chnh', 'cnh2', 'nhch'],
-                   ['cn', 'nc'],
-                   ['oh', 'ho'],
-                   ['ome', 'meo', 'och3', 'ch3o'],
-                   ['al', 'cho', 'coh', 'och', 'ohc'],
-                   ['ac', 'coch3', 'cch3o'],
-                   ['ca', 'cooh', 'co2h', 'hooc', 'ho2c'],
-                   ['nt', 'no2', 'o2n'],
-                   ['f'],
-                   ['tfm', 'cf3', 'f3c'],
-                   ['sh', 'hs'],
-                   ['sf', 'so2h', 'sooh', 'sho2', 'ho2s', 'hso2'],
-                   ['ms', 'sfme', 'mesf', 'sfch3', 'so2me', 'so2ch3'],
-                   ['cl']]
-        for subl in synlist:
-            for item in subl:
-                self.syn[item] = subl[0]
-
     def get_sub(self, label):
         """Returns the element list and cartesian geometry of a
         substituent."""
@@ -180,8 +180,7 @@ class SubLib(object):
             dist[i] += np.max(dist)
             ibond = np.argmin(dist)
             rot = (rot + 1) % 2
-            ax = xyz[i] - xyz[ibond]
-            ax /= np.linalg.norm(ax)
+            ax = con.unit_vec(xyz[i] - xyz[ibond])
             lbl = self.syn[label.lower()]
             new_elem = self.elem[lbl]
             new_xyz = displace.rotate(self.xyz[lbl], rot*np.pi, 'z')
@@ -211,7 +210,7 @@ def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
     orientation of the substituent can be given as a vector (the plane
     normal) or an index (the plane containing isub, ibond and pl).
 
-    If isub is given as a list, the entire list of atoms is be removed
+    If isub is given as a list, the entire list of atoms is removed
     and the first index is treated as the position of the substituent.
     """
     elem = np.array(elem)
@@ -227,8 +226,7 @@ def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
         dist[isub] += np.max(dist)
         ibond = np.argmin(dist)
 
-    ax = xyz[ipos] - xyz[ibond]
-    ax /= np.linalg.norm(ax)
+    ax = con.unit_vec(xyz[ipos] - xyz[ibond])
     if pl is None:
         # choose an arbitrary axis and project out the bond axis
         pl = np.ones(3)
@@ -242,12 +240,10 @@ def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
     else:
         blen = con.get_covrad(elem[ibond]) + con.get_covrad(sub_el[0])
 
-    # rotate to correct orientation
+    # rotate to correct orientation and displace to correct position
     sub_xyz = displace.align_axis(sub_xyz, 'z', ax)
     sub_pl = displace.align_axis([0., 1., 0.], 'z', ax)
     sub_xyz = displace.align_axis(sub_xyz, sub_pl, pl)
-
-    # displace to correct position
     sub_xyz += xyz[ibond] + blen * ax
 
     # build the final geometry

@@ -10,11 +10,12 @@ Likewise, MoleculeBundle creates a saved copy of a set molecular
 geometries. Input files with multiple geometries can be read to a bundle.
 """
 import numpy as np
-import geomtools.fileio as fileio
-import geomtools.displace as displace
-import geomtools.substitute as substitute
-import geomtools.constants as con
-import geomtools.kabsch as kabsch
+import gimbal.fileio as fileio
+import gimbal.displace as displace
+import gimbal.measure as measure
+import gimbal.substitute as substitute
+import gimbal.constants as con
+import gimbal.kabsch as kabsch
 
 
 class BaseMolecule(object):
@@ -23,7 +24,7 @@ class BaseMolecule(object):
     changing the geometry.
 
     All methods of BaseMolecule involve setting and saving the molecular
-    geometry. There are no dependancies to other geomtools modules.
+    geometry. There are no dependencies to other modules.
     """
     def __init__(self, elem=np.array([], dtype=str), xyz=np.empty((0, 3)),
                  vec=None, comment=''):
@@ -208,7 +209,7 @@ class Molecule(BaseMolecule):
     get_elem and get_xyz return the geometry without the index 0 dummy atom.
 
     Molecule can also read from and write to input files given by a filename
-    or an open file object. Other methods are derived from geomtools modules.
+    or an open file object. Other methods are derived from different modules.
     """
     def __repr__(self):
         baserepr = BaseMolecule.__repr__(self)
@@ -320,33 +321,10 @@ class Molecule(BaseMolecule):
         return fstr
 
     # Internal geometry
-    def get_stre(self, ind, units='ang', absv=False):
-        """Returns bond length based on index in molecule."""
-        return displace.stre(self.xyz, ind, units=units, absv=absv)
-
-    def get_bend(self, ind, units='rad', absv=False):
-        """Returns bond angle based on index in molecule."""
-        return displace.bend(self.xyz, ind, units=units, absv=absv)
-
-    def get_tors(self, ind, units='rad', absv=False):
-        """Returns dihedral angle based on index in molecule."""
-        return displace.tors(self.xyz, ind, units=units, absv=absv)
-
-    def get_oop(self, ind, units='rad', absv=False):
-        """Returns out-of-plane angle based on index in molecule."""
-        return displace.oop(self.xyz, ind, units=units, absv=absv)
-
-    def get_planeang(self, ind, units='rad', absv=False):
-        """Returns plane angle based on index in molecule."""
-        return displace.planeang(self.xyz, ind, units=units, absv=absv)
-
-    def get_planetors(self, ind, units='rad', absv=False):
-        """Returns plane dihedral angle based on index in molecule."""
-        return displace.planetors(self.xyz, ind, units=units, absv=absv)
-
-    def get_edgetors(self, ind, units='rad', absv=False):
-        """Returns edge dihedral angle based on index in molecule."""
-        return displace.edgetors(self.xyz, ind, units=units, absv=absv)
+    def measure(self, coord, *inds, units='auto', absv=False):
+        """Returns a coordinate based on its indices in the molecule."""
+        coord_func = getattr(measure, coord)
+        return coord_func(self.xyz, *inds, units=units, absv=absv)
 
     # Displacement
     def centre_mass(self):
@@ -532,9 +510,10 @@ class MoleculeBundle(object):
         return self.molecules
 
     # Internal coordinates
-    def get_coord(self, ctyp, inds, units='auto', absv=False):
-        """Returns a list of coordinates based on index in molecule."""
-        return np.array([getattr(mol, 'get_'+ctyp)(inds, units=units, absv=absv)
+    def measure(self, coord, *inds, units='auto', absv=False):
+        """Returns a list of coordinates based on index in molecules."""
+        kwargs = dict(units=units, absv=absv)
+        return np.array([mol.measure(coord, *inds, **kwargs)
                          for mol in self.molecules])
 
     # Kabsch geometry matching

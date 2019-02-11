@@ -2,7 +2,7 @@
 Constant molecular properties to be used in other modules.
 
 Arrays are ordered by atomic number for convenience. Atomic symbols are case
-sensitive. This module should not depend on other geomtools modules.
+sensitive. This module should not depend on other modules.
 
 Unit types
 ----------
@@ -45,12 +45,6 @@ eneunits = dict(auto=1., ev=1., har=1./27.21138505, kcm=23.061, kjm=96.485,
                 cm=8065.5)
 
 
-def _find_index(string):
-    """Determines if dummy or regular atom and returns index."""
-    elem = 'X' if string[0] == 'X' else string
-    return np.where(sym == elem)[0][0]
-
-
 def get_num(elem):
     """Returns atomic number from atomic symbol.
 
@@ -77,13 +71,24 @@ def get_covrad(elem):
     return covrad[get_num(elem)]
 
 
-def conv(old_units, new_units):
+def unit_vec(v):
+    """Returns a unit vector aligned with a given vector."""
+    return v / np.linalg.norm(v)
+
+
+def conv(old='auto', new='auto'):
     """Returns conversion factor from old units to new units."""
-    if old_units == new_units:
+    if old == new:
         return 1.
     for unittype in [lenunits, angunits, timunits, masunits, eneunits]:
-        if old_units in unittype and new_units in unittype:
-            return unittype[new_units] / unittype[old_units]
+        if old in unittype and new in unittype:
+            return unittype[new] / unittype[old]
 
     raise ValueError('Units \'{}\' and \'{}\' unrecognized or '
-                     'not of same unit type'.format(old_units, new_units))
+                     'not of same unit type'.format(old, new))
+
+
+def _find_index(string):
+    """Determines if dummy or regular atom and returns index."""
+    elem = 'X' if string[0] == 'X' else string
+    return np.where(sym == elem)[0][0]

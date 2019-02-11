@@ -1,5 +1,5 @@
 """
-Setup script for the geomtools package
+Setup script for the Gimbal package
 """
 from setuptools import setup
 from setuptools import find_packages
@@ -11,13 +11,13 @@ def readme():
 
 
 setup(
-    name='geomtools',
+    name='gimbal',
     version='0.1',
     description=('Tools for importing, creating, editing and querying ' +
                  'molecular geometries'),
     long_description=readme(),
-    keywords='geomtools molecules geometry displacement',
-    url='https://github.com/ryjmacdonell/geomtools',
+    keywords='gimbal molecule geometry displacement transformation 3D',
+    url='https://github.com/ryjmacdonell/gimbal',
     author='Ryan J. MacDonell',
     author_email='rmacd054@uottawa.ca',
     license='MIT',

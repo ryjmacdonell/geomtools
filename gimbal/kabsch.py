@@ -23,7 +23,7 @@ Sets of equivalent vectors (atoms) can be permuted as well.
 import itertools
 import numpy as np
 from scipy import linalg
-import geomtools.displace as disp
+import gimbal.displace as disp
 
 
 def rmsd(test, ref, wgt=None):
@@ -55,7 +55,7 @@ def kabsch(test, ref, wgt=None, refl=True):
         cov = (wgt[:,np.newaxis] * test).T.dot(ref)
     rot1, scale, rot2 = linalg.svd(cov)
     if not refl:
-        rot1[:,-1] *= np.sign(linalg.det(rot1) * linalg.det(rot2))
+        rot1[:,-1] *= linalg.det(rot1) * linalg.det(rot2)
     return rot1.dot(rot2)
 
 

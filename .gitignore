@@ -8,5 +8,8 @@ build/
 *.egg
 *.egg-info/
 
-# Test files
-tests/
+# Cache files
+*.pytest_cache/
+
+# Sphinx generated files
+docs/_*

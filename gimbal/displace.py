@@ -1,6 +1,6 @@
 """
-Script for displacing a molecular geometry by translation (stretch) or rotation
-(bend, torsion, out-of-plane motion).
+Routines for displacing a molecular geometry by translation or
+proper/improper rotation.
 
         1
         |
@@ -18,187 +18,7 @@ Each internal coordinate measurement has the option of changing the units
 (see the constants module) or taking the absolute value.
 """
 import numpy as np
-import geomtools.constants as con
-
-
-def stre(xyz, ind, units='ang', absv=False):
-    """Returns bond length based on index."""
-    coord = np.linalg.norm(xyz[ind[0]] - xyz[ind[1]])
-    return coord * con.conv('ang', units)
-
-
-def bend(xyz, ind, units='rad', absv=False):
-    """Returns bending angle for 3 atoms in a chain based on index."""
-    e1 = xyz[ind[0]] - xyz[ind[1]]
-    e2 = xyz[ind[2]] - xyz[ind[1]]
-    e1 /= np.linalg.norm(e1)
-    e2 /= np.linalg.norm(e2)
-
-    coord = np.arccos(np.dot(e1, e2))
-    return coord * con.conv('rad', units)
-
-
-def tors(xyz, ind, units='rad', absv=False):
-    """Returns dihedral angle for 4 atoms in a chain based on index."""
-    e1 = xyz[ind[0]] - xyz[ind[1]]
-    e2 = xyz[ind[2]] - xyz[ind[1]]
-    e3 = xyz[ind[2]] - xyz[ind[3]]
-
-    # get normals to 3-atom planes
-    cp1 = np.cross(e1, e2)
-    cp2 = np.cross(e2, e3)
-    cp1 /= np.linalg.norm(cp1)
-    cp2 /= np.linalg.norm(cp2)
-
-    if absv:
-        coord = np.arccos(np.dot(cp1, cp2))
-    else:
-        # get cross product of plane normals for signed dihedral angle
-        cp3 = np.cross(cp1, cp2)
-        coord = np.sign(np.dot(cp3, e2)) * np.arccos(np.dot(cp1, cp2))
-
-    return coord * con.conv('rad', units)
-
-
-def oop(xyz, ind, units='rad', absv=False):
-    """Returns out-of-plane angle of atom 1 connected to atom 4 in the
-    2-3-4 plane.
-
-    Contains an additional sign convention such that rotation of the
-    out-of-plane atom over (under) the central plane atom gives an angle
-    greater than pi/2 (less than -pi/2).
-    """
-    e1 = xyz[ind[0]] - xyz[ind[3]]
-    e2 = xyz[ind[1]] - xyz[ind[3]]
-    e3 = xyz[ind[2]] - xyz[ind[3]]
-    e1 /= np.linalg.norm(e1)
-    e2 /= np.linalg.norm(e2)
-    e3 /= np.linalg.norm(e3)
-
-    sintau = np.dot(np.cross(e2, e3) / np.sqrt(1 - np.dot(e2, e3) ** 2), e1)
-    coord = np.sign(np.dot(e2+e3, e1)) * np.arccos(sintau) + np.pi/2
-    # sign convention to keep |oop| < pi
-    if coord > np.pi:
-        coord -= 2 * np.pi
-    if absv:
-        return abs(coord) * con.conv('rad', units)
-    else:
-        return coord * con.conv('rad', units)
-
-
-def planeang(xyz, ind, units='rad', absv=False):
-    """Returns the angle between two planes with 3 atoms each."""
-    e1 = xyz[ind[0]] - xyz[ind[2]]
-    e2 = xyz[ind[1]] - xyz[ind[2]]
-    e3 = xyz[ind[3]] - xyz[ind[2]]
-    e4 = xyz[ind[4]] - xyz[ind[3]]
-    e5 = xyz[ind[5]] - xyz[ind[3]]
-
-    # get normals to 3-atom planes
-    cp1 = np.cross(e1, e2)
-    cp2 = np.cross(e4, e5)
-    cp1 /= np.linalg.norm(cp1)
-    cp2 /= np.linalg.norm(cp2)
-
-    if absv:
-        coord = np.arccos(np.dot(cp1, cp2))
-    else:
-        # get cross product of plane norms for signed dihedral angle
-        cp3 = np.cross(cp1, cp2)
-        coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(cp1, cp2))
-
-    return coord * con.conv('rad', units)
-
-
-def planetors(xyz, ind, units='rad', absv=False):
-    """Returns the plane angle with the central bond projected out."""
-    e1 = xyz[ind[0]] - xyz[ind[2]]
-    e2 = xyz[ind[1]] - xyz[ind[2]]
-    e3 = xyz[ind[3]] - xyz[ind[2]]
-    e4 = xyz[ind[4]] - xyz[ind[3]]
-    e5 = xyz[ind[5]] - xyz[ind[3]]
-    e3 /= np.linalg.norm(e3)
-
-    # get normals to 3-atom planes
-    cp1 = np.cross(e1, e2)
-    cp2 = np.cross(e4, e5)
-
-    # project out component along central bond
-    pj1 = cp1 - np.dot(cp1, e3) * e3
-    pj2 = cp2 - np.dot(cp2, e3) * e3
-    pj1 /= np.linalg.norm(pj1)
-    pj2 /= np.linalg.norm(pj2)
-
-    if absv:
-        coord = np.arccos(np.dot(pj1, pj2))
-    else:
-        # get cross product of vectors for signed dihedral angle
-        cp3 = np.cross(pj1, pj2)
-        coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(pj1, pj2))
-
-    return coord * con.conv('rad', units)
-
-
-def edgetors(xyz, ind, units='rad', absv=False):
-    """Returns the torsional angle based on the vector difference of the
-    two external atoms to the central bond"""
-    e1 = xyz[ind[0]] - xyz[ind[2]]
-    e2 = xyz[ind[1]] - xyz[ind[2]]
-    e3 = xyz[ind[3]] - xyz[ind[2]]
-    e4 = xyz[ind[4]] - xyz[ind[3]]
-    e5 = xyz[ind[5]] - xyz[ind[3]]
-    e1 /= np.linalg.norm(e1)
-    e2 /= np.linalg.norm(e2)
-    e3 /= np.linalg.norm(e3)
-    e4 /= np.linalg.norm(e4)
-    e5 /= np.linalg.norm(e5)
-
-    # take the difference between unit vectors of external bonds
-    e2 -= e1
-    e5 -= e4
-
-    # get cross products of difference vectors and the central bond
-    cp1 = np.cross(e2, e3)
-    cp2 = np.cross(e3, e5)
-    cp1 /= np.linalg.norm(cp1)
-    cp2 /= np.linalg.norm(cp2)
-
-    if absv:
-        coord = np.arccos(np.dot(cp1, cp2))
-    else:
-        # get cross product of vectors for signed dihedral angle
-        cp3 = np.cross(cp1, cp2)
-        coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(cp1, cp2))
-
-    return coord * con.conv('rad', units)
-
-
-def _parse_axis(inp):
-    """Returns a numpy array based on a specified axis.
-
-    Axis can be given as a string (e.g. 'x' or 'xy'), a vector
-    or a set of 3 vectors. If the input defines a plane, the plane
-    normal is returned.
-
-    For instance, 'x', 'yz', [1, 0, 0] and [[0, 1, 0], [0, 0, 0], [0, 0, 1]]
-    will all return [1, 0, 0].
-    """
-    if isinstance(inp, str):
-        if inp in ['x', 'yz', 'zy']:
-            return np.array([1., 0., 0.])
-        elif inp in ['y', 'xz', 'zx']:
-            return np.array([0., 1., 0.])
-        elif inp in ['z', 'xy', 'yx']:
-            return np.array([0., 0., 1.])
-    elif len(inp) == 3:
-        u = np.array(inp, dtype=float)
-        if u.size == 9:
-            unew = np.cross(u[0] - u[1], u[2] - u[1])
-            return unew / np.linalg.norm(unew)
-        else:
-            return u / np.linalg.norm(u)
-    else:
-        raise ValueError('Axis specification not recognized')
+import gimbal.constants as con
 
 
 def translate(xyz, amp, axis, ind=None, origin=np.zeros(3), units='ang'):
@@ -236,7 +56,7 @@ def rotmat(ang, ax, det=1, units='rad'):
 
     u = _parse_axis(ax)
     amp = ang * con.conv(units, 'rad')
-    ucross = np.array([[0, -u[2], u[1]], [u[2], 0, -u[0]], [-u[1], u[0], 0]])
+    ucross = np.array([[0, u[2], -u[1]], [-u[2], 0, u[0]], [u[1], -u[0], 0]])
     return (np.cos(amp) * np.eye(3) + np.sin(amp) * ucross +
             (det - np.cos(amp)) * np.outer(u, u))
 
@@ -290,9 +110,9 @@ def angax(rotmat, units='rad'):
             u[1] *= det * np.sign(rotmat[1,2] + rotmat[2,1])
             u[0] *= det * np.sign(u[1]) * np.sign(rotmat[0,1] + rotmat[1,0])
         else:
-            u[0] *= np.sign(rotmat[2,1] - rotmat[1,2])
-            u[1] *= np.sign(rotmat[0,2] - rotmat[2,0])
-            u[2] *= np.sign(rotmat[1,0] - rotmat[0,1])
+            u[0] *= np.sign(rotmat[1,2] - rotmat[2,1])
+            u[1] *= np.sign(rotmat[2,0] - rotmat[0,2])
+            u[2] *= np.sign(rotmat[0,1] - rotmat[1,0])
 
     return ang, u, det
 
@@ -308,8 +128,7 @@ def rotate(xyz, ang, axis, ind=None, origin=np.zeros(3), det=1, units='rad'):
         ind = range(len(xyz))
     origin = np.array(origin, dtype=float)
     newxyz = xyz - origin
-    newxyz[ind] = np.dot(rotmat(ang, axis, det=det, units=units),
-                         newxyz[ind].T).T
+    newxyz[ind] = newxyz[ind].dot(rotmat(ang, axis, det=det, units=units))
     return newxyz + origin
 
 
@@ -324,8 +143,6 @@ def align_axis(xyz, test_ax, ref_ax, ind=None, origin=np.zeros(3)):
     """Rotates a set of atoms such that two axes are parallel."""
     test = _parse_axis(test_ax)
     ref = _parse_axis(ref_ax)
-    test /= np.linalg.norm(test)
-    ref /= np.linalg.norm(ref)
 
     angle = np.arccos(np.dot(test, ref))
     rotax = np.cross(test, ref)
@@ -417,3 +234,37 @@ def int_grid(coords, amins, amaxs, n=30, units=['ang', 'rad']):
     This requires some form of molecular frame axis specification.
     """
     pass
+
+
+def _parse_axis(inp):
+    """Returns a numpy array based on a specified axis.
+
+    Axis can be given as a string (e.g. 'x' or 'xy'), a vector
+    or a set of 3 vectors. If the input defines a plane, the plane
+    normal is returned.
+
+    For instance, 'x', 'yz', [1, 0, 0] and [[0, 1, 0], [0, 0, 0], [0, 0, 1]]
+    will all return [1, 0, 0].
+    """
+    if isinstance(inp, str):
+        if inp in ['x', 'yz', 'zy']:
+            return np.array([1., 0., 0.])
+        elif inp in ['y', 'xz', 'zx']:
+            return np.array([0., 1., 0.])
+        elif inp in ['z', 'xy', 'yx']:
+            return np.array([0., 0., 1.])
+        elif inp == '-x':
+            return np.array([-1., 0., 0.])
+        elif inp == '-y':
+            return np.array([0., -1., 0.])
+        elif inp == '-z':
+            return np.array([0., 0., -1.])
+    elif len(inp) == 3:
+        u = np.array(inp, dtype=float)
+        if u.size == 9:
+            unew = np.cross(u[0] - u[1], u[2] - u[1])
+            return con.unit_vec(unew)
+        else:
+            return con.unit_vec(u)
+    else:
+        raise ValueError('Axis specification not recognized')
