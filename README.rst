@@ -26,7 +26,7 @@ editing recognized file formats.
 
 Requirements
 ------------
-Requires at least Python 3.3, NumPy v1.6.0 and SciPy v0.9.0
+Requires at least Python 3.4, NumPy v1.6.0 and SciPy v0.9.0
 
 Author
 ------
