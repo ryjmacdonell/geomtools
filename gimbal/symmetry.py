@@ -6,8 +6,8 @@ rotation for convenience. As a result, some axes need to be rearranged
 to match normal conventions depending on the type of rotor.
 """
 import numpy as np
-import geomtools.constants as con
-import geomtools.displace as displace
+import gimbal.constants as con
+import gimbal.displace as displace
 
 
 def principal_axes(elem, xyz):

@@ -3,7 +3,7 @@ Routines for measuring internal coordinate values from a cartesian
 geometry.
 """
 import numpy as np
-import geomtools.constants as con
+import gimbal.constants as con
 
 
 def stre(xyz, *inds, units='ang', absv=False):

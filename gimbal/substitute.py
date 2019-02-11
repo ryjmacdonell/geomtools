@@ -10,9 +10,9 @@ and orientation of the substituent (relative to an axis) and the
 bond length of the substituent. For now, only single bonds are treated.
 """
 import numpy as np
-import geomtools.displace as displace
-import geomtools.fileio as fileio
-import geomtools.constants as con
+import gimbal.displace as displace
+import gimbal.fileio as fileio
+import gimbal.constants as con
 
 
 class SubLib(object):

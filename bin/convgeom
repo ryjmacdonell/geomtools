@@ -18,7 +18,7 @@ convgeom input output [options]
     Boolean argument, whether or not momentum is read
 """
 from sys import argv
-from geomtools.fileio import convert
+from gimbal.fileio import convert
 
 def get_optarg(arglist, opt1, opt2, default):
     """Gets an optional command line argument and returns its value."""

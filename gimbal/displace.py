@@ -18,7 +18,7 @@ Each internal coordinate measurement has the option of changing the units
 (see the constants module) or taking the absolute value.
 """
 import numpy as np
-import geomtools.constants as con
+import gimbal.constants as con
 
 
 def translate(xyz, amp, axis, ind=None, origin=np.zeros(3), units='ang'):

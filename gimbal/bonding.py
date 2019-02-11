@@ -16,7 +16,7 @@ sum_ij B_ij^3 / 6.
 """
 import numpy as np
 from scipy import linalg
-import geomtools.constants as con
+import gimbal.constants as con
 
 
 def build_adjmat(elem, xyz, error=0.56, lothresh=0.4):

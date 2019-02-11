@@ -7,9 +7,9 @@ are currently supported.
 TODO: Add custom formats.
 """
 import numpy as np
-import geomtools.constants as con
-import geomtools.displace as displace
-import geomtools.measure as measure
+import gimbal.constants as con
+import gimbal.displace as displace
+import gimbal.measure as measure
 
 
 def read_xyz(infile, units='ang', hasvec=False, hascom=False):

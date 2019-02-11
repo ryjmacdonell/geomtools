@@ -23,7 +23,7 @@ Sets of equivalent vectors (atoms) can be permuted as well.
 import itertools
 import numpy as np
 from scipy import linalg
-import geomtools.displace as disp
+import gimbal.displace as disp
 
 
 def rmsd(test, ref, wgt=None):

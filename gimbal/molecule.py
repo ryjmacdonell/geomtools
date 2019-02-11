@@ -10,12 +10,12 @@ Likewise, MoleculeBundle creates a saved copy of a set molecular
 geometries. Input files with multiple geometries can be read to a bundle.
 """
 import numpy as np
-import geomtools.fileio as fileio
-import geomtools.displace as displace
-import geomtools.measure as measure
-import geomtools.substitute as substitute
-import geomtools.constants as con
-import geomtools.kabsch as kabsch
+import gimbal.fileio as fileio
+import gimbal.displace as displace
+import gimbal.measure as measure
+import gimbal.substitute as substitute
+import gimbal.constants as con
+import gimbal.kabsch as kabsch
 
 
 class BaseMolecule(object):
@@ -24,7 +24,7 @@ class BaseMolecule(object):
     changing the geometry.
 
     All methods of BaseMolecule involve setting and saving the molecular
-    geometry. There are no dependancies to other geomtools modules.
+    geometry. There are no dependencies to other modules.
     """
     def __init__(self, elem=np.array([], dtype=str), xyz=np.empty((0, 3)),
                  vec=None, comment=''):
@@ -209,7 +209,7 @@ class Molecule(BaseMolecule):
     get_elem and get_xyz return the geometry without the index 0 dummy atom.
 
     Molecule can also read from and write to input files given by a filename
-    or an open file object. Other methods are derived from geomtools modules.
+    or an open file object. Other methods are derived from different modules.
     """
     def __repr__(self):
         baserepr = BaseMolecule.__repr__(self)
