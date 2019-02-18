@@ -53,8 +53,7 @@ def path_len(adjmat, k):
     nonzero diagonal elements.
     """
     new_mat = power(adjmat, k)
-    new_mat -= np.diagonal(new_mat) * np.eye(k, dtype=int)
-    new_mat[new_mat > k - 2] = 0
+    new_mat -= np.diag(np.diag(new_mat))
     return new_mat
 
 
@@ -75,18 +74,10 @@ def num_loops(adjmat, k):
     eigs = linalg.eigh(adjmat)[0]
     if k == 3:
         loop = np.sum(eigs ** 3) / 6
-        total = int(round(loop3))
     elif k == 4:
         adj2 = power(adjmat, 2)
         loop = (np.sum(eigs ** 4) - 2 * np.sum(adj2) + np.sum(adjmat)) / 8
+    else:
+        raise ValueError('Loops of more than 4 elements not supported.')
 
-
-def _minor(arr, i, j):
-    """Returns the minor of an array.
-
-    Given indices i, j, the minor of the matrix is defined as the original
-    matrix excluding row i and column j.
-    """
-    rows = np.array(range(i) + range(i + 1, arr.shape[0]))[:, np.newaxis]
-    cols = np.array(range(j) + range(j + 1, arr.shape[1]))
-    return arr[rows, cols]
+    return int(round(loop))
