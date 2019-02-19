@@ -107,8 +107,10 @@ def angax(rotmat, units='rad'):
     else:
         u = np.sqrt((1 + det*(2*np.diag(rotmat) - tr)) / (3 - det*tr))
         if np.isclose(det*tr, -1):
-            u[1] *= det * np.sign(rotmat[1,2] + rotmat[2,1])
-            u[0] *= det * np.sign(u[1]) * np.sign(rotmat[0,1] + rotmat[1,0])
+            sgn = np.ones(3)
+            sgn[1] = det * _nonzero_sign(rotmat[1,2] + rotmat[2,1])
+            sgn[0] = det * sgn[1] * _nonzero_sign(rotmat[0,1] + rotmat[1,0])
+            u *= sgn
         else:
             u[0] *= np.sign(rotmat[1,2] - rotmat[2,1])
             u[1] *= np.sign(rotmat[2,0] - rotmat[0,2])
@@ -149,13 +151,6 @@ def align_axis(xyz, test_ax, ref_ax, ind=None, origin=np.zeros(3)):
     return rotate(xyz, angle, rotax, ind=ind, origin=origin)
 
 
-def align_plane(xyz, test_pl, ref_pl, ind=None, origin=np.zeros(3)):
-    """Rotates a set of atoms such that two planes are parallel."""
-    test = _parse_axis(test_pl)
-    ref = _parse_axis(ref_pl)
-    return align_axis(xyz, test, ref, ind=ind, origin=origin)
-
-
 def get_centremass(elem, xyz):
     """Returns centre of mass of a set of atoms."""
     mass = con.get_mass(elem)
@@ -173,67 +168,6 @@ def centre_mass(elem, xyz):
     atoms at those indices will be used.
     """
     return xyz - get_centremass(elem, xyz)
-
-
-def int_coord(xyz, funcs, axes, relamps=1, inds=None, origins=np.zeros(3)):
-    """Defines a function that will return a displaced geometry based on
-    a set of translations and rotations.
-
-    At the moment, axes are in the space-fixed frame. Displacement about an
-    atom that has been displaced could cause problems. The order in which
-    funtions are specified is the order of operations.
-
-    The relamps keyword should be changed to not depend on the units.
-    """
-    funcs = np.atleast_1d(funcs)
-    nfuncs = len(funcs)
-    funcnames = np.array([f.__name__ for f in funcs])
-    if not np.all(np.logical_or(funcnames == 'translate',
-                                funcnames == 'rotate')):
-        raise ValueError('internal coordinates must be defined using '
-                         '\'translate\' and \'rotate\' functions')
-    functypes = np.zeros(nfuncs, dtype=int)
-    functypes[funcnames == 'rotate'] = 1
-    axes = np.atleast_2d(axes)
-
-    if isinstance(relamps, (float,int)):
-        relamps = np.ones(nfuncs)
-
-    if inds is None:
-        inds = np.tile(range(len(xyz)), (nfuncs, 1))
-    elif isinstance(inds[0], int):
-        inds = np.tile(inds, (nfuncs, 1))
-
-    if isinstance(origins[0], (float,int)):
-        origins = np.tile(origins, (nfuncs, 1))
-
-    def _function(amp, units=['ang', 'rad']):
-        newxyz = np.copy(xyz)
-        for i, f in enumerate(funcs):
-            newxyz = f(newxyz, amp*relamps[i], axes[i], inds[i],
-                       origins[i], units[functypes[i]])
-        return newxyz
-
-    return _function
-
-
-def int_path(coord, amin, amax, n=30, units=['ang', 'rad']):
-    """Returns a list of xyz displaced along an internal coordinate."""
-    alist = np.linspace(amin, amax, n)
-    xyzlist = []
-    for amp in alist:
-        xyzlist.append(coord(amp, units=units))
-
-    return np.array(xyzlist)
-
-
-def int_grid(coords, amins, amaxs, n=30, units=['ang', 'rad']):
-    """Returns a grid of xyz of arbitrary dimension displaced along
-    internal coordinates.
-
-    This requires some form of molecular frame axis specification.
-    """
-    pass
 
 
 def _parse_axis(inp):
@@ -268,3 +202,11 @@ def _parse_axis(inp):
             return con.unit_vec(u)
     else:
         raise ValueError('Axis specification not recognized')
+
+
+def _nonzero_sign(x):
+    """Returns the sign of a nonzero number, otherwise returns 1."""
+    if np.isclose(x, 0.):
+        return 1.
+    else:
+        return np.sign(x)

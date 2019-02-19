@@ -53,6 +53,15 @@ def test_oop_default():
     assert np.isclose(oop, -np.pi/4)
 
 
+def test_oop_greater_than_pi():
+    xyz = np.array([[    0.,             0.,             0.],
+                    [-1./2.,             0., -np.sqrt(3)/2.],
+                    [-1./2.,  np.sqrt(3)/2.,             0.],
+                    [-1./2., -np.sqrt(3)/2.,             0.]])
+    oop = measure.oop(xyz, 1, 2, 3, 0)
+    assert np.isclose(oop, -2*np.pi/3)
+
+
 def test_oop_degrees():
     oop = measure.oop(c2h4, 1, 3, 2, 0, units='deg')
     assert np.isclose(oop, -45.)
