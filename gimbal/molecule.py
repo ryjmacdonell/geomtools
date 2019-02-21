@@ -484,7 +484,7 @@ class MoleculeBundle(object):
                                               hascom=hasccom))
                 self.molecules = np.hstack((self.molecules, new_mol))
                 self.nmol += 1
-            except ValueError:
+            except IOError:
                 break
 
         self.save()
@@ -555,7 +555,7 @@ def import_bundle(fnamelist, fmt='auto', **kwargs):
             while True:
                 try:
                     molecules.append(Molecule(*read_func(infile, **kwargs)))
-                except ValueError:
+                except IOError:
                     break
 
     return MoleculeBundle(molecules)

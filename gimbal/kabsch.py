@@ -69,15 +69,19 @@ def map_onto(elem, test, ref, wgt=None, ind=None, cent=None):
     be provided to only map a subset of atoms.
     """
     if cent is None:
-        new_test = disp.centre_mass(elem, test)
-        new_ref = disp.centre_mass(elem, ref)
+        cm_test = disp.get_centremass(elem, test)
+        cm_ref = disp.get_centremass(elem, ref)
     else:
-        new_test = disp.centre_mass(elem[cent], test[cent])
-        new_ref = disp.centre_mass(elem[cent], ref[cent])
+        cm_test = disp.get_centremass(elem[cent], test[cent])
+        cm_ref = disp.get_centremass(elem[cent], ref[cent])
+
+    new_test = test - cm_test
+    new_ref = ref - cm_ref
     if ind is None:
-        return new_test.dot(kabsch(new_test, new_ref, wgt=wgt))
+        return new_test.dot(kabsch(new_test, new_ref, wgt=wgt)) + cm_ref
     else:
-        return new_test.dot(kabsch(new_test[ind], new_ref[ind], wgt=wgt))
+        return new_test.dot(kabsch(new_test[ind], new_ref[ind],
+                                   wgt=wgt)) + cm_ref
 
 
 def opt_permute(elem, test, ref, plist=None, equiv=None, wgt=None, ind=None,

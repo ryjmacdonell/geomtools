@@ -32,7 +32,7 @@ def read_xyz(infile, units='ang', hasvec=False, hascom=False):
     try:
         natm = int(infile.readline())
     except ValueError:
-        raise ValueError('Geometry not in XYZ format.')
+        raise IOError('geometry not in XYZ format.')
     if hascom:
         comment = infile.readline().strip()
     else:
@@ -80,7 +80,7 @@ def read_col(infile, units='bohr', hasvec=False, hascom=False):
             data = np.vstack((data, line))
         except (ValueError, IndexError):
             if len(data) < 1:
-                raise ValueError('Geometry not in COLUMBUS format.')
+                raise IOError('geometry not in COLUMBUS format.')
             else:
                 # roll back one line before break
                 infile.seek(pos)
@@ -119,7 +119,7 @@ def read_gdat(infile, units='bohr', hasvec=False, hascom=False):
     try:
         natm = int(infile.readline())
     except ValueError:
-        raise ValueError('geometry not in Geometry.dat format')
+        raise IOError('geometry not in Geometry.dat format')
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
     xyz = data[:, 1:].astype(float) * con.conv(units, 'ang')
@@ -187,7 +187,7 @@ def read_zmt(infile, units='ang', hasvec=False, hascom=False):
 
     natm = len(data)
     if natm < 1:
-        raise ValueError('Geometry not in Z-matrix format.')
+        raise IOError('geometry not in Z-matrix format.')
     elem = np.array([line[0] for line in data])
     xyz = np.zeros((natm, 3))
     for i in range(natm):
@@ -234,11 +234,11 @@ def read_zmt(infile, units='ang', hasvec=False, hascom=False):
     return elem, xyz, vec, comment
 
 
-def read_trajdump(infile, units='bohr', hasvec=False, hascom=False,
-                  elem=None, time=None):
-    """Reads input file in FMS90/FMSpy TrajDump format
+def read_traj(infile, units='bohr', hasvec=False, hascom=False,
+              elem=None, time=None):
+    """Reads input file in FMS/nomad trajectory format
 
-    TrajDump files are in the format:
+    trajectory files are in the format:
     T1 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
     T2 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
     ...
@@ -246,7 +246,7 @@ def read_trajdump(infile, units='bohr', hasvec=False, hascom=False,
     coordinates q, G is the phase, A is the amplitude and S is the state
     label. The vectors are only read if hasvec = True.
 
-    TrajDump files do not contain atomic labels. If not provided, they are
+    Trajectory files do not contain atomic labels. If not provided, they are
     set to dummy atoms which may affect calculations involving atomic
     properties. A time should be provided, otherwise the first geometry
     in the file is used.
@@ -258,7 +258,7 @@ def read_trajdump(infile, units='bohr', hasvec=False, hascom=False,
     if time is None:
         rawline = infile.readline().split()
         if rawline == []:
-            raise ValueError('empty line provided')
+            raise IOError('empty line provided')
         elif 'Time' in rawline:
             line = np.array(infile.readline().split(), dtype=float)
         else:
@@ -266,8 +266,10 @@ def read_trajdump(infile, units='bohr', hasvec=False, hascom=False,
     else:
         alldata = np.array([line.split() for line in infile.readlines()])
         alldata = alldata[[dat[0] != '#' for dat in alldata[:,0]]].astype(float)
-        line = alldata[np.abs(alldata[:,0] - t) < 1e-6][0]
+        line = alldata[np.abs(alldata[:,0] - time) < 1e-6][0]
     natm = len(line) // 6 - 1
+    if natm < 1 or len(line) % 6 != 0:
+        raise IOError('geometry not in trajectory format.')
     if elem is None:
         elem = np.array(['X'] * natm)
     xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv(units,'ang')
@@ -280,6 +282,7 @@ def read_trajdump(infile, units='bohr', hasvec=False, hascom=False,
 
 def read_auto(infile, hascom=False, **kwargs):
     """Reads a molecular geometry file and determines the format."""
+    kwargs.update(hascom=hascom)
     pos = infile.tell()
     contents = infile.readlines()
     infile.seek(pos)
@@ -290,7 +293,7 @@ def read_auto(infile, hascom=False, **kwargs):
         fmt.append(''.join([_get_type(l) for l in line]))
 
     if nlines == 0:
-        raise ValueError('end of file')
+        raise IOError('end of file')
     elif nlines == 1:
         if hascom:
             raise IOError('cannot have comment with single line file')
@@ -300,7 +303,7 @@ def read_auto(infile, hascom=False, **kwargs):
             elif fmt[0].replace('i', 'f') == 'sfffff':
                 return read_col(infile, **kwargs)
             elif 'ffffffffffff' in fmt[0].replace('i', 'f'):
-                return read_trajdump(infile, **kwargs)
+                return read_traj(infile, **kwargs)
             else:
                 raise IOError('single line input in unrecognized format')
     elif nlines == 2 and hascom:
@@ -309,7 +312,7 @@ def read_auto(infile, hascom=False, **kwargs):
         elif fmt[1].replace('i', 'f') == 'sfffff':
             return read_col(infile, **kwargs)
         elif 'ffffffffffff' in fmt[1].replace('i', 'f'):
-            return read_trajdump(infile, **kwargs)
+            return read_traj(infile, **kwargs)
         else:
             raise IOError('single line input in unrecognized format')
     else:
@@ -326,7 +329,7 @@ def read_auto(infile, hascom=False, **kwargs):
 
         if ('ffffffffffff' in fmt[0].replace('i', 'f') or
             'ffffffffffff' in fmt[1].replace('i', 'f')):
-            return read_trajdump(infile, **kwargs)
+            return read_traj(infile, **kwargs)
         elif nlines > 2:
             if fmt[0] == 'i':
                 return read_xyz(infile, **kwargs)
@@ -484,6 +487,21 @@ def write_zmtvar(outfile, elem, xyz, vec=None, comment='', units='ang'):
         outfile.write('{:4s} = {:14.8f}\n'.format(key, val))
 
 
+def write_traj(outfile, elem, xyz, vec=None, comment='', units='bohr',
+               time=0., phase=0., ramp=0., iamp=0., state=0.):
+    """Writes geometry to an output file in FMS/nomad trajectory format."""
+    natm = len(elem)
+    write_xyz = xyz.flatten() * con.conv('ang', units)
+    if comment != '':
+        outfile.write(comment + '\n')
+    if vec is None:
+        vec = np.zeros_like(write_xyz)
+    namp = ramp**2 + iamp**2
+    args = (phase, ramp, iamp, namp, state)
+    fmt = '{:10.2f}' + 6*natm*'{:10.4f}' + 5*'{:10.4f}' + '\n'
+    outfile.write(fmt.format(time, *write_xyz, *vec, *args))
+
+
 def write_auto(outfile, elem, xyz, **kwargs):
     """Writes geometry to an output file based on the filename extension.
 
@@ -500,6 +518,8 @@ def write_auto(outfile, elem, xyz, **kwargs):
         write_zmt(outfile, elem, xyz, **kwargs)
     elif ext in ['zmtvar', 'zmatvar']:
         write_zmtvar(outfile, elem, xyz, **kwargs)
+    elif ext in ['tj', 'traj']:
+        write_traj(outfile, elem, xyz, **kwargs)
     else:
         write_xyz(outfile, elem, xyz, **kwargs)
 
@@ -532,18 +552,18 @@ def convert(infname, outfname, infmt='auto', outfmt='auto',
                 if hascom:
                     outkw.update(comment = comment)
                 write_func(outfile, elem, xyz, **outkw)
-            except ValueError:
+            except IOError:
                 break
 
 
-def convert_trajdump(infname, outfname, outfmt='auto', elem=None, times=None):
+def convert_traj(infname, outfname, outfmt='auto', elem=None, times=None):
     """Reads an FMS TrajDump file and writes to a file in format outfmt.
 
     An element list should be provided, otherwise dummy atoms (X) will be
     assumed. A time or list of times can be specified. Otherwise, the full
     trajectory will be read.
 
-    Note: This is the same as using infmt='trajdump' with convert, except
+    Note: This is the same as using infmt='traj' with convert, except
     for the option to add atomic labels and the automatic comment line.
     """
     write_func = globals()['write_' + outfmt]
