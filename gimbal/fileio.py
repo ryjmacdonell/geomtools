@@ -495,11 +495,13 @@ def write_traj(outfile, elem, xyz, vec=None, comment='', units='bohr',
     if comment != '':
         outfile.write(comment + '\n')
     if vec is None:
-        vec = np.zeros_like(write_xyz)
+        write_vec = np.zeros_like(write_xyz)
+    else:
+        write_vec = vec.flatten()
     namp = ramp**2 + iamp**2
-    args = (phase, ramp, iamp, namp, state)
-    fmt = '{:10.2f}' + 6*natm*'{:10.4f}' + 5*'{:10.4f}' + '\n'
-    outfile.write(fmt.format(time, *write_xyz, *vec, *args))
+    args = np.hstack((write_xyz, write_vec, phase, ramp, iamp, namp, state))
+    fmt = '{:10.2f}' + (6*natm + 5)*'{:10.4f}' + '\n'
+    outfile.write(fmt.format(time, *args))
 
 
 def write_auto(outfile, elem, xyz, **kwargs):
