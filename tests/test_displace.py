@@ -30,10 +30,10 @@ def test_translate_x_carbon():
 
 
 def test_translate_x_bohr():
-    new_xyz = displace.translate(c2h4[1], 2., 'x', units='bohr')
+    new_xyz = displace.translate(c2h4[1], 2., '-x', units='bohr')
     diff_xyz = new_xyz - c2h4[1]
     soln = np.zeros((6, 3))
-    soln[:,0] = 1.05835442
+    soln[:,0] = -1.05835442
     assert np.allclose(diff_xyz, soln)
 
 
@@ -52,6 +52,19 @@ def test_rotmat_degrees():
     soln = np.flip(np.eye(3), axis=0)
     soln[0,2] = -1.
     assert np.allclose(rot, soln)
+
+
+def test_rotmat_plane_axis():
+    rot = displace.rotmat(np.pi/2, [[0, 1, -1], [0, 0, 0], [-1, 1, 0]])
+    u = np.ones(3) / np.sqrt(3)
+    soln = np.array([[0, u[2], -u[1]], [-u[2], 0, u[0]], [u[1], -u[0], 0]])
+    soln += np.outer(u, u)
+    assert np.allclose(rot, soln)
+
+
+def test_rotmat_unrec_axis():
+    with pytest.raises(ValueError, match=r'Axis specification not recognized'):
+        rot = displace.rotmat(0., [1, 1])
 
 
 def test_rotmat_det_error():
@@ -83,11 +96,12 @@ def test_angax_pi():
 
 
 def test_angax_degrees():
-    rot = np.flip(np.eye(3), axis=0)
-    rot[0,2] = -1.
+    u = np.ones(3) / np.sqrt(3)
+    rot = np.array([[0, u[2], -u[1]], [-u[2], 0, u[0]], [u[1], -u[0], 0]])
+    rot += np.outer(u, u)
     ang, ax, d = displace.angax(rot, units='deg')
     assert np.isclose(ang, 90.)
-    assert np.allclose(ax, [0, 1, 0])
+    assert np.allclose(ax, u)
     assert np.isclose(d, 1.)
 
 
@@ -104,7 +118,7 @@ def test_rotate_degrees():
 
 
 def test_rotate_invert():
-    new_xyz = displace.rotate(c2h4[1], np.pi, 'z', det=-1)
+    new_xyz = displace.rotate(c2h4[1], np.pi, '-y', det=-1)
     assert np.allclose(new_xyz, -c2h4[1])
 
 
@@ -150,8 +164,8 @@ def test_align_axis_default():
 
 def test_align_axis_ind():
     soln = np.copy(c2h4[1])
-    new_xyz = displace.align_axis(soln, 'z', 'y', ind=[0,1])
-    soln[[0,1],1] = soln[[0,1],2]
+    new_xyz = displace.align_axis(soln, 'z', '-y', ind=[0,1])
+    soln[[0,1],1] = -soln[[0,1],2]
     soln[[0,1],2] = 0.
     assert np.allclose(new_xyz, soln)
 

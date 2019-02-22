@@ -52,6 +52,7 @@ def kabsch(test, ref, wgt=None, refl=True):
     if wgt is None:
         cov = test.T.dot(ref)
     else:
+        wgt = np.array(wgt)
         cov = (wgt[:,np.newaxis] * test).T.dot(ref)
     rot1, scale, rot2 = linalg.svd(cov)
     if not refl:
@@ -88,6 +89,8 @@ def opt_permute(elem, test, ref, plist=None, equiv=None, wgt=None, ind=None,
                 cent=None):
     """Determines optimal permutation of test geometry indices for
     mapping onto reference."""
+    if wgt is not None:
+        wgt = np.array(wgt)
     kwargs = dict(wgt=wgt, ind=ind, cent=cent)
     if plist is None and equiv is None:
         geom = map_onto(elem, test, ref, **kwargs)

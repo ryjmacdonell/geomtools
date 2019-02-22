@@ -26,6 +26,11 @@ xyz4 = np.array([[ 0.000000,  0.000000,  0.000000],
                  [ 0.000000,  1.000000,  0.000000],
                  [ 0.000000,  0.000000,  0.980000],
                  [-1.020000,  0.000000,  0.000000]])
+xyz5 = np.array([[ 0.000000,  0.000000,  0.000000],
+                 [ 0.000000, -1.000000,  0.000000],
+                 [ 0.000000,  0.000000, -1.000000],
+                 [ 0.000000,  1.000000,  0.000000],
+                 [ 1.000000, -1.000000,  0.000000]])
 
 
 def test_kabsch_default():
@@ -75,24 +80,37 @@ def test_opt_permute_plist_multiple():
 
 
 def test_opt_permute_equiv():
-    pass
-
-
-def test_opt_permute_ind():
-    pass
+    new_xyz5, rmsd = kabsch.opt_permute(elem, xyz5, xyz1, equiv=[[1,3],[2,4]],
+                                        cent=0)
+    soln = np.zeros((5, 3))
+    soln[1,2] = 1.
+    soln[2,:2] = np.sqrt(2)/2
+    soln[3,0] = np.sqrt(2)
+    soln[4,:2] = -np.sqrt(2)/2
+    assert np.allclose(new_xyz5, soln)
 
 
 def test_opt_permute_weight():
-    pass
+    mwgts = [12., 1., 1., 19., 19.]
+    new_xyz3, rmsd = kabsch.opt_permute(elem, xyz3, xyz1, wgt=mwgts)
+    assert np.all(np.abs(new_xyz3 - xyz1) < 1e-2)
+    assert rmsd < 5e-2
 
 
-def test_opt_permute_cent():
-    pass
+def test_opt_permute_ind():
+    new_xyz5, rmsd = kabsch.opt_permute(elem, xyz5, xyz1, ind=[0,1,2], cent=0)
+    assert np.allclose(new_xyz5[:3], xyz1[:3])
+    assert rmsd < 4e-1
 
 
 def test_opt_ref_default():
-    pass
+    new_xyz5, ind = kabsch.opt_ref(elem, xyz5, [xyz1, xyz2])
+    assert kabsch.rmsd(new_xyz5, xyz2) < kabsch.rmsd(new_xyz5, xyz1)
+    assert ind == 1
 
 
 def test_opt_multi_default():
-    pass
+    match1, match2 = kabsch.opt_multi(elem, [xyz3, xyz4, xyz5], [xyz1, xyz2])
+    assert kabsch.rmsd(match1[0], xyz1) < kabsch.rmsd(match1[0], xyz2)
+    assert kabsch.rmsd(match1[1], xyz1) < kabsch.rmsd(match1[1], xyz2)
+    assert kabsch.rmsd(match2[0], xyz2) < kabsch.rmsd(match2[0], xyz1)

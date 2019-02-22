@@ -235,7 +235,7 @@ def read_zmt(infile, units='ang', hasvec=False, hascom=False):
 
 
 def read_traj(infile, units='bohr', hasvec=False, hascom=False,
-              elem=None, time=None):
+              elem=None, time=None, autocom=False):
     """Reads input file in FMS/nomad trajectory format
 
     trajectory files are in the format:
@@ -277,6 +277,9 @@ def read_traj(infile, units='bohr', hasvec=False, hascom=False,
         vec = line[3*natm+1:6*natm+1].reshape(natm, 3)
     else:
         vec = None
+    if autocom:
+        fmt = 't={:8.2f}, state={:4d}, a^2={:10.4f}'
+        comment += fmt.format(line[0], int(line[-1]), line[-2])
     return elem, xyz, vec, comment
 
 
@@ -335,8 +338,8 @@ def read_auto(infile, hascom=False, **kwargs):
                 return read_xyz(infile, **kwargs)
             elif fmt[1] == 'i':
                 return read_gdat(infile, **kwargs)
-        else:
-            raise IOError('unrecognized file format')
+
+    raise IOError('unrecognized file format')
 
 
 def _get_type(s):
@@ -550,42 +553,9 @@ def convert(infname, outfname, infmt='auto', outfmt='auto',
             try:
                 elem, xyz, vec, comment = read_func(infile, **inkw)
                 if hasvec:
-                    outkw.update(vec = vec)
+                    outkw.update(vec=vec)
                 if hascom:
-                    outkw.update(comment = comment)
+                    outkw.update(comment=comment)
                 write_func(outfile, elem, xyz, **outkw)
             except IOError:
                 break
-
-
-def convert_traj(infname, outfname, outfmt='auto', elem=None, times=None):
-    """Reads an FMS TrajDump file and writes to a file in format outfmt.
-
-    An element list should be provided, otherwise dummy atoms (X) will be
-    assumed. A time or list of times can be specified. Otherwise, the full
-    trajectory will be read.
-
-    Note: This is the same as using infmt='traj' with convert, except
-    for the option to add atomic labels and the automatic comment line.
-    """
-    write_func = globals()['write_' + outfmt]
-    with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
-        infile.readline()
-        alldata = np.array([line.split() for line in infile.readlines()])
-        alldata = alldata[[dat[0] != '#' for dat in alldata[:,0]]].astype(float)
-        if times is None:
-            numdata = np.copy(alldata)
-        else:
-            times = np.atleast_1d(times)
-            numdata = np.empty((len(times), len(alldata[1])))
-            for i, t in enumerate(times):
-                numdata[i] = alldata[np.abs(alldata[:,0] - t) < 1e-6]
-        for line in numdata:
-            natm = len(line) // 6 - 1
-            if elem is None:
-                elem = ['X'] * natm
-            ti = line[0]
-            xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv('bohr','ang')
-            pop = line[-2]
-            write_func(outfile, elem, xyz,
-                       comment='t = {:.2f}, pop = {:.4f}'.format(ti, pop))
