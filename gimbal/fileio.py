@@ -424,15 +424,15 @@ def write_zmt(outfile, elem, xyz, vec=None, comment='', units='ang'):
     for i in range(natm):
         if i == 0:
             # first element has just the symbol
-            outfile.write('{:<2}\n'.format(elem[0]))
+            outfile.write('{:s}\n'.format(elem[0]))
         elif i == 1:
             # second element has symbol, index, bond length
-            outfile.write('{:<2}{:3d}{:12.6f}'
+            outfile.write('{:<2s}{:3d}{:12.6f}'
                           '\n'.format(elem[1], 1, measure.stre(xyz, 0, 1,
                                                                units=units)))
         elif i == 2:
             # third element has symbol, index, bond length, index, bond angle
-            outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}'
+            outfile.write('{:<2s}{:3d}{:12.6f}{:3d}{:12.6f}'
                           '\n'.format(elem[2], 2, measure.stre(xyz, 1, 2,
                                                                units=units),
                                       1, measure.bend(xyz, 0, 1, 2,
@@ -440,7 +440,7 @@ def write_zmt(outfile, elem, xyz, vec=None, comment='', units='ang'):
         else:
             # all other elements have symbol, index, bond length, index,
             # bond angle, index, dihedral angle
-            outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}{:3d}{:12.6f}'
+            outfile.write('{:<2s}{:3d}{:12.6f}{:3d}{:12.6f}{:3d}{:12.6f}'
                           '\n'.format(elem[i], i, measure.stre(xyz, i-1, i,
                                                                units=units),
                                       i-1, measure.bend(xyz, i-2, i-1, i,
@@ -459,35 +459,39 @@ def write_zmtvar(outfile, elem, xyz, vec=None, comment='', units='ang'):
     natm = len(elem)
     if comment != '':
         outfile.write(comment + '\n')
-    vlist = dict()
+    vlist = []
+    vdict = dict()
     for i in range(natm):
         if i == 0:
             # first element has just the symbol
-            outfile.write('{:<2}\n'.format(elem[0]))
+            outfile.write('{:s}\n'.format(elem[0]))
         elif i == 1:
             # second element has symbol, index, bond length
-            outfile.write('{:<2}{:3d}  R{:<2d}'
+            outfile.write('{:<2s}{:3d}  R{:d}'
                           '\n'.format(elem[1], 1, 1))
-            vlist['R1'] = measure.stre(xyz, 0, 1, units=units)
+            vlist += ['R1']
+            vdict['R1'] = measure.stre(xyz, 0, 1, units=units)
         elif i == 2:
             # third element has symbol, index, bond length, index, bond angle
-            outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d}'
+            outfile.write('{:<2s}{:3d}  R{:<2d} {:3d}  A{:d}'
                           '\n'.format(elem[2], 2, 2, 1, 1))
-            vlist['R2'] = measure.stre(xyz, 1, 2, units=units)
-            vlist['A1'] = measure.bend(xyz, 0, 1, 2, units='deg')
+            vlist += ['R2', 'A1']
+            vdict['R2'] = measure.stre(xyz, 1, 2, units=units)
+            vdict['A1'] = measure.bend(xyz, 0, 1, 2, units='deg')
         else:
             # all other elements have symbol, index, bond length, index,
             # bond angle, index, dihedral angle
-            outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d} '
-                          '{:3d}  T{:<2d}'
+            outfile.write('{:<2s}{:3d}  R{:<2d} {:3d}  A{:<2d} '
+                          '{:3d}  T{:d}'
                           '\n'.format(elem[i], i, i, i-1, i-1, i-2, i-2))
-            vlist['R'+str(i)] = measure.stre(xyz, i-1, i, units=units)
-            vlist['A'+str(i-1)] = measure.bend(xyz, i-2, i-1, i, units='deg')
-            vlist['T'+str(i-2)] = measure.tors(xyz, i-3, i-2, i-1, i,
+            vlist += ['R'+str(i), 'A'+str(i-1), 'T'+str(i-2)]
+            vdict['R'+str(i)] = measure.stre(xyz, i-1, i, units=units)
+            vdict['A'+str(i-1)] = measure.bend(xyz, i-2, i-1, i, units='deg')
+            vdict['T'+str(i-2)] = measure.tors(xyz, i-3, i-2, i-1, i,
                                                units='deg')
     outfile.write('\n')
-    for key, val in vlist.items():
-        outfile.write('{:4s} = {:14.8f}\n'.format(key, val))
+    for key in vlist:
+        outfile.write('{:4s} = {:14.8f}\n'.format(key, vdict[key]))
 
 
 def write_traj(outfile, elem, xyz, vec=None, comment='', units='bohr',

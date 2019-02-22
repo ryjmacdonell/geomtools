@@ -82,7 +82,7 @@ H    -6.29118000E-01    6.29118000E-01   -6.29118000E-01
      1.00000000E+00    1.00000000E+00    1.00000000E+00
 """
 zmt_nocom = """\
-C 
+C
 H   1    1.089664
 H   2    1.779414  1   35.264390
 H   3    1.779414  2   60.000000  1   35.264390
@@ -90,11 +90,11 @@ H   4    1.779414  3   60.000000  2  -70.528779
 """
 zmt_com = 'comment line\n' + zmt_nocom
 zmtvar_nocom = """\
-C 
-H   1  R1 
-H   2  R2    1  A1 
-H   3  R3    2  A2    1  T1 
-H   4  R4    3  A3    2  T2 
+C
+H   1  R1
+H   2  R2    1  A1
+H   3  R3    2  A2    1  T1
+H   4  R4    3  A3    2  T2
 
 R1   =     1.08966434
 R2   =     1.77941442
@@ -451,7 +451,8 @@ def test_convert_xyz_to_col(tmpdir):
     f1 = tmpdir.join('tmp.xyz')
     f1.write(xyz_novec)
     f2 = tmpdir.join('tmp.col')
-    fileio.convert(f1.realpath(), f2.realpath(), infmt='xyz', outfmt='col')
+    fileio.convert(str(f1.realpath()), str(f2.realpath()),
+                   infmt='xyz', outfmt='col')
     assert f2.read() == col_nocom
 
 
@@ -459,7 +460,7 @@ def test_convert_xyz_to_zmt_inunits_bohr(tmpdir):
     f1 = tmpdir.join('tmp.xyz')
     f1.write(xyz_bohr.replace('88861', '8886072'))
     f2 = tmpdir.join('tmp.col')
-    fileio.convert(f1.realpath(), f2.realpath(), inunits='bohr')
+    fileio.convert(str(f1.realpath()), str(f2.realpath()), inunits='bohr')
     assert f2.read() == col_nocom
 
 
@@ -467,7 +468,8 @@ def test_convert_xyz_to_gdat_outunits_angstrom(tmpdir):
     f1 = tmpdir.join('tmp.xyz')
     f1.write(xyz_vec)
     f2 = tmpdir.join('tmp.dat')
-    fileio.convert(f1.realpath(), f2.realpath(), outunits='ang', hasvec=True)
+    fileio.convert(str(f1.realpath()), str(f2.realpath()), outunits='ang',
+                   hasvec=True)
     assert f2.read() == gdat_ang
 
 
@@ -475,7 +477,7 @@ def test_convert_xyz_to_zmtvar_hascom(tmpdir):
     f1 = tmpdir.join('tmp.xyz')
     f1.write(xyz_novec)
     f2 = tmpdir.join('tmp.zmtvar')
-    fileio.convert(f1.realpath(), f2.realpath(), hascom=True)
+    fileio.convert(str(f1.realpath()), str(f2.realpath()), hascom=True)
     assert f2.read() == zmtvar_com
 
 
@@ -483,7 +485,7 @@ def test_convert_xyz_to_traj_hasvec(tmpdir):
     f1 = tmpdir.join('tmp.xyz')
     f1.write(xyz_vec)
     f2 = tmpdir.join('tmp.tj')
-    fileio.convert(f1.realpath(), f2.realpath(), hasvec=True)
+    fileio.convert(str(f1.realpath()), str(f2.realpath()), hasvec=True)
     soln = traj_nocom.replace('0.4000    0.3000    0.2500    1.0000',
                               '0.0000    0.0000    0.0000    0.0000')
     assert f2.read() == soln
