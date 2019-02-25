@@ -118,7 +118,7 @@ def test_rotate_degrees():
 
 
 def test_rotate_invert():
-    new_xyz = displace.rotate(c2h4[1], np.pi, '-y', det=-1)
+    new_xyz = displace.rotate(c2h4[1], np.pi, '-z', det=-1)
     assert np.allclose(new_xyz, -c2h4[1])
 
 

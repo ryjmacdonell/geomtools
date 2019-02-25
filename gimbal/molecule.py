@@ -28,17 +28,16 @@ class BaseMolecule(object):
     """
     def __init__(self, elem=np.array([], dtype=str), xyz=np.empty((0, 3)),
                  vec=None, comment=''):
-        self.elem = np.array(elem, dtype=str)
-        self.xyz = np.array(xyz, dtype=float)
+        self.elem = np.atleast_1d(np.array(elem, dtype=str))
+        self.xyz = np.atleast_2d(np.array(xyz, dtype=float))
         self.comment = comment
-        self.natm = len(elem)
+        self.natm = len(self.elem)
         if vec is None:
             self.vec = np.zeros((self.natm, 3))
             self.print_vec = False
         else:
-            self.vec = np.array(vec, dtype=float)
+            self.vec = np.atleast_2d(np.array(vec, dtype=float))
             self.print_vec = True
-        self.saved = True
         self.save()
 
     def __repr__(self):
@@ -121,7 +120,7 @@ class BaseMolecule(object):
         """Creates a copy of the BaseMolecule object."""
         self._check()
         if comment is None:
-            comment = 'Copy of ' + self.comment
+            comment = self.comment
         return BaseMolecule(np.copy(self.elem), np.copy(self.xyz),
                             np.copy(self.vec), comment)
 
@@ -166,13 +165,13 @@ class BaseMolecule(object):
     def add_atoms(self, new_elem, new_xyz, new_vec=None):
         """Adds atoms(s) to molecule."""
         self.natm += 1 if isinstance(new_elem, str) else len(new_elem)
-        new_xyz = np.atleast_2d(new_xyz)
+        new_xyz = np.atleast_2d(np.array(new_xyz, dtype=float))
         self.elem = np.hstack((self.elem, new_elem))
         self.xyz = np.vstack((self.xyz, new_xyz))
         if new_vec is None:
             self.vec = np.vstack((self.vec, np.zeros((len(new_xyz), 3))))
         else:
-            new_vec = np.atleast_2d(new_vec)
+            new_vec = np.atleast_2d(np.array(new_vec, dtype=float))
             self.vec = np.vstack((self.vec, new_vec))
             self.print_vec = True
         self._check()
@@ -256,32 +255,30 @@ class Molecule(BaseMolecule):
         BaseMolecule.set_vec(self, new_vec)
 
     # Input/Output
-    def read(self, infile, fmt='auto', hasvec=False, hascom=False):
+    def read(self, infile, fmt='auto', **kwargs):
         """Reads single geometry from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
         if isinstance(infile, str):
             with open(infile, 'r') as f:
                 (self.elem, self.xyz,
-                 self.vec, self.comment) = read_func(f, hasvec=hasvec,
-                                                     hascom=hascom)
+                 self.vec, self.comment) = read_func(f, **kwargs)
         else:
             (self.elem, self.xyz,
-             self.vec, self.comment) = read_func(infile, hasvec=hasvec,
-                                                 hascom=hascom)
+             self.vec, self.comment) = read_func(infile, **kwargs)
         self.natm = len(self.elem)
         self.save()
 
-    def write(self, outfile, fmt='auto'):
+    def write(self, outfile, fmt='auto', **kwargs):
         """Writes geometry to an output file in provided format."""
         write_func = getattr(fileio, 'write_' + fmt)
         vec = self.vec[1:] if self.print_vec else None
         if isinstance(outfile, str):
             with open(outfile, 'w') as f:
                 write_func(f, self.elem[1:], self.xyz[1:], vec=vec,
-                           comment=self.comment)
+                           comment=self.comment, **kwargs)
         else:
             write_func(outfile, self.elem[1:], self.xyz[1:], vec=vec,
-                       comment=self.comment)
+                       comment=self.comment, **kwargs)
 
     # Accessors
     def get_natm(self):
@@ -308,7 +305,7 @@ class Molecule(BaseMolecule):
         """Returns atomic masses."""
         return con.get_mass(self.elem[1:])
 
-    def get_form(self):
+    def get_formula(self):
         """Gets the atomic formula based on the element list."""
         elem = [sym for sym in self.elem if 'X' not in sym]
         atm, num = np.unique(elem, return_counts=True)
@@ -358,6 +355,17 @@ class Molecule(BaseMolecule):
         self.saved = False
 
     # Kabsch geometry matching
+    @staticmethod
+    def _atm_inds(inds):
+        """Substracts one from a list (or list of lists) of indices."""
+        if inds is not None:
+            if isinstance(inds[0], int):
+                return [i - 1 for i in inds]
+            else:
+                return [[i - 1 for i in sub] for sub in inds]
+        else:
+            return None
+
     def match_to_ref(self, ref_bundle, plist=None, equiv=None, wgt=None,
                      ind=None, cent=None):
         """Tests the molecule against a set of references in a bundle.
@@ -390,7 +398,7 @@ class MoleculeBundle(object):
         if molecules is None:
             self.molecules = np.array([], dtype=object)
         else:
-            self.molecules = np.array(molecules, copy=False)
+            self.molecules = np.atleast_1d(np.array(molecules, copy=False))
         self.nmol = len(self.molecules)
         self._check()
 
@@ -431,7 +439,8 @@ class MoleculeBundle(object):
                 raise TypeError('Elements of molecule bundle must be '
                                 'Molecule type.')
 
-    def _join_str(self, jn, lst, typ):
+    @staticmethod
+    def _join_str(jn, lst, typ):
         """Returns a string of list elements joined by a separator with
         newline characters added."""
         fmt = '{!' + typ + '}'
@@ -475,13 +484,12 @@ class MoleculeBundle(object):
         self.molecules = np.delete(self.molecules, ind)
 
     # Input/Output
-    def read(self, infile, fmt='auto', hasvec=False, hascom=False):
+    def read(self, infile, fmt='auto', **kwargs):
         """Reads all geometries from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
         while True:
             try:
-                new_mol = Molecule(*read_func(infile, hasvec=hasvec,
-                                              hascom=hasccom))
+                new_mol = Molecule(*read_func(infile, **kwargs))
                 self.molecules = np.hstack((self.molecules, new_mol))
                 self.nmol += 1
             except IOError:
@@ -489,16 +497,16 @@ class MoleculeBundle(object):
 
         self.save()
 
-    def write(self, outfile, fmt='auto'):
+    def write(self, outfile, fmt='auto', **kwargs):
         """Writes geometries to an output file in provided format."""
         write_func = getattr(fileio, 'write_' + fmt)
         if isinstance(outfile, str):
             with open(outfile, 'w') as f:
                 for mol in self.molecules:
-                    mol.write(f, fmt=fmt)
+                    mol.write(f, fmt=fmt, **kwargs)
         else:
             for mol in self.molecules:
-                mol.write(outfile, fmt=fmt)
+                mol.write(outfile, fmt=fmt, **kwargs)
 
     # Accessors
     def get_nmol(self):
@@ -583,14 +591,3 @@ def _add_type(inp1, inp2):
         raise TypeError('Addition not supported for types \'{:s}\' and '
                         '\'{:s}\'.'.format(type(inp1), type(inp2)))
     return molecules
-
-
-def _atm_inds(inds):
-    """Substracts one from a list (or list of lists) of indices."""
-    if inds is not None:
-        if isinstance(inds[0], int):
-            return [i - 1 for i in inds]
-        else:
-            return [[i - 1 for i in sub] for sub in inds]
-    else:
-        return None

@@ -222,9 +222,11 @@ def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
         ipos = isub[0]
 
     if ibond is None:
-        dist = np.linalg.norm(xyz - xyz[isub], axis=1)
-        dist[isub] += np.max(dist)
+        dist = np.linalg.norm(xyz - xyz[ipos], axis=1)
+        dist[ipos] += np.max(dist)
         ibond = np.argmin(dist)
+    elif ibond == ipos:
+        raise ValueError('sub and bond indices cannot be the same')
 
     ax = con.unit_vec(xyz[ipos] - xyz[ibond])
     if pl is None:
@@ -232,6 +234,10 @@ def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
         pl = np.ones(3)
         pl -= np.dot(pl, ax) * ax
     elif isinstance(pl, int):
+        if pl == ipos:
+            raise ValueError('plane and sub indices cannot be the same')
+        elif pl == ibond:
+            raise ValueError('plane and bond indices cannot be the same')
         pl = np.cross(xyz[ipos] - xyz[ibond], xyz[pl] - xyz[ibond])
 
     sub_el, sub_xyz = import_sub(sublbl)

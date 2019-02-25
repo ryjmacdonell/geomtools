@@ -108,12 +108,18 @@ T2   =   -70.52877937
 """
 zmtvar_com = 'comment line\n' + zmtvar_nocom
 traj_nocom = ('      0.00    0.0000    0.0000    0.0000    1.1889    1.1889' +
-'    1.1889   -1.1889   -1.1889    1.1889    1.1889   -1.1889   -1.1889' +
-'   -1.1889    1.1889   -1.1889    1.0000    1.0000    1.0000    1.0000' +
-'    1.0000    1.0000    1.0000    1.0000    1.0000    1.0000    1.0000' +
-'    1.0000    1.0000    1.0000    1.0000    0.0000    0.4000    0.3000' +
-'    0.2500    1.0000\n')
-traj_time = traj_nocom + traj_nocom.replace('0.00 ', '1.00 ')
+              '    1.1889   -1.1889   -1.1889    1.1889    1.1889   -1.1889' +
+              '   -1.1889   -1.1889    1.1889   -1.1889    1.0000    1.0000' +
+              '    1.0000    1.0000    1.0000    1.0000    1.0000    1.0000' +
+              '    1.0000    1.0000    1.0000    1.0000    1.0000    1.0000' +
+              '    1.0000    0.0000    0.4000    0.3000    0.2500    2.0000\n')
+traj_time = ('    # Time    pos.1x    pos.1y    pos.1z    pos.2x    pos.2y' +
+             '    pos.2z    pos.3x    pos.3y    pos.3z    pos.4x    pos.4y' +
+             '    pos.4z    pos.5x    pos.5y    pos.5z    mom.1x    mom.1y' +
+             '    mom.1z    mom.2x    mom.2y    mom.2z    mom.3x    mom.3y' +
+             '    mom.3z    mom.4x    mom.4y    mom.4z    mom.5x    mom.5y' +
+             '    mom.5z     Phase   AmpReal   AmpImag   AmpNorm   StateID\n' +
+             traj_nocom + traj_nocom.replace(' 0.00 ', ' 1.00 '))
 traj_com = 'comment line\n' + traj_nocom
 
 
@@ -161,6 +167,14 @@ def test_read_col_comment(tmpdir):
     assert com == 'comment line'
 
 
+def test_read_col_hasvec(tmpdir):
+    f = tmpf(tmpdir, col_nocom)
+    elem, xyz, vec, com = fileio.read_col(f, hasvec=True)
+    assert np.all(elem == ch4[0])
+    assert np.allclose(xyz, ch4[1])
+    assert np.allclose(vec, np.zeros_like(xyz))
+
+
 def test_read_col_wrong_format(tmpdir):
     f = tmpf(tmpdir, gdat)
     with pytest.raises(IOError, match=r'geometry not in COLUMBUS format.'):
@@ -195,6 +209,21 @@ def test_read_zmt_comment(tmpdir):
     assert np.all(elem == ch4[0])
     assert np.allclose(xyz, zmt2xyz, atol=1e-6)
     assert com == 'comment line'
+
+
+def test_read_zmt_hasvec(tmpdir):
+    f = tmpf(tmpdir, zmt_nocom)
+    elem, xyz, vec, com = fileio.read_zmt(f, hasvec=True)
+    assert np.all(elem == ch4[0])
+    assert np.allclose(xyz, zmt2xyz, atol=1e-6)
+    assert np.allclose(vec, np.zeros_like(xyz))
+
+
+def test_read_zmt_var(tmpdir):
+    f = tmpf(tmpdir, zmtvar_nocom)
+    elem, xyz, vec, com = fileio.read_zmt(f)
+    assert np.all(elem == ch4[0])
+    assert np.allclose(xyz, zmt2xyz, atol=1e-6)
 
 
 def test_read_zmt_wrong_format(tmpdir):
@@ -239,7 +268,13 @@ def test_read_traj_autocom(tmpdir):
     elem, xyz, vec, com = fileio.read_traj(f, autocom=True)
     assert np.all(elem == 5*['X'])
     assert np.allclose(xyz, ch4[1], atol=1e-4)
-    assert com == 't=    0.00, state=   1, a^2=    0.2500'
+    assert com == 't=    0.00, state=   2, a^2=    0.2500'
+
+
+def test_read_traj_empty_line(tmpdir):
+    f = tmpf(tmpdir, '\n')
+    with pytest.raises(IOError, match=r'empty line provided'):
+        elem, xyz, vec, com = fileio.read_traj(f)
 
 
 def test_read_traj_wrong_format(tmpdir):
@@ -367,7 +402,7 @@ def test_read_auto_zmt_comment(tmpdir):
 
 
 def test_read_auto_traj(tmpdir):
-    f = tmpf(tmpdir, traj_nocom)
+    f = tmpf(tmpdir, traj_time)
     elem, xyz, vec, com = fileio.read_auto(f)
     assert np.all(elem == 5*['X'])
     assert np.allclose(xyz, ch4[1], atol=1e-4)
@@ -391,10 +426,10 @@ def test_write_xyz_bohr(tmpdir):
     assert f.read() == xyz_bohr.replace('comment line', '')
 
 
-def test_write_col_no_comment(tmpdir):
+def test_write_col_comment(tmpdir):
     f = tmpdir.join('tmp.geom')
-    fileio.write_col(f.open(mode='w'), ch4[0], ch4[1])
-    assert f.read() == col_nocom
+    fileio.write_col(f.open(mode='w'), ch4[0], ch4[1], comment='comment line')
+    assert f.read() == col_com
 
 
 def test_write_gdat_vec(tmpdir):
@@ -414,6 +449,22 @@ def test_write_zmtvar_comment(tmpdir):
     fileio.write_zmtvar(f.open(mode='w'), ch4[0], ch4[1],
                         comment='comment line')
     assert f.read() == zmtvar_com
+
+
+def test_write_traj_vec(tmpdir):
+    f = tmpdir.join('tmp.geom')
+    fileio.write_traj(f.open(mode='w'), ch4[0], ch4[1], vec=ch4[2])
+    soln = traj_nocom.replace('0.4000    0.3000    0.2500    2.0000',
+                              '0.0000    0.0000    0.0000    0.0000')
+    assert f.read() == soln
+
+
+def test_write_traj_comment(tmpdir):
+    f = tmpdir.join('tmp.geom')
+    fileio.write_traj(f.open(mode='w'), ch4[0], ch4[1], comment='comment line')
+    soln = traj_com.replace('0.4000    0.3000    0.2500    2.0000',
+                            '0.0000    0.0000    0.0000    0.0000')
+    assert f.read() == soln.replace(' 1.0000', ' 0.0000')
 
 
 def test_write_auto_col(tmpdir):
@@ -439,6 +490,14 @@ def test_write_auto_zmtvar(tmpdir):
     f = tmpdir.join('tmp.zmtvar')
     fileio.write_auto(f.open(mode='w'), ch4[0], ch4[1])
     assert f.read() == zmtvar_nocom
+
+
+def test_write_auto_traj(tmpdir):
+    f = tmpdir.join('tmp.tj')
+    fileio.write_traj(f.open(mode='w'), ch4[0], ch4[1])
+    soln = traj_nocom.replace('0.4000    0.3000    0.2500    2.0000',
+                              '0.0000    0.0000    0.0000    0.0000')
+    assert f.read() == soln.replace(' 1.0000', ' 0.0000')
 
 
 def test_write_auto_xyz(tmpdir):
@@ -486,6 +545,12 @@ def test_convert_xyz_to_traj_hasvec(tmpdir):
     f1.write(xyz_vec)
     f2 = tmpdir.join('tmp.tj')
     fileio.convert(str(f1.realpath()), str(f2.realpath()), hasvec=True)
-    soln = traj_nocom.replace('0.4000    0.3000    0.2500    1.0000',
+    soln = traj_nocom.replace('0.4000    0.3000    0.2500    2.0000',
                               '0.0000    0.0000    0.0000    0.0000')
     assert f2.read() == soln
+
+
+def test_valvar_fails(tmpdir):
+    tdict = dict(a = 1.)
+    with pytest.raises(KeyError, match=r'.* not found in variable list'):
+        fileio._valvar('b', tdict)

@@ -112,9 +112,9 @@ def angax(rotmat, units='rad'):
             sgn[0] = det * sgn[1] * _nonzero_sign(rotmat[0,1] + rotmat[1,0])
             u *= sgn
         else:
-            u[0] *= np.sign(rotmat[1,2] - rotmat[2,1])
-            u[1] *= np.sign(rotmat[2,0] - rotmat[0,2])
-            u[2] *= np.sign(rotmat[0,1] - rotmat[1,0])
+            u[0] *= _nonzero_sign(rotmat[1,2] - rotmat[2,1])
+            u[1] *= _nonzero_sign(rotmat[2,0] - rotmat[0,2])
+            u[2] *= _nonzero_sign(rotmat[0,1] - rotmat[1,0])
 
     return ang, u, det
 
@@ -157,6 +157,9 @@ def get_centremass(elem, xyz):
     if isinstance(mass, float):
         # Centre of mass of one atom is its position
         return xyz
+    elif np.allclose(mass, mass[0]):
+        # If masses are identical (including zero), return mean position
+        return np.sum(xyz, axis=0) / len(xyz)
     else:
         return np.sum(mass[:,np.newaxis] * xyz, axis=0) / np.sum(mass)
 

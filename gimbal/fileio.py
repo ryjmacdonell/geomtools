@@ -264,9 +264,9 @@ def read_traj(infile, units='bohr', hasvec=False, hascom=False,
         else:
             line = np.array(rawline, dtype=float)
     else:
-        alldata = np.array([line.split() for line in infile.readlines()])
-        alldata = alldata[[dat[0] != '#' for dat in alldata[:,0]]].astype(float)
-        line = alldata[np.abs(alldata[:,0] - time) < 1e-6][0]
+        alldata = np.array([line.split() for line in infile.readlines()
+                            if 'Time' not in line], dtype=float)
+        line = alldata[np.isclose(alldata[:,0], time)][0]
     natm = len(line) // 6 - 1
     if natm < 1 or len(line) % 6 != 0:
         raise IOError('geometry not in trajectory format.')
@@ -283,9 +283,12 @@ def read_traj(infile, units='bohr', hasvec=False, hascom=False,
     return elem, xyz, vec, comment
 
 
-def read_auto(infile, hascom=False, **kwargs):
+def read_auto(infile, **kwargs):
     """Reads a molecular geometry file and determines the format."""
-    kwargs.update(hascom=hascom)
+    if 'hascom' in kwargs:
+        hascom = kwargs['hascom']
+    else:
+        hascom = False
     pos = infile.tell()
     contents = infile.readlines()
     infile.seek(pos)
@@ -340,29 +343,6 @@ def read_auto(infile, hascom=False, **kwargs):
                 return read_gdat(infile, **kwargs)
 
     raise IOError('unrecognized file format')
-
-
-def _get_type(s):
-    """Reads a string to see if it can be converted into int or float."""
-    try:
-        float(s)
-        if '.' not in s:
-            return 'i'
-        else:
-            return 'f'
-    except ValueError:
-        return 's'
-
-
-def _valvar(unk, vardict):
-    """Determines if an unknown string is a value or a dict variable."""
-    try:
-        return float(unk)
-    except ValueError:
-        if unk in vardict:
-            return vardict[unk]
-        else:
-            raise KeyError('\'{}\' not found in variable list'.format(unk))
 
 
 def write_xyz(outfile, elem, xyz, vec=None, comment='', units='ang'):
@@ -563,3 +543,26 @@ def convert(infname, outfname, infmt='auto', outfmt='auto',
                 write_func(outfile, elem, xyz, **outkw)
             except IOError:
                 break
+
+
+def _get_type(s):
+    """Reads a string to see if it can be converted into int or float."""
+    try:
+        float(s)
+        if '.' not in s:
+            return 'i'
+        else:
+            return 'f'
+    except ValueError:
+        return 's'
+
+
+def _valvar(unk, vardict):
+    """Determines if an unknown string is a value or a dict variable."""
+    try:
+        return float(unk)
+    except ValueError:
+        if unk in vardict:
+            return vardict[unk]
+        else:
+            raise KeyError('\'{}\' not found in variable list'.format(unk))
