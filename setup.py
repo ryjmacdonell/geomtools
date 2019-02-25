@@ -10,9 +10,13 @@ def readme():
         return f.read()
 
 
+# read the current version number
+exec(open('gimbal/_version.py').read())
+
+
 setup(
     name='gimbal',
-    version='0.1',
+    version=__version__,
     description=('Tools for importing, creating, editing and querying ' +
                  'molecular geometries'),
     long_description=readme(),
@@ -27,9 +31,9 @@ setup(
         'Development Status :: 3 - Alpha',
         'Environment :: Console',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Topic :: Scientific/Engineering :: Chemistry'
                  ],
     install_requires=['numpy>=1.6.0', 'scipy>=0.9.0']
