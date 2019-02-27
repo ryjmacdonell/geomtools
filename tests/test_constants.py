@@ -1,6 +1,7 @@
 """
 Tests for the constants module
 """
+import pytest
 import numpy as np
 import gimbal.constants as con
 
@@ -37,8 +38,17 @@ def test_eneunits_lookup():
     assert np.isclose(con.eneunits['auto'], 1.)
 
 
-def test_get_num():
+def test_get_num_single():
     assert con.get_num('H') == 1
+
+
+def test_get_num_list():
+    assert np.all(con.get_num(['H', 'He', 'Li']) == np.array([1, 2, 3]))
+
+
+def test_get_num_fails():
+    with pytest.raises(ValueError, match=r'Unrecognized atomic symbol .*'):
+        con.get_num(['J', 'L', 'M'])
 
 
 def test_get_mass():
@@ -50,8 +60,17 @@ def test_get_covrad():
 
 
 def test_unit_vec():
-    vec_len = np.linalg.norm(con.unit_vec([1., 1., 1.]))
+    vec_len = np.linalg.norm(con.unit_vec([1., -1., 2.]))
     assert np.isclose(vec_len, 1.)
+
+
+def test_unit_vec_fails():
+    with pytest.raises(ValueError, match=r'Cannot make unit vector from .*'):
+        uvec = con.unit_vec(np.zeros(3))
+
+
+def test_conv_unit():
+    assert np.isclose(con.conv('auto', 'auto'), 1.)
 
 
 def test_conv_len():
@@ -72,3 +91,8 @@ def test_conv_mas():
 
 def test_conv_ene():
     assert np.isclose(con.conv('har', 'ev'), 27.21138505)
+
+
+def test_conv_fails():
+    with pytest.raises(ValueError, match=r'.* not of same unit type'):
+        con.conv('ev', 'fs')

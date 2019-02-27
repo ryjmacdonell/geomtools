@@ -32,7 +32,7 @@ def read_xyz(infile, units='ang', hasvec=False, hascom=False):
     try:
         natm = int(infile.readline())
     except ValueError:
-        raise ValueError('Geometry not in XYZ format.')
+        raise IOError('geometry not in XYZ format.')
     if hascom:
         comment = infile.readline().strip()
     else:
@@ -80,7 +80,7 @@ def read_col(infile, units='bohr', hasvec=False, hascom=False):
             data = np.vstack((data, line))
         except (ValueError, IndexError):
             if len(data) < 1:
-                raise ValueError('Geometry not in COLUMBUS format.')
+                raise IOError('geometry not in COLUMBUS format.')
             else:
                 # roll back one line before break
                 infile.seek(pos)
@@ -119,7 +119,7 @@ def read_gdat(infile, units='bohr', hasvec=False, hascom=False):
     try:
         natm = int(infile.readline())
     except ValueError:
-        raise ValueError('geometry not in Geometry.dat format')
+        raise IOError('geometry not in Geometry.dat format')
     data = np.array([infile.readline().split() for i in range(natm)])
     elem = data[:, 0]
     xyz = data[:, 1:].astype(float) * con.conv(units, 'ang')
@@ -187,7 +187,7 @@ def read_zmt(infile, units='ang', hasvec=False, hascom=False):
 
     natm = len(data)
     if natm < 1:
-        raise ValueError('Geometry not in Z-matrix format.')
+        raise IOError('geometry not in Z-matrix format.')
     elem = np.array([line[0] for line in data])
     xyz = np.zeros((natm, 3))
     for i in range(natm):
@@ -234,11 +234,11 @@ def read_zmt(infile, units='ang', hasvec=False, hascom=False):
     return elem, xyz, vec, comment
 
 
-def read_trajdump(infile, units='bohr', hasvec=False, hascom=False,
-                  elem=None, time=None):
-    """Reads input file in FMS90/FMSpy TrajDump format
+def read_traj(infile, units='bohr', hasvec=False, hascom=False,
+              elem=None, time=None, autocom=False):
+    """Reads input file in FMS/nomad trajectory format
 
-    TrajDump files are in the format:
+    trajectory files are in the format:
     T1 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
     T2 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
     ...
@@ -246,7 +246,7 @@ def read_trajdump(infile, units='bohr', hasvec=False, hascom=False,
     coordinates q, G is the phase, A is the amplitude and S is the state
     label. The vectors are only read if hasvec = True.
 
-    TrajDump files do not contain atomic labels. If not provided, they are
+    Trajectory files do not contain atomic labels. If not provided, they are
     set to dummy atoms which may affect calculations involving atomic
     properties. A time should be provided, otherwise the first geometry
     in the file is used.
@@ -258,16 +258,18 @@ def read_trajdump(infile, units='bohr', hasvec=False, hascom=False,
     if time is None:
         rawline = infile.readline().split()
         if rawline == []:
-            raise ValueError('empty line provided')
+            raise IOError('empty line provided')
         elif 'Time' in rawline:
             line = np.array(infile.readline().split(), dtype=float)
         else:
             line = np.array(rawline, dtype=float)
     else:
-        alldata = np.array([line.split() for line in infile.readlines()])
-        alldata = alldata[[dat[0] != '#' for dat in alldata[:,0]]].astype(float)
-        line = alldata[np.abs(alldata[:,0] - t) < 1e-6][0]
+        alldata = np.array([line.split() for line in infile.readlines()
+                            if 'Time' not in line], dtype=float)
+        line = alldata[np.isclose(alldata[:,0], time)][0]
     natm = len(line) // 6 - 1
+    if natm < 1 or len(line) % 6 != 0:
+        raise IOError('geometry not in trajectory format.')
     if elem is None:
         elem = np.array(['X'] * natm)
     xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv(units,'ang')
@@ -275,11 +277,18 @@ def read_trajdump(infile, units='bohr', hasvec=False, hascom=False,
         vec = line[3*natm+1:6*natm+1].reshape(natm, 3)
     else:
         vec = None
+    if autocom:
+        fmt = 't={:8.2f}, state={:4d}, a^2={:10.4f}'
+        comment += fmt.format(line[0], int(line[-1]), line[-2])
     return elem, xyz, vec, comment
 
 
-def read_auto(infile, hascom=False, **kwargs):
+def read_auto(infile, **kwargs):
     """Reads a molecular geometry file and determines the format."""
+    if 'hascom' in kwargs:
+        hascom = kwargs['hascom']
+    else:
+        hascom = False
     pos = infile.tell()
     contents = infile.readlines()
     infile.seek(pos)
@@ -290,7 +299,7 @@ def read_auto(infile, hascom=False, **kwargs):
         fmt.append(''.join([_get_type(l) for l in line]))
 
     if nlines == 0:
-        raise ValueError('end of file')
+        raise IOError('end of file')
     elif nlines == 1:
         if hascom:
             raise IOError('cannot have comment with single line file')
@@ -300,7 +309,7 @@ def read_auto(infile, hascom=False, **kwargs):
             elif fmt[0].replace('i', 'f') == 'sfffff':
                 return read_col(infile, **kwargs)
             elif 'ffffffffffff' in fmt[0].replace('i', 'f'):
-                return read_trajdump(infile, **kwargs)
+                return read_traj(infile, **kwargs)
             else:
                 raise IOError('single line input in unrecognized format')
     elif nlines == 2 and hascom:
@@ -309,7 +318,7 @@ def read_auto(infile, hascom=False, **kwargs):
         elif fmt[1].replace('i', 'f') == 'sfffff':
             return read_col(infile, **kwargs)
         elif 'ffffffffffff' in fmt[1].replace('i', 'f'):
-            return read_trajdump(infile, **kwargs)
+            return read_traj(infile, **kwargs)
         else:
             raise IOError('single line input in unrecognized format')
     else:
@@ -326,37 +335,14 @@ def read_auto(infile, hascom=False, **kwargs):
 
         if ('ffffffffffff' in fmt[0].replace('i', 'f') or
             'ffffffffffff' in fmt[1].replace('i', 'f')):
-            return read_trajdump(infile, **kwargs)
+            return read_traj(infile, **kwargs)
         elif nlines > 2:
             if fmt[0] == 'i':
                 return read_xyz(infile, **kwargs)
             elif fmt[1] == 'i':
                 return read_gdat(infile, **kwargs)
-        else:
-            raise IOError('unrecognized file format')
 
-
-def _get_type(s):
-    """Reads a string to see if it can be converted into int or float."""
-    try:
-        float(s)
-        if '.' not in s:
-            return 'i'
-        else:
-            return 'f'
-    except ValueError:
-        return 's'
-
-
-def _valvar(unk, vardict):
-    """Determines if an unknown string is a value or a dict variable."""
-    try:
-        return float(unk)
-    except ValueError:
-        if unk in vardict:
-            return vardict[unk]
-        else:
-            raise KeyError('\'{}\' not found in variable list'.format(unk))
+    raise IOError('unrecognized file format')
 
 
 def write_xyz(outfile, elem, xyz, vec=None, comment='', units='ang'):
@@ -418,15 +404,15 @@ def write_zmt(outfile, elem, xyz, vec=None, comment='', units='ang'):
     for i in range(natm):
         if i == 0:
             # first element has just the symbol
-            outfile.write('{:<2}\n'.format(elem[0]))
+            outfile.write('{:s}\n'.format(elem[0]))
         elif i == 1:
             # second element has symbol, index, bond length
-            outfile.write('{:<2}{:3d}{:12.6f}'
+            outfile.write('{:<2s}{:3d}{:12.6f}'
                           '\n'.format(elem[1], 1, measure.stre(xyz, 0, 1,
                                                                units=units)))
         elif i == 2:
             # third element has symbol, index, bond length, index, bond angle
-            outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}'
+            outfile.write('{:<2s}{:3d}{:12.6f}{:3d}{:12.6f}'
                           '\n'.format(elem[2], 2, measure.stre(xyz, 1, 2,
                                                                units=units),
                                       1, measure.bend(xyz, 0, 1, 2,
@@ -434,7 +420,7 @@ def write_zmt(outfile, elem, xyz, vec=None, comment='', units='ang'):
         else:
             # all other elements have symbol, index, bond length, index,
             # bond angle, index, dihedral angle
-            outfile.write('{:<2}{:3d}{:12.6f}{:3d}{:12.6f}{:3d}{:12.6f}'
+            outfile.write('{:<2s}{:3d}{:12.6f}{:3d}{:12.6f}{:3d}{:12.6f}'
                           '\n'.format(elem[i], i, measure.stre(xyz, i-1, i,
                                                                units=units),
                                       i-1, measure.bend(xyz, i-2, i-1, i,
@@ -453,35 +439,56 @@ def write_zmtvar(outfile, elem, xyz, vec=None, comment='', units='ang'):
     natm = len(elem)
     if comment != '':
         outfile.write(comment + '\n')
-    vlist = dict()
+    vlist = []
+    vdict = dict()
     for i in range(natm):
         if i == 0:
             # first element has just the symbol
-            outfile.write('{:<2}\n'.format(elem[0]))
+            outfile.write('{:s}\n'.format(elem[0]))
         elif i == 1:
             # second element has symbol, index, bond length
-            outfile.write('{:<2}{:3d}  R{:<2d}'
+            outfile.write('{:<2s}{:3d}  R{:d}'
                           '\n'.format(elem[1], 1, 1))
-            vlist['R1'] = measure.stre(xyz, 0, 1, units=units)
+            vlist += ['R1']
+            vdict['R1'] = measure.stre(xyz, 0, 1, units=units)
         elif i == 2:
             # third element has symbol, index, bond length, index, bond angle
-            outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d}'
+            outfile.write('{:<2s}{:3d}  R{:<2d} {:3d}  A{:d}'
                           '\n'.format(elem[2], 2, 2, 1, 1))
-            vlist['R2'] = measure.stre(xyz, 1, 2, units=units)
-            vlist['A1'] = measure.bend(xyz, 0, 1, 2, units='deg')
+            vlist += ['R2', 'A1']
+            vdict['R2'] = measure.stre(xyz, 1, 2, units=units)
+            vdict['A1'] = measure.bend(xyz, 0, 1, 2, units='deg')
         else:
             # all other elements have symbol, index, bond length, index,
             # bond angle, index, dihedral angle
-            outfile.write('{:<2}{:3d}  R{:<2d} {:3d}  A{:<2d} '
-                          '{:3d}  T{:<2d}'
+            outfile.write('{:<2s}{:3d}  R{:<2d} {:3d}  A{:<2d} '
+                          '{:3d}  T{:d}'
                           '\n'.format(elem[i], i, i, i-1, i-1, i-2, i-2))
-            vlist['R'+str(i)] = measure.stre(xyz, i-1, i, units=units)
-            vlist['A'+str(i-1)] = measure.bend(xyz, i-2, i-1, i, units='deg')
-            vlist['T'+str(i-2)] = measure.tors(xyz, i-3, i-2, i-1, i,
+            vlist += ['R'+str(i), 'A'+str(i-1), 'T'+str(i-2)]
+            vdict['R'+str(i)] = measure.stre(xyz, i-1, i, units=units)
+            vdict['A'+str(i-1)] = measure.bend(xyz, i-2, i-1, i, units='deg')
+            vdict['T'+str(i-2)] = measure.tors(xyz, i-3, i-2, i-1, i,
                                                units='deg')
     outfile.write('\n')
-    for key, val in vlist.items():
-        outfile.write('{:4s} = {:14.8f}\n'.format(key, val))
+    for key in vlist:
+        outfile.write('{:4s} = {:14.8f}\n'.format(key, vdict[key]))
+
+
+def write_traj(outfile, elem, xyz, vec=None, comment='', units='bohr',
+               time=0., phase=0., ramp=0., iamp=0., state=0.):
+    """Writes geometry to an output file in FMS/nomad trajectory format."""
+    natm = len(elem)
+    write_xyz = xyz.flatten() * con.conv('ang', units)
+    if comment != '':
+        outfile.write(comment + '\n')
+    if vec is None:
+        write_vec = np.zeros_like(write_xyz)
+    else:
+        write_vec = vec.flatten()
+    namp = ramp**2 + iamp**2
+    args = np.hstack((write_xyz, write_vec, phase, ramp, iamp, namp, state))
+    fmt = '{:10.2f}' + (6*natm + 5)*'{:10.4f}' + '\n'
+    outfile.write(fmt.format(time, *args))
 
 
 def write_auto(outfile, elem, xyz, **kwargs):
@@ -500,6 +507,8 @@ def write_auto(outfile, elem, xyz, **kwargs):
         write_zmt(outfile, elem, xyz, **kwargs)
     elif ext in ['zmtvar', 'zmatvar']:
         write_zmtvar(outfile, elem, xyz, **kwargs)
+    elif ext in ['tj', 'traj']:
+        write_traj(outfile, elem, xyz, **kwargs)
     else:
         write_xyz(outfile, elem, xyz, **kwargs)
 
@@ -528,42 +537,32 @@ def convert(infname, outfname, infmt='auto', outfmt='auto',
             try:
                 elem, xyz, vec, comment = read_func(infile, **inkw)
                 if hasvec:
-                    outkw.update(vec = vec)
+                    outkw.update(vec=vec)
                 if hascom:
-                    outkw.update(comment = comment)
+                    outkw.update(comment=comment)
                 write_func(outfile, elem, xyz, **outkw)
-            except ValueError:
+            except IOError:
                 break
 
 
-def convert_trajdump(infname, outfname, outfmt='auto', elem=None, times=None):
-    """Reads an FMS TrajDump file and writes to a file in format outfmt.
-
-    An element list should be provided, otherwise dummy atoms (X) will be
-    assumed. A time or list of times can be specified. Otherwise, the full
-    trajectory will be read.
-
-    Note: This is the same as using infmt='trajdump' with convert, except
-    for the option to add atomic labels and the automatic comment line.
-    """
-    write_func = globals()['write_' + outfmt]
-    with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
-        infile.readline()
-        alldata = np.array([line.split() for line in infile.readlines()])
-        alldata = alldata[[dat[0] != '#' for dat in alldata[:,0]]].astype(float)
-        if times is None:
-            numdata = np.copy(alldata)
+def _get_type(s):
+    """Reads a string to see if it can be converted into int or float."""
+    try:
+        float(s)
+        if '.' not in s:
+            return 'i'
         else:
-            times = np.atleast_1d(times)
-            numdata = np.empty((len(times), len(alldata[1])))
-            for i, t in enumerate(times):
-                numdata[i] = alldata[np.abs(alldata[:,0] - t) < 1e-6]
-        for line in numdata:
-            natm = len(line) // 6 - 1
-            if elem is None:
-                elem = ['X'] * natm
-            ti = line[0]
-            xyz = line[1:3*natm+1].reshape(natm, 3) * con.conv('bohr','ang')
-            pop = line[-2]
-            write_func(outfile, elem, xyz,
-                       comment='t = {:.2f}, pop = {:.4f}'.format(ti, pop))
+            return 'f'
+    except ValueError:
+        return 's'
+
+
+def _valvar(unk, vardict):
+    """Determines if an unknown string is a value or a dict variable."""
+    try:
+        return float(unk)
+    except ValueError:
+        if unk in vardict:
+            return vardict[unk]
+        else:
+            raise KeyError('\'{}\' not found in variable list'.format(unk))

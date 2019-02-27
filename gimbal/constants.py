@@ -73,7 +73,11 @@ def get_covrad(elem):
 
 def unit_vec(v):
     """Returns a unit vector aligned with a given vector."""
-    return v / np.linalg.norm(v)
+    vlen = np.linalg.norm(v)
+    if np.isclose(vlen, 0):
+        raise ValueError('Cannot make unit vector from zero vector.')
+    else:
+        return v / vlen
 
 
 def conv(old='auto', new='auto'):

@@ -26,48 +26,45 @@ class BaseMolecule(object):
     All methods of BaseMolecule involve setting and saving the molecular
     geometry. There are no dependencies to other modules.
     """
-    def __init__(self, elem=np.array([], dtype=str), xyz=np.empty((0, 3)),
-                 vec=None, comment=''):
-        self.elem = np.array(elem, dtype=str)
-        self.xyz = np.array(xyz, dtype=float)
-        self.comment = comment
-        self.natm = len(elem)
+    def __init__(self, elem=[], xyz=np.empty((0, 3)), vec=None, comment=''):
+        self._elem = np.atleast_1d(np.array(elem, dtype=str))
+        self._xyz = np.atleast_2d(np.array(xyz, dtype=float))
+        self._comment = repr(str(comment))[1:-1]
         if vec is None:
-            self.vec = np.zeros((self.natm, 3))
+            self._vec = np.zeros_like(self._xyz)
             self.print_vec = False
         else:
-            self.vec = np.array(vec, dtype=float)
+            self._vec = np.atleast_2d(np.array(vec, dtype=float))
             self.print_vec = True
-        self.saved = True
         self.save()
 
     def __repr__(self):
         nelem = len(self.elem)
         fmt = '[{:>2s},' + 2*'{:16.8e},' + '{:16.8e}'
         if self.print_vec:
-            xyzvec = np.hstack((self.xyz, self.vec))
+            xyzvec = np.hstack((self._xyz, self._vec))
             fmt += ',\n' + 6*' ' + 2*'{:16.8e},' + '{:16.8e}]'
         else:
-            xyzvec = self.xyz
+            xyzvec = self._xyz
             fmt += ']'
 
         if nelem == 0:
-            fstr = 'BaseMolecule({!r}, ['.format(self.comment)
+            fstr = 'BaseMolecule({!r}, ['.format(self._comment)
         else:
-            fstr = 'BaseMolecule({!r},\n ['.format(self.comment)
+            fstr = 'BaseMolecule({!r},\n ['.format(self._comment)
 
         if nelem > 10:
-            fstr += fmt.format(self.elem[0], *xyzvec[0])
+            fstr += fmt.format(self._elem[0], *xyzvec[0])
             for i in range(1, 3):
-                fstr += ',\n  ' + fmt.format(self.elem[i], *xyzvec[i])
+                fstr += ',\n  ' + fmt.format(self._elem[i], *xyzvec[i])
             fstr += ',\n  ...'
             for i in range(-3, 0):
-                fstr += ',\n  ' + fmt.format(self.elem[i], *xyzvec[i])
+                fstr += ',\n  ' + fmt.format(self._elem[i], *xyzvec[i])
         else:
             for i in range(nelem):
                 if i != 0:
                     fstr += ',\n  '
-                fstr += fmt.format(self.elem[i], *xyzvec[i])
+                fstr += fmt.format(self._elem[i], *xyzvec[i])
 
         fstr += '])'
         return fstr
@@ -76,10 +73,10 @@ class BaseMolecule(object):
         nelem = len(self.elem)
         fmt = '[{:>2s}' + 3*'{:14.8f}'
         if self.print_vec:
-            xyzvec = np.hstack((self.xyz, self.vec))
+            xyzvec = np.hstack((self._xyz, self._vec))
             fmt += '\n' + 4*' ' + 3*'{:14.8f}' + ']'
         else:
-            xyzvec = self.xyz
+            xyzvec = self._xyz
             fmt += ']'
         fstr = ''
         if self.comment != '':
@@ -87,103 +84,149 @@ class BaseMolecule(object):
         else:
             fstr += '['
         if nelem > 10:
-            fstr += fmt.format(self.elem[0], *xyzvec[0])
+            fstr += fmt.format(self._elem[0], *xyzvec[0])
             for i in range(1, 3):
-                fstr += '\n ' + fmt.format(self.elem[i], *xyzvec[i])
+                fstr += '\n ' + fmt.format(self._elem[i], *xyzvec[i])
             fstr += '\n ...'
             for i in range(-3, 0):
-                fstr += '\n ' + fmt.format(self.elem[i], *xyzvec[i])
+                fstr += '\n ' + fmt.format(self._elem[i], *xyzvec[i])
         else:
             for i in range(nelem):
                 if i != 0:
                     fstr += '\n '
-                fstr += fmt.format(self.elem[i], *xyzvec[i])
+                fstr += fmt.format(self._elem[i], *xyzvec[i])
         fstr += ']'
         return fstr
 
-    def _check(self):
+    def _check(self, ielem=None, ixyz=None, ivec=None):
         """Checks that xyz is 3D and len(elem) = len(xyz)."""
-        if self.xyz.shape[1] != 3:
+        if ielem is None:
+            ielem = self._elem
+        if ixyz is None:
+            ixyz = self._xyz
+        if ivec is None:
+            ivec = self._vec
+        if ixyz.shape[1] != 3:
             raise ValueError('Molecular geometry must be 3-dimensional.')
-        if self.vec.shape[1] != 3:
+        if ivec.shape[1] != 3:
             raise ValueError('Molecular vector must be 3-dimensional.')
-        len_elem = len(self.elem)
-        len_xyz = len(self.xyz)
-        if len_elem != len_xyz:
-            raise ValueError('Number of element labels ({:d}) not equal '
-                             'to number of cartesian vectors '
-                             '({:d}).'.format(len_elem, len_xyz))
-        elif self.xyz.shape != self.vec.shape:
-            raise ValueError('Cartesian geometry and vector must have '
-                             'the same number of elements.')
+        natm = len(ielem)
+        if natm != len(ixyz):
+            raise ValueError('Number of element labels not equal '
+                             'to number of cartesian vectors.')
+        elif ixyz.shape != ivec.shape:
+            if self.print_vec:
+                raise ValueError('Cartesian geometry and vector must have '
+                                 'the same number of elements.')
+            else:
+                self._vec = np.zeros_like(ixyz)
+        self.natm = natm
+
+    @property
+    def elem(self):
+        """Gets the value of elem."""
+        self._check()
+        return self._elem
+
+    @elem.setter
+    def elem(self, val):
+        """Sets the value of elem."""
+        val = np.atleast_1d(np.array(val, dtype=str))
+        self._check(ielem=val)
+        self._elem = val
+        self.saved = False
+
+    @property
+    def xyz(self):
+        """Gets the value of xyz."""
+        self._check()
+        return self._xyz
+
+    @xyz.setter
+    def xyz(self, val):
+        """Sets the value of xyz."""
+        val = np.atleast_2d(np.array(val, dtype=float))
+        self._check(ixyz=val)
+        self._xyz = val
+        self.saved = False
+
+    @property
+    def vec(self):
+        """Gets the value of vec."""
+        self._check()
+        return self._vec
+
+    @vec.setter
+    def vec(self, val):
+        """Sets the value of vec."""
+        val = np.atleast_2d(np.array(val, dtype=float))
+        self._check(ivec=val)
+        self._vec = val
+        self.print_vec = True
+        self.saved = False
+
+    @property
+    def comment(self):
+        """Gets the value of comment."""
+        return self._comment
+
+    @comment.setter
+    def comment(self, val):
+        """Sets the value of comment."""
+        self._comment = repr(str(val))[1:-1]
+        self.saved = False
 
     def copy(self, comment=None):
         """Creates a copy of the BaseMolecule object."""
         self._check()
         if comment is None:
-            comment = 'Copy of ' + self.comment
-        return BaseMolecule(np.copy(self.elem), np.copy(self.xyz),
-                            np.copy(self.vec), comment)
+            comment = self._comment
+        return BaseMolecule(np.copy(self._elem), np.copy(self._xyz),
+                            np.copy(self._vec), comment)
 
     def save(self):
-        """Saves molecular properties to 'orig' variables."""
+        """Saves molecular properties to 'save' variables."""
         self._check()
-        self.orig_elem = np.copy(self.elem)
-        self.orig_xyz = np.copy(self.xyz)
-        self.orig_vec = np.copy(self.vec)
-        self.orig_comment = np.copy(self.comment)
+        self.save_elem = np.copy(self._elem)
+        self.save_xyz = np.copy(self._xyz)
+        self.save_vec = np.copy(self._vec)
+        self.save_comment = np.copy(self._comment)
+        self.save_print_vec = np.copy(self.print_vec)
         self.saved = True
 
     def revert(self):
-        """Reverts properties to 'orig' variables."""
+        """Reverts properties to 'save' variables."""
         if not self.saved:
-            self.elem = np.copy(self.orig_elem)
-            self.xyz = np.copy(self.orig_xyz)
-            self.vec = np.copy(self.orig_vec)
+            self._elem = np.copy(self.save_elem)
+            self._xyz = np.copy(self.save_xyz)
+            self._vec = np.copy(self.save_vec)
+            self._comment = np.copy(self.save_comment)
+            self.print_vec = np.copy(self.save_print_vec)
         self.saved = True
-
-    def set_geom(self, elem, xyz):
-        """Sets molecular geometry."""
-        if elem is not None:
-            self.elem = elem
-        self.xyz = np.array(xyz, dtype=float)
-        self.vec = np.zeros_like(xyz)
-        self._check()
-        self.saved = False
-
-    def set_vec(self, vec):
-        """Sets molecular vector."""
-        self.vec = np.array(vec, dtype=float)
-        self.print_vec = True
-        self._check()
-        self.saved = False
-
-    def set_comment(self, comment):
-        """Adds a comment line to describe the molecule."""
-        self.comment = comment
-        self.saved = False
 
     def add_atoms(self, new_elem, new_xyz, new_vec=None):
         """Adds atoms(s) to molecule."""
-        self.natm += 1 if isinstance(new_elem, str) else len(new_elem)
-        new_xyz = np.atleast_2d(new_xyz)
-        self.elem = np.hstack((self.elem, new_elem))
-        self.xyz = np.vstack((self.xyz, new_xyz))
-        if new_vec is None:
-            self.vec = np.vstack((self.vec, np.zeros((len(new_xyz), 3))))
+        new_xyz = np.atleast_2d(np.array(new_xyz, dtype=float))
+        elems = np.hstack((self._elem, new_elem))
+        xyzs = np.vstack((self._xyz, new_xyz))
+        if new_vec is not None:
+            new_vec = np.atleast_2d(np.array(new_vec, dtype=float))
+            vecs = np.vstack((self._vec, new_vec))
         else:
-            new_vec = np.atleast_2d(new_vec)
-            self.vec = np.vstack((self.vec, new_vec))
+            vecs = None
+        self._check(ielem=elems, ixyz=xyzs, ivec=vecs)
+        self._elem = elems
+        self._xyz = xyzs
+        if new_vec is not None:
+            self._vec = vecs
             self.print_vec = True
-        self._check()
         self.saved = False
 
     def rm_atoms(self, ind):
         """Removes atom(s) from molecule by index."""
-        self.natm -= 1 if isinstance(ind, int) else len(ind)
-        self.elem = np.delete(self.elem, ind)
-        self.xyz = np.delete(self.xyz, ind, axis=0)
-        self.vec = np.delete(self.vec, ind, axis=0)
+        self._elem = np.delete(self._elem, ind)
+        self._xyz = np.delete(self._xyz, ind, axis=0)
+        self._vec = np.delete(self._vec, ind, axis=0)
         self._check()
         self.saved = False
 
@@ -191,12 +234,11 @@ class BaseMolecule(object):
         """Moves atom(s) from old_ind to new_ind."""
         if old_ind is None:
             old_ind = range(self.natm)
-        _rearrange_check(new_ind, old_ind)
-        old = np.hstack((new_ind, old_ind))
-        new = np.hstack((old_ind, new_ind))
-        self.xyz[old] = self.xyz[new]
-        self.vec[old] = self.vec[new]
-        self.elem[old] = self.elem[new]
+        new, old = _rearrange_inds(new_ind, old_ind)
+        self._xyz[old] = self._xyz[new]
+        self._vec[old] = self._vec[new]
+        self._elem[old] = self._elem[new]
+        self._check()
         self.saved = False
 
 
@@ -226,89 +268,65 @@ class Molecule(BaseMolecule):
 
     def _add_centre(self):
         """Adds a dummy atom at index 0 at molecular centre of mass."""
-        pos = displace.get_centremass(self.elem, self.xyz)
-        if self.elem[0] == 'XM':
-            self.xyz[0] = pos
+        pos = displace.get_centremass(self._elem, self._xyz)
+        if self._elem[0] == 'XM':
+            self._xyz[0] = pos
         else:
-            self.elem = np.hstack(('XM', self.elem))
-            self.xyz = np.vstack((pos, self.xyz))
-            self.vec = np.vstack(([0, 0, 0], self.vec))
+            self._elem = np.hstack(('XM', self._elem))
+            self._xyz = np.vstack((pos, self._xyz))
+            self._vec = np.vstack(([0, 0, 0], self._vec))
 
-    def _check(self):
+    def _check(self, ielem=None, ixyz=None, ivec=None):
         """Checks that xyz is 3D and len(elem) = len(xyz) and that dummy
         atom is at centre of mass."""
-        BaseMolecule._check(self)
+        BaseMolecule._check(self, ielem=ielem, ixyz=ixyz, ivec=ivec)
         if self.natm > 0:
             self._add_centre()
 
     def copy(self, comment=None):
         """Creates a copy of the Molecule object."""
         self._check()
-        vec = self.vec[1:] if self.print_vec else None
+        vec = self._vec if self.print_vec else None
         if comment is None:
-            comment = self.comment
-        return Molecule(np.copy(self.elem[1:]), np.copy(self.xyz[1:]),
+            comment = self._comment
+        return Molecule(np.copy(self._elem), np.copy(self._xyz),
                         vec, comment)
 
-    def set_vec(self, vec):
-        """Sets the molecular vector."""
-        new_vec = np.vstack(([0, 0, 0], vec))
-        BaseMolecule.set_vec(self, new_vec)
-
-    # Input/Output
-    def read(self, infile, fmt='auto', hasvec=False, hascom=False):
+    def read(self, infile, fmt='auto', **kwargs):
         """Reads single geometry from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
         if isinstance(infile, str):
             with open(infile, 'r') as f:
-                (self.elem, self.xyz,
-                 self.vec, self.comment) = read_func(f, hasvec=hasvec,
-                                                     hascom=hascom)
+                (self._elem, self._xyz,
+                 ivec, self._comment) = read_func(f, **kwargs)
         else:
-            (self.elem, self.xyz,
-             self.vec, self.comment) = read_func(infile, hasvec=hasvec,
-                                                 hascom=hascom)
-        self.natm = len(self.elem)
-        self.save()
+            (self._elem, self._xyz,
+             ivec, self._comment) = read_func(infile, **kwargs)
 
-    def write(self, outfile, fmt='auto'):
+        if ivec is None:
+            self._vec = np.zeros_like(self._xyz)
+        else:
+            self._vec = ivec
+        self._check()
+        self.saved = False
+
+    def write(self, outfile, fmt='auto', **kwargs):
         """Writes geometry to an output file in provided format."""
         write_func = getattr(fileio, 'write_' + fmt)
-        vec = self.vec[1:] if self.print_vec else None
+        vec = self._vec[1:] if self.print_vec else None
         if isinstance(outfile, str):
             with open(outfile, 'w') as f:
-                write_func(f, self.elem[1:], self.xyz[1:], vec=vec,
-                           comment=self.comment)
+                write_func(f, self._elem[1:], self._xyz[1:], vec=vec,
+                           comment=self._comment, **kwargs)
         else:
-            write_func(outfile, self.elem[1:], self.xyz[1:], vec=vec,
-                       comment=self.comment)
-
-    # Accessors
-    def get_natm(self):
-        """Returns number of atoms."""
-        return self.natm
-
-    def get_elem(self):
-        """Returns list of elements."""
-        return self.elem[1:]
-
-    def get_xyz(self):
-        """Returns cartesian geometry."""
-        return self.xyz[1:]
-
-    def get_vec(self):
-        """Return cartesian vector."""
-        return self.vec[1:]
-
-    def get_comment(self):
-        """Returns comment line."""
-        return self.comment
+            write_func(outfile, self._elem[1:], self._xyz[1:], vec=vec,
+                       comment=self._comment, **kwargs)
 
     def get_mass(self):
         """Returns atomic masses."""
-        return con.get_mass(self.elem[1:])
+        return con.get_mass(self._elem)
 
-    def get_form(self):
+    def get_formula(self):
         """Gets the atomic formula based on the element list."""
         elem = [sym for sym in self.elem if 'X' not in sym]
         atm, num = np.unique(elem, return_counts=True)
@@ -318,18 +336,19 @@ class Molecule(BaseMolecule):
                 fstr += a
             else:
                 fstr += a + str(n)
+
         return fstr
 
-    # Internal geometry
     def measure(self, coord, *inds, units='auto', absv=False):
         """Returns a coordinate based on its indices in the molecule."""
+        self._check()
         coord_func = getattr(measure, coord)
         return coord_func(self.xyz, *inds, units=units, absv=absv)
 
-    # Displacement
     def centre_mass(self):
         """Places the centre of mass at the origin."""
-        self.xyz -= self.xyz[0]
+        self._check()
+        self._xyz -= self._xyz[0]
         self.saved = False
 
     def translate(self, amp, axis, ind=None, units='ang'):
@@ -337,9 +356,8 @@ class Molecule(BaseMolecule):
 
         Momenta are difference vectors and are not translated.
         """
-        self.xyz = displace.translate(self.xyz, amp, axis, ind=ind,
+        self.xyz = displace.translate(self._xyz, amp, axis, ind=ind,
                                       units=units)
-        self._add_centre()
         self.saved = False
 
     def rotate(self, amp, axis, ind=None, origin=np.zeros(3), det=1,
@@ -351,34 +369,29 @@ class Molecule(BaseMolecule):
         by setting det=-1.
         """
         kwargs = dict(ind=ind, origin=origin, det=det, units=units)
-        self.xyz = displace.rotate(self.xyz, amp, axis, **kwargs)
+        self.xyz = displace.rotate(self._xyz, amp, axis, **kwargs)
         if self.print_vec:
-            self.vec = displace.rotate(self.vec, amp, axis, **kwargs)
-        self._add_centre()
+            self.vec = displace.rotate(self._vec, amp, axis, **kwargs)
         self.saved = False
 
-    # Kabsch geometry matching
     def match_to_ref(self, ref_bundle, plist=None, equiv=None, wgt=None,
                      ind=None, cent=None):
         """Tests the molecule against a set of references in a bundle.
 
         Note: vectors are not properly rotated.
         """
-        vec = self.vec[1:] if self.print_vec else None
-        reflist = [mol.get_xyz() for mol in ref_bundle.get_molecules()]
-        kwargs = dict(plist=_atm_inds(plist), equiv=_atm_inds(equiv),
-                      wgt=wgt, ind=ind, cent=cent)
-        xyz, ind = kabsch.opt_ref(self.get_elem(), self.get_xyz(), reflist,
-                                  **kwargs)
-        return Molecule(self.get_elem(), xyz, vec,
-                        self.get_comment()), ind
+        vec = self._vec if self.print_vec else None
+        reflist = [mol._xyz for mol in ref_bundle.molecules]
+        kwargs = dict(plist=plist, equiv=equiv, wgt=wgt, ind=ind, cent=cent)
+        self.xyz, ind = kabsch.opt_ref(self._elem, self._xyz, reflist, **kwargs)
+        return ind
 
-    # Functional group substitution
     def subst(self, lbl, isub, ibond=None, pl=None):
         """Replaces an atom or set of atoms with a substituent."""
-        args = (self.elem, self.xyz, lbl, isub)
-        kwargs = dict(ibond=ibond, pl=pl, vec=self.vec)
-        self.elem, self.xyz, self.vec = substitute.subst(*args, **kwargs)
+        args = (self._elem, self._xyz, lbl, isub)
+        kwargs = dict(ibond=ibond, pl=pl, vec=self._vec)
+        self._elem, self._xyz, self._vec = substitute.subst(*args, **kwargs)
+        self._check()
 
 
 class MoleculeBundle(object):
@@ -386,37 +399,45 @@ class MoleculeBundle(object):
     Object containing a set of molecules in the form of Molecule
     objects.
     """
-    def __init__(self, molecules=None):
-        if molecules is None:
-            self.molecules = np.array([], dtype=object)
-        else:
-            self.molecules = np.array(molecules, copy=False)
-        self.nmol = len(self.molecules)
+    def __init__(self, molecules=[]):
+        self._molecules = np.atleast_1d(np.array(molecules, dtype=object,
+                                                 copy=False))
         self._check()
+        self.save()
 
     def __repr__(self):
-        if self.nmol == 0:
+        nmol = len(self.molecules)
+        if nmol == 0:
             fstr = ''
         else:
             fstr = '\n '
-            if self.nmol > 6:
-                fstr += self._join_str(',\n\n ', self.molecules[:2], 'r')
+            if nmol > 6:
+                fstr += self._join_str(',\n\n ', self._molecules[:2], 'r')
                 fstr += ',\n\n ...,\n\n '
-                fstr += self._join_str(',\n\n ', self.molecules[-2:], 'r')
+                fstr += self._join_str(',\n\n ', self._molecules[-2:], 'r')
             else:
-                fstr += self._join_str(',\n\n ', self.molecules, 'r')
+                fstr += self._join_str(',\n\n ', self._molecules, 'r')
         return 'MoleculeBundle({:s})'.format(fstr)
 
     def __str__(self):
-        if self.nmol == 0:
+        nmol = len(self.molecules)
+        if nmol == 0:
             fstr = ''
-        elif self.nmol > 6:
-            fstr = self._join_str('\n\n ', self.molecules[:2], 's')
+        elif nmol > 6:
+            fstr = self._join_str('\n\n ', self._molecules[:2], 's')
             fstr += '\n\n ...\n\n '
-            fstr += self._join_str('\n\n ', self.molecules[-2:], 's')
+            fstr += self._join_str('\n\n ', self._molecules[-2:], 's')
         else:
-            fstr = self._join_str('\n\n ', self.molecules, 's')
+            fstr = self._join_str('\n\n ', self._molecules, 's')
         return '[{:s}]'.format(fstr)
+
+    @staticmethod
+    def _join_str(jn, lst, typ):
+        """Returns a string of list elements joined by a separator with
+        newline characters added."""
+        fmt = '{!' + typ + '}'
+        return jn.join(fmt.format(l, t=typ).replace('\n', '\n ')
+                       for l in lst)
 
     def __add__(self, other):
         return MoleculeBundle(_add_type(self, other))
@@ -424,99 +445,103 @@ class MoleculeBundle(object):
     def __iadd__(self, other):
         return MoleculeBundle(_add_type(self, other))
 
-    def _check(self):
+    def _check(self, imol=None):
         """Check that all bundle objects are Molecule type."""
-        for mol in self.molecules:
+        if imol is None:
+            imol = self._molecules
+        for mol in imol:
             if not isinstance(mol, Molecule):
                 raise TypeError('Elements of molecule bundle must be '
                                 'Molecule type.')
+        self.nmol = len(self._molecules)
 
-    def _join_str(self, jn, lst, typ):
-        """Returns a string of list elements joined by a separator with
-        newline characters added."""
-        fmt = '{!' + typ + '}'
-        return jn.join(fmt.format(l, t=typ).replace('\n', '\n ')
-                       for l in lst)
+    @property
+    def molecules(self):
+        """Gets the value of molecules."""
+        self._check()
+        return self._molecules
+
+    @molecules.setter
+    def molecules(self, val):
+        """Sets the value of molecules."""
+        val = np.atleast_1d(np.array(val, dtype=object, copy=False))
+        self._check(imol=val)
+        self._molecules = val
+        self.saved = False
 
     def copy(self):
         """Returns a copy of the MoleculeBundle object."""
-        return MoleculeBundle([mol.copy() for mol in self.molecules])
+        return MoleculeBundle([mol.copy() for mol in self._molecules])
 
     def save(self):
         """Saves all molecules in the bundle."""
-        for mol in self.molecules:
-            mol.save()
         self._check()
+        for mol in self._molecules:
+            mol.save()
+        self.save_molecules = np.copy(self._molecules)
+        self.saved = True
 
     def revert(self):
         """Reverts each molecule in the bundle."""
-        for mol in self.molecules:
+        if not self.saved:
+            self._molecules = np.copy(self.save_molecules)
+        for mol in self._molecules:
             mol.revert()
+        self.saved = True
 
     def rearrange(self, new_ind, old_ind=None):
         """Moves molecule(s) from old_ind to new_ind in bundle."""
         if old_ind is None:
             old_ind = range(self.nmol)
-        _rearrange_check(new_ind, old_ind)
-        old = np.hstack((new_ind, old_ind))
-        new = np.hstack((old_ind, new_ind))
-        self.molecules[old] = self.molecules[new]
+        new, old = _rearrange_inds(new_ind, old_ind)
+        self._molecules[old] = self._molecules[new]
+        self.saved = False
 
     def add_molecules(self, new_molecules):
         """Adds molecule(s) to the bundle."""
-        self.nmol += (1 if isinstance(new_molecules, Molecule)
-                      else len(new_molecules))
-        self.molecules = np.hstack((self.molecules, new_molecules))
-        self._check()
+        mols = np.hstack((self._molecules, new_molecules))
+        self._check(imol=mols)
+        self._molecules = mols
+        self.saved = False
 
     def rm_molecules(self, ind):
         """Removes molecule(s) from the bundle by index."""
-        self.nmol -= 1 if isinstance(ind, int) else len(ind)
-        self.molecules = np.delete(self.molecules, ind)
+        self._molecules = np.delete(self._molecules, ind)
+        self._check()
+        self.saved = False
 
-    # Input/Output
-    def read(self, infile, fmt='auto', hasvec=False, hascom=False):
+    def read(self, infile, fmt='auto', **kwargs):
         """Reads all geometries from input file in provided format."""
         read_func = getattr(fileio, 'read_' + fmt)
+        if isinstance(infile, str):
+            infile = open(infile, 'r')
         while True:
             try:
-                new_mol = Molecule(*read_func(infile, hasvec=hasvec,
-                                              hascom=hasccom))
-                self.molecules = np.hstack((self.molecules, new_mol))
-                self.nmol += 1
-            except ValueError:
+                new_mol = Molecule(*read_func(infile, **kwargs))
+                self._molecules = np.hstack((self.molecules, new_mol))
+            except IOError:
                 break
 
-        self.save()
+        self._check()
+        self.saved = False
 
-    def write(self, outfile, fmt='auto'):
+    def write(self, outfile, fmt='auto', **kwargs):
         """Writes geometries to an output file in provided format."""
         write_func = getattr(fileio, 'write_' + fmt)
         if isinstance(outfile, str):
             with open(outfile, 'w') as f:
                 for mol in self.molecules:
-                    mol.write(f, fmt=fmt)
+                    mol.write(f, fmt=fmt, **kwargs)
         else:
             for mol in self.molecules:
-                mol.write(outfile, fmt=fmt)
+                mol.write(outfile, fmt=fmt, **kwargs)
 
-    # Accessors
-    def get_nmol(self):
-        """Returns the number of molecules."""
-        return self.nmol
-
-    def get_molecules(self):
-        """Returns the list of molecules."""
-        return self.molecules
-
-    # Internal coordinates
     def measure(self, coord, *inds, units='auto', absv=False):
         """Returns a list of coordinates based on index in molecules."""
         kwargs = dict(units=units, absv=absv)
         return np.array([mol.measure(coord, *inds, **kwargs)
                          for mol in self.molecules])
 
-    # Kabsch geometry matching
     def match_to_ref(self, ref_bundle, plist=None, equiv=None, wgt=None,
                      ind=None, cent=None):
         """Tests the molecules in the current bundle against
@@ -525,11 +550,11 @@ class MoleculeBundle(object):
         Returns a set of bundles corresponding to the reference indices.
         """
         kwargs = dict(plist=plist, equiv=equiv, wgt=wgt, ind=ind, cent=cent)
-        bundles = [MoleculeBundle() for mol in ref_bundle.get_molecules()]
-        for mol in self.get_molecules():
-            newmol, ind = mol.match_to_ref(ref_bundle, **kwargs)
-            bundles[ind].add_molecules(newmol)
-        return bundles
+        #bundles = [MoleculeBundle() for mol in ref_bundle.molecules]
+        inds = np.empty(self.nmol)
+        for i, mol in enumerate(self._molecules):
+            inds[i] = mol.match_to_ref(ref_bundle, **kwargs)
+        return inds
 
 
 def import_molecule(fname, fmt='auto', **kwargs):
@@ -555,18 +580,20 @@ def import_bundle(fnamelist, fmt='auto', **kwargs):
             while True:
                 try:
                     molecules.append(Molecule(*read_func(infile, **kwargs)))
-                except ValueError:
+                except IOError:
                     break
 
     return MoleculeBundle(molecules)
 
 
-def _rearrange_check(new_ind, old_ind):
-    """Checks indices of rearrangement routines for errors."""
-    new = [new_ind] if isinstance(new_ind, int) else new_ind
-    old = [old_ind] if isinstance(old_ind, int) else old_ind
+def _rearrange_inds(new_ind, old_ind):
+    """Checks indices of rearrangement routines and returns indices in
+    a single format."""
+    new = np.atleast_1d(new_ind)
+    old = np.atleast_1d(old_ind)
     if len(new) != len(old):
         raise IndexError('Old and new indices must be the same length')
+    return np.hstack((old, new)), np.hstack((new, old))
 
 
 def _add_type(inp1, inp2):
@@ -580,17 +607,7 @@ def _add_type(inp1, inp2):
     elif isinstance(inp1, Molecule) and isinstance(inp2, Molecule):
         molecules = np.hstack((inp1, inp2))
     else:
-        raise TypeError('Addition not supported for types \'{:s}\' and '
-                        '\'{:s}\'.'.format(type(inp1), type(inp2)))
+        fmt = 'Addition not supported for types \'{:s}\' and \'{:s}\'.'
+        raise TypeError(fmt.format(type(inp1).__class__.__name__,
+                                   type(inp2).__class__.__name__))
     return molecules
-
-
-def _atm_inds(inds):
-    """Substracts one from a list (or list of lists) of indices."""
-    if inds is not None:
-        if isinstance(inds[0], int):
-            return [i - 1 for i in inds]
-        else:
-            return [[i - 1 for i in sub] for sub in inds]
-    else:
-        return None
