@@ -163,7 +163,7 @@ def test_align_axis_same():
 
 
 def test_align_axis_pi_y():
-    ax = np.array([0., 2., 0.])
+    ax = np.array([0., -2., 0.])
     soln = np.copy(eg.c2h4[1])
     new_xyz = displace.align_axis(soln, ax, 'y')
     soln[:,1] *= -1
@@ -171,7 +171,7 @@ def test_align_axis_pi_y():
 
 
 def test_align_axis_pi_z():
-    ax = np.array([0., 0., 2.])
+    ax = np.array([0., 0., -2.])
     soln = np.copy(eg.c2h4[1])
     new_xyz = displace.align_axis(soln, ax, 'z')
     soln[:,2] *= -1

@@ -54,7 +54,14 @@ def test_opt_permute_plist_multiple():
     assert np.allclose(new_xyz4, soln)
 
 
-def test_opt_permute_equiv():
+def test_opt_permute_equiv_single():
+    new_xyz3, rmsd = kabsch.opt_permute(eg.ch2f2[0], eg.ch2f2[3], eg.ch2f2[1],
+                                        equiv=[1,2])
+    assert np.all(np.abs(new_xyz3 - eg.ch2f2[1]) < 1e-2)
+    assert rmsd < 3e-3
+
+
+def test_opt_permute_equiv_multiple():
     new_xyz5, rmsd = kabsch.opt_permute(eg.ch2f2[0], eg.ch2f2[5], eg.ch2f2[1],
                                         equiv=[[1,3],[2,4]], cent=0)
     soln = np.zeros((5, 3))

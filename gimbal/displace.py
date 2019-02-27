@@ -148,9 +148,9 @@ def align_axis(xyz, test_ax, ref_ax, ind=None, origin=np.zeros(3)):
     if np.allclose(test, ref):
         return xyz
     elif np.allclose(test, -ref):
-        rotax = [0, 0, 1]
-        if np.allclose(test, rotax):
-            rotax = [0, 1, 0]
+        rotax = np.array([0., 0., 1.])
+        if np.allclose(test, rotax) or np.allclose(test, -rotax):
+            rotax = np.array([0., 1., 0.])
         rotax -= np.dot(rotax, test) * test
         return rotate(xyz, np.pi, rotax, ind=ind, origin=origin)
     else:

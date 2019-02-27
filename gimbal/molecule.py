@@ -607,6 +607,7 @@ def _add_type(inp1, inp2):
     elif isinstance(inp1, Molecule) and isinstance(inp2, Molecule):
         molecules = np.hstack((inp1, inp2))
     else:
-        raise TypeError('Addition not supported for types \'{:s}\' and '
-                        '\'{:s}\'.'.format(type(inp1), type(inp2)))
+        fmt = 'Addition not supported for types \'{:s}\' and \'{:s}\'.'
+        raise TypeError(fmt.format(type(inp1).__class__.__name__,
+                                   type(inp2).__class__.__name__))
     return molecules

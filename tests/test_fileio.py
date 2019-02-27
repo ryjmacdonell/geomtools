@@ -175,7 +175,7 @@ def test_read_auto_only_comment(tmpdir):
 
 def test_read_auto_zmt_one_line(tmpdir):
     f = ef.tmpf(tmpdir, 'He\n')
-    elem, xyz, vec, com = fileio.read_zmt(f)
+    elem, xyz, vec, com = fileio.read_auto(f)
     assert np.all(elem == ['He'])
     assert np.allclose(xyz, np.zeros((1, 3)))
 

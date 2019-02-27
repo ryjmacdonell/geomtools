@@ -32,6 +32,14 @@ def test_single_atom_vec_BaseMolecule():
                          ',\n      ' + oe + ']])')
 
 
+def test_two_atom_comment_BaseMolecule():
+    mol = molecule.BaseMolecule(*eg.h2, comment='comment')
+    assert mol.natm == 2
+    assert np.all(mol.elem == eg.h2[0])
+    assert np.allclose(mol.xyz, eg.h2[1])
+    assert 'comment' in str(mol)
+
+
 def test_eleven_atom_BaseMolecule():
     mol = molecule.BaseMolecule(*eg.c3h8)
     assert mol.natm == 11
@@ -202,10 +210,20 @@ def test_eleven_atom_Molecule():
     assert '...' in repr(mol)
 
 
-def test_Molecule_addition():
+def test_Molecule_add_Molecule():
     mol1 = molecule.Molecule(*eg.he)
     mol2 = molecule.Molecule(*eg.c2h4)
     bund = mol1 + mol2
+    assert np.all(bund.molecules[0].elem[1:] == eg.he[0])
+    assert np.all(bund.molecules[0].xyz[1:] == eg.he[1])
+    assert np.all(bund.molecules[1].elem[1:] == eg.c2h4[0])
+    assert np.all(bund.molecules[1].xyz[1:] == eg.c2h4[1])
+
+
+def test_Molecule_add_MoleculeBundle():
+    mol = molecule.Molecule(*eg.he)
+    bund1 = molecule.MoleculeBundle(molecule.Molecule(*eg.c2h4))
+    bund = mol + bund1
     assert np.all(bund.molecules[0].elem[1:] == eg.he[0])
     assert np.all(bund.molecules[0].xyz[1:] == eg.he[1])
     assert np.all(bund.molecules[1].elem[1:] == eg.c2h4[0])
@@ -231,10 +249,10 @@ def test_Molecule_read_filename(tmpdir):
     assert not mol.saved
 
 
-def test_Molecule_read_openfile(tmpdir):
-    f = ef.tmpf(tmpdir, ef.xyz_novec)
+def test_Molecule_read_openfile_vec(tmpdir):
+    f = ef.tmpf(tmpdir, ef.xyz_vec)
     mol = molecule.Molecule()
-    mol.read(f)
+    mol.read(f, hasvec=True)
     assert np.all(mol.elem[1:] == eg.ch4[0])
     assert np.allclose(mol.xyz[1:], eg.ch4[1])
     assert not mol.saved
@@ -355,7 +373,7 @@ def test_seven_molecule_MoleculeBundle():
     assert '...' in repr(bund)
 
 
-def test_MoleculeBundle_addition():
+def test_MoleculeBundle_add_MoleculeBundle():
     mol1 = molecule.Molecule(*eg.he)
     mol2 = molecule.Molecule(*eg.ch4)
     mol3 = molecule.Molecule(*eg.c2h4)
@@ -370,19 +388,29 @@ def test_MoleculeBundle_addition():
     assert np.all(bund.molecules[2].xyz[1:] == eg.c2h4[1])
 
 
-def test_MoleculeBundle_iaddition():
+def test_MoleculeBundle_add_wrong_type():
+    bund1 = molecule.MoleculeBundle(molecule.Molecule(*eg.he))
+    with pytest.raises(TypeError, match=r'Addition not supported for types .*'):
+        bund = bund1 + np.ones(3)
+
+
+def test_MoleculeBundle_iadd_Molecule():
     mol1 = molecule.Molecule(*eg.he)
     mol2 = molecule.Molecule(*eg.ch4)
     mol3 = molecule.Molecule(*eg.c2h4)
-    bund = molecule.MoleculeBundle(mol1)
-    bund23 = molecule.MoleculeBundle([mol2, mol3])
-    bund += bund23
+    bund = molecule.MoleculeBundle([mol1, mol2])
+    bund += mol3
     assert np.all(bund.molecules[0].elem[1:] == eg.he[0])
     assert np.all(bund.molecules[0].xyz[1:] == eg.he[1])
     assert np.all(bund.molecules[1].elem[1:] == eg.ch4[0])
     assert np.all(bund.molecules[1].xyz[1:] == eg.ch4[1])
     assert np.all(bund.molecules[2].elem[1:] == eg.c2h4[0])
     assert np.all(bund.molecules[2].xyz[1:] == eg.c2h4[1])
+
+
+def test_MoleculeBundle_wrong_type():
+    with pytest.raises(TypeError, match=r'Elements of molecule bundle must .*'):
+        bund = molecule.MoleculeBundle(eg.he)
 
 
 def test_MoleculeBundle_copy():
@@ -549,12 +577,12 @@ def test_import_bundle_single_file(tmpdir):
 def test_import_bundle_multiple_files(tmpdir):
     f1 = tmpdir.join('tmp1.xyz')
     f2 = tmpdir.join('tmp2.xyz')
-    f1.write(ef.xyz_novec + ef.zmtvar_nocom)
+    f1.write(ef.zmtvar_nocom + ef.zmtvar_nocom)
     f2.write(ef.xyz_novec)
     bund = molecule.import_bundle([str(f1.realpath()), str(f2.realpath())])
     assert np.all(bund.molecules[0].elem[1:] == eg.ch4[0])
     assert np.all(bund.molecules[1].elem[1:] == eg.ch4[0])
     assert np.all(bund.molecules[2].elem[1:] == eg.ch4[0])
-    assert np.allclose(bund.molecules[0].xyz[1:], eg.ch4[1])
+    assert np.allclose(bund.molecules[0].xyz[1:], eg.ch4_zmt[1])
     assert np.allclose(bund.molecules[1].xyz[1:], eg.ch4_zmt[1])
     assert np.allclose(bund.molecules[2].xyz[1:], eg.ch4[1])

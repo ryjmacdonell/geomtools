@@ -7,6 +7,12 @@ import gimbal.substitute as substitute
 from examples import Geometries as eg
 
 
+def test_add_subs_fails():
+    lib = substitute.SubLib()
+    with pytest.raises(ValueError, match=r'Number of inds != number of .*'):
+        elem, xyz = lib.add_subs(['me', 'me', 'me'], inds=[1, 2])
+
+
 def test_import_sub_methyl():
     lib = substitute.SubLib()
     elem, xyz = substitute.import_sub('ch3')
@@ -32,6 +38,14 @@ def test_subst_fluoro_multisub():
     elem, xyz, vec = substitute.subst(eg.c2h4[0], eg.c2h4[1], 'f', [2, 3])
     assert np.all(elem == np.hstack((eg.c2h3f[0][:3], eg.c2h3f[0][4:])))
     assert np.allclose(xyz, np.vstack((eg.c2h3f[1][:3], eg.c2h3f[1][4:])))
+
+
+def test_subst_fluoro_with_fluoro():
+    inp_xyz = np.copy(eg.c2h3f[1])
+    inp_xyz[2] += np.ones(3)
+    elem, xyz, vec = substitute.subst(eg.c2h3f[0], inp_xyz, 'f', 2)
+    assert np.all(elem == eg.c2h3f[0])
+    assert np.allclose(xyz, inp_xyz)
 
 
 def test_subst_fluoro_vec():
