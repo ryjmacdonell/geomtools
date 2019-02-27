@@ -154,6 +154,30 @@ def test_align_axis_default():
     assert np.allclose(new_xyz, soln)
 
 
+def test_align_axis_same():
+    ax1 = np.array([1., -2., 0.])
+    ax2 = 2*ax1
+    xyz = np.copy(eg.c2h4[1])
+    new_xyz = displace.align_axis(xyz, ax1, ax2)
+    assert np.allclose(new_xyz, xyz)
+
+
+def test_align_axis_pi_y():
+    ax = np.array([0., 2., 0.])
+    soln = np.copy(eg.c2h4[1])
+    new_xyz = displace.align_axis(soln, ax, 'y')
+    soln[:,1] *= -1
+    assert np.allclose(new_xyz, soln)
+
+
+def test_align_axis_pi_z():
+    ax = np.array([0., 0., 2.])
+    soln = np.copy(eg.c2h4[1])
+    new_xyz = displace.align_axis(soln, ax, 'z')
+    soln[:,2] *= -1
+    assert np.allclose(new_xyz, soln)
+
+
 def test_align_axis_ind():
     soln = np.copy(eg.c2h4[1])
     new_xyz = displace.align_axis(soln, 'z', '-y', ind=[0,1])

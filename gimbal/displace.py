@@ -145,10 +145,18 @@ def align_axis(xyz, test_ax, ref_ax, ind=None, origin=np.zeros(3)):
     """Rotates a set of atoms such that two axes are parallel."""
     test = _parse_axis(test_ax)
     ref = _parse_axis(ref_ax)
-
-    angle = np.arccos(np.dot(test, ref))
-    rotax = np.cross(test, ref)
-    return rotate(xyz, angle, rotax, ind=ind, origin=origin)
+    if np.allclose(test, ref):
+        return xyz
+    elif np.allclose(test, -ref):
+        rotax = [0, 0, 1]
+        if np.allclose(test, rotax):
+            rotax = [0, 1, 0]
+        rotax -= np.dot(rotax, test) * test
+        return rotate(xyz, np.pi, rotax, ind=ind, origin=origin)
+    else:
+        angle = np.arccos(np.dot(test, ref))
+        rotax = np.cross(test, ref)
+        return rotate(xyz, angle, rotax, ind=ind, origin=origin)
 
 
 def get_centremass(elem, xyz):

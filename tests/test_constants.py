@@ -60,8 +60,13 @@ def test_get_covrad():
 
 
 def test_unit_vec():
-    vec_len = np.linalg.norm(con.unit_vec([1., 1., 1.]))
+    vec_len = np.linalg.norm(con.unit_vec([1., -1., 2.]))
     assert np.isclose(vec_len, 1.)
+
+
+def test_unit_vec_fails():
+    with pytest.raises(ValueError, match=r'Cannot make unit vector from .*'):
+        uvec = con.unit_vec(np.zeros(3))
 
 
 def test_conv_unit():

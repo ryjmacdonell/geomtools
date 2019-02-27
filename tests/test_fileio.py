@@ -8,22 +8,15 @@ from examples import Geometries as eg
 from examples import Files as ef
 
 
-def tmpf(tmpdir, contents, fname='tmp.geom'):
-    """Writes a temporary file to test reading."""
-    fout = tmpdir.join(fname)
-    fout.write(contents)
-    return fout.open()
-
-
 def test_read_xyz_bohr(tmpdir):
-    f = tmpf(tmpdir, ef.xyz_bohr)
+    f = ef.tmpf(tmpdir, ef.xyz_bohr)
     elem, xyz, vec, com = fileio.read_xyz(f, units='bohr')
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
 
 
 def test_read_xyz_comment(tmpdir):
-    f = tmpf(tmpdir, ef.xyz_novec)
+    f = ef.tmpf(tmpdir, ef.xyz_novec)
     elem, xyz, vec, com = fileio.read_xyz(f, hascom=True)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
@@ -31,7 +24,7 @@ def test_read_xyz_comment(tmpdir):
 
 
 def test_read_xyz_vector(tmpdir):
-    f = tmpf(tmpdir, ef.xyz_vec)
+    f = ef.tmpf(tmpdir, ef.xyz_vec)
     elem, xyz, vec, com = fileio.read_xyz(f, hasvec=True)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
@@ -39,13 +32,13 @@ def test_read_xyz_vector(tmpdir):
 
 
 def test_read_xyz_wrong_format(tmpdir):
-    f = tmpf(tmpdir, ef.col_nocom)
+    f = ef.tmpf(tmpdir, ef.col_nocom)
     with pytest.raises(IOError, match=r'geometry not in XYZ format.'):
         elem, xyz, vec, com = fileio.read_xyz(f)
 
 
 def test_read_col_comment(tmpdir):
-    f = tmpf(tmpdir, ef.col_com)
+    f = ef.tmpf(tmpdir, ef.col_com)
     elem, xyz, vec, com = fileio.read_col(f, hascom=True)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
@@ -53,7 +46,7 @@ def test_read_col_comment(tmpdir):
 
 
 def test_read_col_hasvec(tmpdir):
-    f = tmpf(tmpdir, ef.col_nocom)
+    f = ef.tmpf(tmpdir, ef.col_nocom)
     elem, xyz, vec, com = fileio.read_col(f, hasvec=True)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
@@ -61,13 +54,13 @@ def test_read_col_hasvec(tmpdir):
 
 
 def test_read_col_wrong_format(tmpdir):
-    f = tmpf(tmpdir, ef.gdat_bohr)
+    f = ef.tmpf(tmpdir, ef.gdat_bohr)
     with pytest.raises(IOError, match=r'geometry not in COLUMBUS format.'):
         elem, xyz, vec, com = fileio.read_col(f)
 
 
 def test_read_gdat_comment(tmpdir):
-    f = tmpf(tmpdir, ef.gdat_bohr)
+    f = ef.tmpf(tmpdir, ef.gdat_bohr)
     elem, xyz, vec, com = fileio.read_gdat(f, hascom=True)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
@@ -75,7 +68,7 @@ def test_read_gdat_comment(tmpdir):
 
 
 def test_read_gdat_vector(tmpdir):
-    f = tmpf(tmpdir, ef.gdat_bohr)
+    f = ef.tmpf(tmpdir, ef.gdat_bohr)
     elem, xyz, vec, com = fileio.read_gdat(f, hasvec=True)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
@@ -83,13 +76,13 @@ def test_read_gdat_vector(tmpdir):
 
 
 def test_read_gdat_wrong_format(tmpdir):
-    f = tmpf(tmpdir, ef.zmt_nocom)
+    f = ef.tmpf(tmpdir, ef.zmt_nocom)
     with pytest.raises(IOError, match=r'geometry not in Geometry.dat .*'):
         elem, xyz, vec, com = fileio.read_gdat(f)
 
 
 def test_read_zmt_comment(tmpdir):
-    f = tmpf(tmpdir, ef.zmt_com)
+    f = ef.tmpf(tmpdir, ef.zmt_com)
     elem, xyz, vec, com = fileio.read_zmt(f, hascom=True)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4_zmt[1], atol=1e-6)
@@ -97,7 +90,7 @@ def test_read_zmt_comment(tmpdir):
 
 
 def test_read_zmt_hasvec(tmpdir):
-    f = tmpf(tmpdir, ef.zmt_nocom)
+    f = ef.tmpf(tmpdir, ef.zmt_nocom)
     elem, xyz, vec, com = fileio.read_zmt(f, hasvec=True)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4_zmt[1], atol=1e-6)
@@ -105,27 +98,27 @@ def test_read_zmt_hasvec(tmpdir):
 
 
 def test_read_zmt_var(tmpdir):
-    f = tmpf(tmpdir, ef.zmtvar_nocom)
+    f = ef.tmpf(tmpdir, ef.zmtvar_nocom)
     elem, xyz, vec, com = fileio.read_zmt(f)
-    assert np.all(elem == eg.ch4[0])
+    assert np.all(elem == eg.ch4_zmt[0])
     assert np.allclose(xyz, eg.ch4_zmt[1], atol=1e-6)
 
 
 def test_read_zmt_wrong_format(tmpdir):
-    f = tmpf(tmpdir, ef.traj_nocom)
+    f = ef.tmpf(tmpdir, ef.traj_nocom)
     with pytest.raises(IOError, match=r'geometry not in Z-matrix .*'):
         elem, xyz, vec, com = fileio.read_zmt(f)
 
 
 def test_read_traj_no_elem(tmpdir):
-    f = tmpf(tmpdir, ef.traj_nocom)
+    f = ef.tmpf(tmpdir, ef.traj_nocom)
     elem, xyz, vec, com = fileio.read_traj(f)
     assert np.all(elem == 5*['X'])
     assert np.allclose(xyz, eg.ch4[1], atol=1e-4)
 
 
 def test_read_traj_comment(tmpdir):
-    f = tmpf(tmpdir, ef.traj_com)
+    f = ef.tmpf(tmpdir, ef.traj_com)
     elem, xyz, vec, com = fileio.read_traj(f, hascom=True, elem=eg.ch4[0])
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1], atol=1e-4)
@@ -133,7 +126,7 @@ def test_read_traj_comment(tmpdir):
 
 
 def test_read_traj_vector(tmpdir):
-    f = tmpf(tmpdir, ef.traj_nocom)
+    f = ef.tmpf(tmpdir, ef.traj_nocom)
     elem, xyz, vec, com = fileio.read_traj(f, hasvec=True, elem=eg.ch4[0])
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1], atol=1e-4)
@@ -141,7 +134,7 @@ def test_read_traj_vector(tmpdir):
 
 
 def test_read_traj_time(tmpdir):
-    f = tmpf(tmpdir, ef.traj_time)
+    f = ef.tmpf(tmpdir, ef.traj_time)
     elem, xyz, vec, com = fileio.read_traj(f, hasvec=True, time=1.)
     assert np.all(elem == 5*['X'])
     assert np.allclose(xyz, eg.ch4[1], atol=1e-4)
@@ -149,7 +142,7 @@ def test_read_traj_time(tmpdir):
 
 
 def test_read_traj_autocom(tmpdir):
-    f = tmpf(tmpdir, ef.traj_nocom)
+    f = ef.tmpf(tmpdir, ef.traj_nocom)
     elem, xyz, vec, com = fileio.read_traj(f, autocom=True)
     assert np.all(elem == 5*['X'])
     assert np.allclose(xyz, eg.ch4[1], atol=1e-4)
@@ -157,31 +150,31 @@ def test_read_traj_autocom(tmpdir):
 
 
 def test_read_traj_empty_line(tmpdir):
-    f = tmpf(tmpdir, '\n')
+    f = ef.tmpf(tmpdir, '\n')
     with pytest.raises(IOError, match=r'empty line provided'):
         elem, xyz, vec, com = fileio.read_traj(f)
 
 
 def test_read_traj_wrong_format(tmpdir):
-    f = tmpf(tmpdir, ef.xyz_novec)
+    f = ef.tmpf(tmpdir, ef.xyz_novec)
     with pytest.raises(IOError, match=r'geometry not in trajectory .*'):
         elem, xyz, vec, com = fileio.read_traj(f)
 
 
 def test_read_auto_end_of_file(tmpdir):
-    f = tmpf(tmpdir, '')
+    f = ef.tmpf(tmpdir, '')
     with pytest.raises(IOError, match=r'end of file'):
         elem, xyz, vec, com = fileio.read_auto(f)
 
 
 def test_read_auto_only_comment(tmpdir):
-    f = tmpf(tmpdir, 'comment line\n')
+    f = ef.tmpf(tmpdir, 'comment line\n')
     with pytest.raises(IOError, match=r'cannot have comment with single .*'):
         elem, xyz, vec, com = fileio.read_auto(f, hascom=True)
 
 
 def test_read_auto_zmt_one_line(tmpdir):
-    f = tmpf(tmpdir, 'He\n')
+    f = ef.tmpf(tmpdir, 'He\n')
     elem, xyz, vec, com = fileio.read_zmt(f)
     assert np.all(elem == ['He'])
     assert np.allclose(xyz, np.zeros((1, 3)))
@@ -190,27 +183,27 @@ def test_read_auto_zmt_one_line(tmpdir):
 def test_read_auto_col_one_line(tmpdir):
     he_col = (' He    2.0    0.00000000    0.00000000    0.00000000' +
               '    4.00260325\n')
-    f = tmpf(tmpdir, he_col)
+    f = ef.tmpf(tmpdir, he_col)
     elem, xyz, vec, com = fileio.read_auto(f)
     assert np.all(elem == ['He'])
     assert np.allclose(xyz, np.zeros((1, 3)))
 
 
 def test_read_auto_traj_one_line(tmpdir):
-    f = tmpf(tmpdir, ef.traj_nocom)
+    f = ef.tmpf(tmpdir, ef.traj_nocom)
     elem, xyz, vec, com = fileio.read_auto(f)
     assert np.all(elem == 5*['X'])
     assert np.allclose(xyz, eg.ch4[1], atol=1e-4)
 
 
 def test_read_auto_unrecognized_one_line(tmpdir):
-    f = tmpf(tmpdir, '123 abc 456 def\n')
+    f = ef.tmpf(tmpdir, '123 abc 456 def\n')
     with pytest.raises(IOError, match=r'single line input in unrecognized .*'):
         elem, xyz, vec, com = fileio.read_auto(f)
 
 
 def test_read_auto_zmt_one_line_comment(tmpdir):
-    f = tmpf(tmpdir, 'comment line\nHe\n')
+    f = ef.tmpf(tmpdir, 'comment line\nHe\n')
     elem, xyz, vec, com = fileio.read_auto(f, hascom=True)
     assert np.all(elem == ['He'])
     assert np.allclose(xyz, np.zeros((1, 3)))
@@ -221,7 +214,7 @@ def test_read_auto_col_one_line_comment(tmpdir):
     he_col = ('comment line\n' +
               ' He    2.0    0.00000000    0.00000000    0.00000000' +
               '    4.00260325\n')
-    f = tmpf(tmpdir, he_col)
+    f = ef.tmpf(tmpdir, he_col)
     elem, xyz, vec, com = fileio.read_auto(f, hascom=True)
     assert np.all(elem == ['He'])
     assert np.allclose(xyz, np.zeros((1, 3)))
@@ -229,7 +222,7 @@ def test_read_auto_col_one_line_comment(tmpdir):
 
 
 def test_read_auto_traj_one_line_comment(tmpdir):
-    f = tmpf(tmpdir, ef.traj_com)
+    f = ef.tmpf(tmpdir, ef.traj_com)
     elem, xyz, vec, com = fileio.read_auto(f, hascom=True)
     assert np.all(elem == 5*['X'])
     assert np.allclose(xyz, eg.ch4[1], atol=1e-4)
@@ -237,27 +230,27 @@ def test_read_auto_traj_one_line_comment(tmpdir):
 
 
 def test_read_auto_unrecognized_one_line_comment(tmpdir):
-    f = tmpf(tmpdir, 'comment line\n123 abc 456 def\n')
+    f = ef.tmpf(tmpdir, 'comment line\n123 abc 456 def\n')
     with pytest.raises(IOError, match=r'single line input in unrecognized .*'):
         elem, xyz, vec, com = fileio.read_auto(f, hascom=True)
 
 
 def test_read_auto_xyz(tmpdir):
-    f = tmpf(tmpdir, ef.xyz_novec)
+    f = ef.tmpf(tmpdir, ef.xyz_novec)
     elem, xyz, vec, com = fileio.read_auto(f)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
 
 
 def test_read_auto_col(tmpdir):
-    f = tmpf(tmpdir, ef.col_nocom)
+    f = ef.tmpf(tmpdir, ef.col_nocom)
     elem, xyz, vec, com = fileio.read_auto(f)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
 
 
 def test_read_auto_col_comment(tmpdir):
-    f = tmpf(tmpdir, ef.col_com)
+    f = ef.tmpf(tmpdir, ef.col_com)
     elem, xyz, vec, com = fileio.read_auto(f, hascom=True)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
@@ -265,21 +258,21 @@ def test_read_auto_col_comment(tmpdir):
 
 
 def test_read_auto_gdat(tmpdir):
-    f = tmpf(tmpdir, ef.gdat_bohr)
+    f = ef.tmpf(tmpdir, ef.gdat_bohr)
     elem, xyz, vec, com = fileio.read_auto(f)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4[1])
 
 
 def test_read_auto_zmt(tmpdir):
-    f = tmpf(tmpdir, ef.zmt_nocom)
+    f = ef.tmpf(tmpdir, ef.zmt_nocom)
     elem, xyz, vec, com = fileio.read_auto(f)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4_zmt[1], atol=1e-6)
 
 
 def test_read_auto_zmt_comment(tmpdir):
-    f = tmpf(tmpdir, ef.zmt_com)
+    f = ef.tmpf(tmpdir, ef.zmt_com)
     elem, xyz, vec, com = fileio.read_auto(f, hascom=True)
     assert np.all(elem == eg.ch4[0])
     assert np.allclose(xyz, eg.ch4_zmt[1], atol=1e-6)
@@ -287,14 +280,14 @@ def test_read_auto_zmt_comment(tmpdir):
 
 
 def test_read_auto_traj(tmpdir):
-    f = tmpf(tmpdir, ef.traj_time)
+    f = ef.tmpf(tmpdir, ef.traj_time)
     elem, xyz, vec, com = fileio.read_auto(f)
     assert np.all(elem == 5*['X'])
     assert np.allclose(xyz, eg.ch4[1], atol=1e-4)
 
 
 def test_read_auto_unrecognized_multi_lines(tmpdir):
-    f = tmpf(tmpdir, 'abc 123 def 456\nabc def 123 456\n123 456 abc def\n')
+    f = ef.tmpf(tmpdir, 'abc 123 def 456\nabc def 123 456\n123 456 abc def\n')
     with pytest.raises(IOError, match=r'unrecognized file format'):
         elem, xyz, vec, com = fileio.read_auto(f)
 
