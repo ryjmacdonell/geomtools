@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+"""
+Command line script for measuring internal coordinates from a geometry file.
+"""
+from sys import argv
+import gimbal.fileio as fileio
+import gimbal.measure as measure
+
+
+def main():
+    """The main 'measure' routine."""
+    pass
+
+
+if __name__ == '__main__':
+    main()

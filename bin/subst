@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+"""
+Command line script for adding substituents to a geometry file.
+"""
+from sys import argv
+import gimbal.fileio as fileio
+import gimbal.substitute as substitute
+
+
+def main():
+    """The main 'subst' routine."""
+    pass
+
+
+if __name__ == '__main__':
+    main()

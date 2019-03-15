@@ -521,21 +521,19 @@ def convert(infname, outfname, infmt='auto', outfmt='auto',
     Input (and output) may have multiple geometries. Z-matrix index
     ordering is not conserved.
     """
-    if inunits is None:
-        inkw = dict(hasvec=hasvec, hascom=hascom)
-    else:
-        inkw = dict(hasvec=hasvec, hascom=hascom, units=inunits)
-    if outunits is None:
-        outkw = dict()
-    else:
-        outkw = dict(units=outunits)
+    inpkw = dict(hasvec=hasvec, hascom=hascom)
+    outkw = dict()
+    if inunits is not None:
+        inpkw.update(units=inunits)
+    if outunits is not None:
+        outkw.update(units=outunits)
 
     read_func = globals()['read_' + infmt]
     write_func = globals()['write_' + outfmt]
     with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
         while True:
             try:
-                elem, xyz, vec, comment = read_func(infile, **inkw)
+                elem, xyz, vec, comment = read_func(infile, **inpkw)
                 if hasvec:
                     outkw.update(vec=vec)
                 if hascom:
@@ -543,6 +541,25 @@ def convert(infname, outfname, infmt='auto', outfmt='auto',
                 write_func(outfile, elem, xyz, **outkw)
             except IOError:
                 break
+
+
+def get_optarg(arglist, *opts, default=False):
+    """Gets an optional command line argument and returns its value.
+
+    If default is not set, the flag is treated as boolean. Note that
+    that setting default to None or '' will still take an argument
+    after the flag.
+    """
+    for op in opts:
+        if op in arglist:
+            ind = arglist.index(op)
+            arglist.remove(op)
+            if default is False:
+                return True
+            else:
+                return arglist.pop(ind)
+
+    return default
 
 
 def _get_type(s):

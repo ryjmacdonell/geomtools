@@ -434,6 +434,33 @@ def test_convert_xyz_to_traj_hasvec(tmpdir):
     assert f2.read() == soln
 
 
+def test_get_optargs_no_default():
+    args = ['-u', 'arg1', 'arg2', '-v']
+    val1 = fileio.get_optarg(args, '-u')
+    val2 = fileio.get_optarg(args, '-v')
+    assert val1 is True
+    assert val2 is True
+    assert args == ['arg1', 'arg2']
+
+
+def test_get_optargs_set_default():
+    args = ['-u', 'optarg1', 'arg1', 'arg2', '-v', 'optarg2']
+    val1 = fileio.get_optarg(args, '-u', default=None)
+    val2 = fileio.get_optarg(args, '-v', default=None)
+    assert val1 == 'optarg1'
+    assert val2 == 'optarg2'
+    assert args == ['arg1', 'arg2']
+
+
+def test_get_optargs_not_found():
+    args = ['arg1', 'arg2']
+    val1 = fileio.get_optarg(args, '-u')
+    val2 = fileio.get_optarg(args, '-v', default=None)
+    assert val1 is False
+    assert val2 is None
+    assert args == ['arg1', 'arg2']
+
+
 def test_valvar_fails(tmpdir):
     tdict = dict(a = 1.)
     with pytest.raises(KeyError, match=r'.* not found in variable list'):
