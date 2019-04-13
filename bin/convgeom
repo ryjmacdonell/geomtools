@@ -21,7 +21,7 @@ Options
     Boolean argument, whether or not vector is read
 """
 from sys import argv
-from gimbal.fileio import convert, get_optarg
+from gimbal.fileio import get_optarg, convert
 
 
 def main():

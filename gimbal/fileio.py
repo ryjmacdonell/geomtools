@@ -283,12 +283,9 @@ def read_traj(infile, units='bohr', hasvec=False, hascom=False,
     return elem, xyz, vec, comment
 
 
-def read_auto(infile, **kwargs):
+def read_auto(infile, hasvec=False, hascom=False, **kwargs):
     """Reads a molecular geometry file and determines the format."""
-    if 'hascom' in kwargs:
-        hascom = kwargs['hascom']
-    else:
-        hascom = False
+    kwargs.update(dict(hascom=hascom, hasvec=hasvec))
     pos = infile.tell()
     contents = infile.readlines()
     infile.seek(pos)
@@ -343,6 +340,43 @@ def read_auto(infile, **kwargs):
                 return read_gdat(infile, **kwargs)
 
     raise IOError('unrecognized file format')
+
+
+def read_single(infile, fmt='auto', **kwargs):
+    """Reads a single geometry from an input file.
+
+    Unlike read_auto, infile can be a string or open file.
+    """
+    read_func = globals()['read_' + fmt]
+    close = False
+    infile, close = _open_file(infile, 'r')
+    moldat = read_func(infile, **kwargs)
+    if close:
+        infile.close()
+
+    return moldat
+
+
+def read_multiple(inflist, fmt='auto', **kwargs):
+    """Reads multiple files or multiple geometries into lists of data."""
+    read_func = globals()['read_' + fmt]
+    inflist = np.atleast_1d(inflist)
+    moldat = []
+    for infile in inflist:
+        infile, close = _open_file(infile, 'r')
+        while True:
+            try:
+                moldat.append(read_func(infile, **kwargs))
+            except IOError:
+                break
+
+        if close:
+            infile.close()
+
+    if len(moldat) == 0:
+        raise IOError('no geometries read from input files')
+
+    return moldat
 
 
 def write_xyz(outfile, elem, xyz, vec=None, comment='', units='ang'):
@@ -491,12 +525,13 @@ def write_traj(outfile, elem, xyz, vec=None, comment='', units='bohr',
     outfile.write(fmt.format(time, *args))
 
 
-def write_auto(outfile, elem, xyz, **kwargs):
+def write_auto(outfile, elem, xyz, vec=None, comment='', **kwargs):
     """Writes geometry to an output file based on the filename extension.
 
     Extensions are not case sensitive. If the extension is not recognized,
     the default format is XYZ.
     """
+    kwargs.update(dict(vec=vec, comment=comment))
     fname = outfile.name.lower()
     ext = fname.split('.')[-1]
     if ext in ['col', 'columbus']:
@@ -513,7 +548,31 @@ def write_auto(outfile, elem, xyz, **kwargs):
         write_xyz(outfile, elem, xyz, **kwargs)
 
 
-def convert(infname, outfname, infmt='auto', outfmt='auto',
+def write_single(outfile, moldat, fmt='auto', **kwargs):
+    """Writes a single geometry to an output file.
+
+    Unlike write_auto, outfile can be a string or open file.
+    """
+    write_func = globals()['write_' + fmt]
+    outfile, close = _open_file(outfile, 'w')
+    write_func(outfile, *moldat, **kwargs)
+    if close:
+        outfile.close()
+
+
+def write_multiple(outfile, moldat, fmt='auto', **kwargs):
+    """Writes multiple geometries into a single output file."""
+    moldat = np.atleast_1d(moldat)
+    write_func = globals()['write_' + fmt]
+    outfile, close = _open_file(outfile, 'w')
+    for dat in moldat:
+        write_func(outfile, *dat, **kwargs)
+
+    if close:
+        outfile.close()
+
+
+def convert(inflist, outfile, infmt='auto', outfmt='auto',
             inunits=None, outunits=None, hasvec=False, hascom=False):
     """Reads a file in format infmt and writes to a file in format
     outfmt.
@@ -528,19 +587,8 @@ def convert(infname, outfname, infmt='auto', outfmt='auto',
     if outunits is not None:
         outkw.update(units=outunits)
 
-    read_func = globals()['read_' + infmt]
-    write_func = globals()['write_' + outfmt]
-    with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
-        while True:
-            try:
-                elem, xyz, vec, comment = read_func(infile, **inpkw)
-                if hasvec:
-                    outkw.update(vec=vec)
-                if hascom:
-                    outkw.update(comment=comment)
-                write_func(outfile, elem, xyz, **outkw)
-            except IOError:
-                break
+    moldat = read_multiple(inflist, fmt=infmt, **inpkw)
+    write_multiple(outfile, moldat, fmt=outfmt, **outkw)
 
 
 def get_optarg(arglist, *opts, default=False):
@@ -583,3 +631,11 @@ def _valvar(unk, vardict):
             return vardict[unk]
         else:
             raise KeyError('\'{}\' not found in variable list'.format(unk))
+
+
+def _open_file(f, mode):
+    """Opens a file if a string is provided, otherwise leaves the file open."""
+    if isinstance(f, str):
+        return open(f, mode), True
+    else:
+        return f, False

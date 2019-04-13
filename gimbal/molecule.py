@@ -294,33 +294,21 @@ class Molecule(BaseMolecule):
 
     def read(self, infile, fmt='auto', **kwargs):
         """Reads single geometry from input file in provided format."""
-        read_func = getattr(fileio, 'read_' + fmt)
-        if isinstance(infile, str):
-            with open(infile, 'r') as f:
-                (self._elem, self._xyz,
-                 ivec, self._comment) = read_func(f, **kwargs)
-        else:
-            (self._elem, self._xyz,
-             ivec, self._comment) = read_func(infile, **kwargs)
-
+        (self._elem, self._xyz, ivec,
+         self._comment) = fileio.read_single(infile, fmt=fmt, **kwargs)
         if ivec is None:
             self._vec = np.zeros_like(self._xyz)
         else:
             self._vec = ivec
+
         self._check()
         self.saved = False
 
     def write(self, outfile, fmt='auto', **kwargs):
         """Writes geometry to an output file in provided format."""
-        write_func = getattr(fileio, 'write_' + fmt)
         vec = self._vec[1:] if self.print_vec else None
-        if isinstance(outfile, str):
-            with open(outfile, 'w') as f:
-                write_func(f, self._elem[1:], self._xyz[1:], vec=vec,
-                           comment=self._comment, **kwargs)
-        else:
-            write_func(outfile, self._elem[1:], self._xyz[1:], vec=vec,
-                       comment=self._comment, **kwargs)
+        moldat = (self._elem[1:], self._xyz[1:], vec, self._comment)
+        fileio.write_single(outfile, moldat, fmt=fmt, **kwargs)
 
     def get_mass(self):
         """Returns atomic masses."""
@@ -512,29 +500,23 @@ class MoleculeBundle(object):
 
     def read(self, infile, fmt='auto', **kwargs):
         """Reads all geometries from input file in provided format."""
-        read_func = getattr(fileio, 'read_' + fmt)
-        if isinstance(infile, str):
-            infile = open(infile, 'r')
-        while True:
-            try:
-                new_mol = Molecule(*read_func(infile, **kwargs))
-                self._molecules = np.hstack((self.molecules, new_mol))
-            except IOError:
-                break
-
+        moldat = fileio.read_multiple(infile, fmt=fmt, **kwargs)
+        new_mol = [Molecule(*dat) for dat in moldat]
+        self._molecules = np.hstack((self.molecules, new_mol))
         self._check()
         self.saved = False
 
     def write(self, outfile, fmt='auto', **kwargs):
         """Writes geometries to an output file in provided format."""
-        write_func = getattr(fileio, 'write_' + fmt)
-        if isinstance(outfile, str):
-            with open(outfile, 'w') as f:
-                for mol in self.molecules:
-                    mol.write(f, fmt=fmt, **kwargs)
-        else:
-            for mol in self.molecules:
-                mol.write(outfile, fmt=fmt, **kwargs)
+        moldat = np.empty(self.nmol, dtype=object)
+        for i, mol in enumerate(self.molecules):
+            if mol.print_vec:
+                moldat[i] = (mol.elem[1:], mol.xyz[1:], mol.vec[1:],
+                             mol.comment)
+            else:
+                moldat[i] = (mol.elem[1:], mol.xyz[1:], None, mol.comment)
+
+        fileio.write_multiple(outfile, moldat, fmt=fmt, **kwargs)
 
     def measure(self, coord, *inds, units='auto', absv=False):
         """Returns a list of coordinates based on index in molecules."""
@@ -550,7 +532,6 @@ class MoleculeBundle(object):
         Returns a set of bundles corresponding to the reference indices.
         """
         kwargs = dict(plist=plist, equiv=equiv, wgt=wgt, ind=ind, cent=cent)
-        #bundles = [MoleculeBundle() for mol in ref_bundle.molecules]
         inds = np.empty(self.nmol)
         for i, mol in enumerate(self._molecules):
             inds[i] = mol.match_to_ref(ref_bundle, **kwargs)
@@ -559,9 +540,8 @@ class MoleculeBundle(object):
 
 def import_molecule(fname, fmt='auto', **kwargs):
     """Imports geometry in provided format to Molecule object."""
-    read_func = getattr(fileio, 'read_' + fmt)
-    with open(fname, 'r') as infile:
-        return Molecule(*read_func(infile, **kwargs))
+    moldat = fileio.read_multiple(fname, fmt=fmt, **kwargs)
+    return Molecule(*moldat[0])
 
 
 def import_bundle(fnamelist, fmt='auto', **kwargs):
@@ -570,19 +550,8 @@ def import_bundle(fnamelist, fmt='auto', **kwargs):
     The fnamelist keyword can be a single filename or a list of
     filenames. If fmt='auto', different files may have different formats.
     """
-    read_func = getattr(fileio, 'read_' + fmt)
-    molecules = []
-    if not isinstance(fnamelist, (list, tuple, np.ndarray)):
-        fnamelist = [fnamelist]
-
-    for fname in fnamelist:
-        with open(fname, 'r') as infile:
-            while True:
-                try:
-                    molecules.append(Molecule(*read_func(infile, **kwargs)))
-                except IOError:
-                    break
-
+    moldat = fileio.read_multiple(fnamelist, fmt=fmt, **kwargs)
+    molecules = [Molecule(*dat) for dat in moldat]
     return MoleculeBundle(molecules)
 
 
