@@ -30,7 +30,9 @@ class SubLib(object):
 
     def _populate_syn(self):
         """Adds a dictionary of synonyms for labels."""
-        synlist = [['me', 'ch3', 'h3c'],
+        synlist = [['h'],
+                   ['d'],
+                   ['me', 'ch3', 'h3c'],
                    ['et', 'ch2ch3', 'c2h5', 'ch3ch2'],
                    ['npr', 'ch2ch2ch3', 'c3h7', 'ch3ch2ch2'],
                    ['ipr', 'chch3ch3', 'ch(ch3)2', '(ch3)2ch', 'ch3chch3'],
@@ -61,6 +63,8 @@ class SubLib(object):
 
     def _populate_elem(self):
         """Adds element labels to self.elem."""
+        self.elem['h'] = np.array(['H'])
+        self.elem['d'] = np.array(['D'])
         self.elem['me'] = np.array(['C', 'H', 'H', 'H'])
         self.elem['vi'] = np.array(['C', 'C', 'H', 'H', 'H'])
         self.elem['ey'] = np.array(['C', 'C', 'H'])
@@ -84,6 +88,8 @@ class SubLib(object):
         the bonding axis is the z-axis and the plane axis
         is the y-axis.
         """
+        self.xyz['h'] = np.array([[ 0.000,  0.000,  0.000]])
+        self.xyz['d'] = np.array([[ 0.000,  0.000,  0.000]])
         self.xyz['me'] = np.array([[ 0.000,  0.000,  0.000],
                                    [ 0.511, -0.886,  0.377],
                                    [ 0.511,  0.886,  0.377],

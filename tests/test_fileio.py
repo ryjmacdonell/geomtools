@@ -292,6 +292,12 @@ def test_read_auto_unrecognized_multi_lines(tmpdir):
         elem, xyz, vec, com = fileio.read_auto(f)
 
 
+def test_read_multiple_no_geoms(tmpdir):
+    f = ef.tmpf(tmpdir, '\n')
+    with pytest.raises(IOError, match=r'no geometries read from input files'):
+        moldat = fileio.read_multiple(f)
+
+
 def test_write_xyz_vec(tmpdir):
     f = tmpdir.join('tmp.geom')
     fileio.write_xyz(f.open(mode='w'), eg.ch4[0], eg.ch4[1],

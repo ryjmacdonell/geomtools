@@ -2,8 +2,14 @@
 """
 Command line script for converting geometries between formats.
 
-Conversion between formats is done by:
-convgeom input output [options]
+Usage
+-----
+To convert from one format to another:
+
+    convgeom input output [options]
+
+By default, the input format is determined from the file structure and the
+output format is set by the file extension.
 
 Options
 -------

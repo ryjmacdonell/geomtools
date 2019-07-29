@@ -2,6 +2,15 @@
 """
 Command line script for measuring internal coordinates from a geometry file.
 
+Usage
+-----
+To measure a coordinate for one or multiple geometries in an input file:
+
+    measure input coord_type {inds} [options]
+
+The number of indices must match the coordinate type (e.g. 2 for stre,
+3 for bend, ...).
+
 Options
 -------
 -f, --format

@@ -55,7 +55,7 @@ def get_num(elem):
         return _find_index(elem)
     else:
         for atm in elem:
-            if atm not in sym and 'X' not in atm:
+            if atm not in sym and atm[0] not in ['X', 'D']:
                 raise ValueError('Unrecognized atomic symbol \'' + atm +
                                  '\'. Use X prefix for dummy atoms.')
         return np.array([_find_index(atm) for atm in elem])
@@ -94,5 +94,9 @@ def conv(old='auto', new='auto'):
 
 def _find_index(string):
     """Determines if dummy or regular atom and returns index."""
-    elem = 'X' if string[0] == 'X' else string
-    return np.where(sym == elem)[0][0]
+    if string[0] == 'X':
+        return 0
+    elif string  == 'D':
+        return 1
+    else:
+        return np.where(sym == string)[0][0]
