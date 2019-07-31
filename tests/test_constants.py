@@ -42,6 +42,10 @@ def test_get_num_single():
     assert con.get_num('H') == 1
 
 
+def test_get_num_deuterium():
+    assert con.get_num('D') == 1
+
+
 def test_get_num_list():
     assert np.all(con.get_num(['H', 'He', 'Li']) == np.array([1, 2, 3]))
 

@@ -32,6 +32,21 @@ def rmsd(test, ref, wgt=None):
 
     Weights can be provided (e.g. atomic masses) with the optional
     variable wgt.
+
+    Parameters
+    ----------
+    test : (N, 3) array_like
+        The cartesian test geometry.
+    ref : (N, 3) array_like
+        The cartesian reference geometry.
+    wgt : (N,) array_like, optional
+        The atomic weights for computing the RMSD. If None (default),
+        all weights are unity.
+
+    Returns
+    -------
+    float
+        The root mean squared deviation between test and ref.
     """
     if wgt is None:
         return np.sqrt(np.sum((test - ref) ** 2) / (3 * np.size(test)))
@@ -48,6 +63,24 @@ def kabsch(test, ref, wgt=None, refl=True):
     before forming the covariance matrix. This minimizes the weighted
     RMSD between the two geometries. If refl=True, improper rotations
     are also permitted.
+
+    Parameters
+    ----------
+    test : (N, 3) array_like
+        The cartesian test geometry.
+    ref : (N, 3) array_like
+        The cartesian reference geometry.
+    wgt : (N,) array_like, optional
+        The atomic weights for computing the RMSD. If None (default),
+        all weights are unity.
+    refl : bool, optional
+        Specifies if reflections (improper rotations) are permitted.
+        Default is True.
+
+    Returns
+    -------
+    (3, 3) ndarray
+        The rotational matrix that optimally maps test to ref.
     """
     if wgt is None:
         cov = test.T.dot(ref)
@@ -68,6 +101,30 @@ def map_onto(elem, test, ref, wgt=None, ind=None, cent=None):
     If an index or list of indices is provided for cent, only the centre
     of mass of the provided atoms is subtracted. Alternatively, ind can
     be provided to only map a subset of atoms.
+
+    Parameters
+    ----------
+    elem : (N,) array_like
+        The atomic symbols.
+    test : (N, 3) array_like
+        The cartesian test geometry.
+    ref : (N, 3) array_like
+        The cartesian reference geometry.
+    wgt : (N,) array_like, optional
+        The atomic weights for computing the RMSD. If None (default),
+        all weights are unity.
+    ind : int or array_like, optional
+        Indices of test to be mapped onto ref. If None (default), all
+        atoms are used.
+    cent : int or array_like, optional
+        Indices used to specify the centre of mass as the origin of
+        rotation. If None (default), the centre of mass is calculated
+        for all atoms.
+
+    Returns
+    -------
+    (N, 3) ndarray
+        The test geometry optimally mapped onto the ref geometry.
     """
     if cent is None:
         cm_test = disp.get_centremass(elem, test)
@@ -88,7 +145,40 @@ def map_onto(elem, test, ref, wgt=None, ind=None, cent=None):
 def opt_permute(elem, test, ref, plist=None, equiv=None, wgt=None, ind=None,
                 cent=None):
     """Determines optimal permutation of test geometry indices for
-    mapping onto reference."""
+    mapping onto reference.
+
+    Parameters
+    ----------
+    elem : (N,) array_like
+        The atomic symbols.
+    test : (N, 3) array_like
+        The cartesian test geometry.
+    ref : (N, 3) array_like
+        The cartesian reference geometry.
+    plist : list, optional
+        A list of sets of atomic positions that can be permuted,
+        parsed by :func:`_permute_elmnt`.
+    equiv : array_like, optional
+        A list of sets of indices that are symmetrically equivalent
+        and interchangeable, parsed by :func:`_permute_group`.
+    wgt : (N,) array_like, optional
+        The atomic weights for computing the RMSD. If None (default),
+        all weights are unity.
+    ind : int or array_like, optional
+        Indices of test to be mapped onto ref. If None (default), all
+        atoms are used.
+    cent : int or array_like, optional
+        Indices used to specify the centre of mass as the origin of
+        rotation. If None (default), the centre of mass is calculated
+
+    Returns
+    -------
+    geom : (N, 3) ndarray
+        The test geometry optimally mapped onto the ref geometry
+        including atomic permutations.
+    err : float
+        The root mean squared deviation between test and ref.
+    """
     if wgt is not None:
         wgt = np.array(wgt)
     kwargs = dict(wgt=wgt, ind=ind, cent=cent)
@@ -119,7 +209,27 @@ def opt_permute(elem, test, ref, plist=None, equiv=None, wgt=None, ind=None,
 
 
 def opt_ref(elem, test, reflist, **kwargs):
-    """Determines optimal reference geometry for a given test geometry."""
+    """Determines optimal reference geometry for a given test geometry.
+
+    Parameters
+    ----------
+    elem : (N,) array_like
+        The atomic symbols.
+    test : (N, 3) array_like
+        The cartesian test geometry.
+    reflist : (M, N, 3) array_like
+        The cartesian reference geometries.
+    kwargs : dict, optional
+        Additional keyword arguments used in :func:`opt_permute`.
+
+    Returns
+    -------
+    geom : (N, 3) ndarray
+        The test geometry optimally mapped onto the ref geometry with
+        the minimum RMSD.
+    ind : int
+        The index of the optimal ref geometry.
+    """
     nrefs = len(reflist)
     geoms = np.empty((nrefs,) + test.shape)
     err = np.empty(nrefs)
@@ -132,7 +242,26 @@ def opt_ref(elem, test, reflist, **kwargs):
 
 def opt_multi(elem, testlist, reflist, **kwargs):
     """Determines the optimal geometries of a set of test geometries
-    against a set of reference geometries."""
+    against a set of reference geometries.
+
+    Parameters
+    ----------
+    elem : (N,) array_like
+        The atomic symbols.
+    testlist : (L, N, 3) array_like
+        The cartesian test geometries.
+    reflist : (M, N, 3) array_like
+        The cartesian reference geometries.
+    kwargs : dict, optional
+        Additional keyword arguments used in :func:`opt_permute`.
+
+    Returns
+    -------
+    geomlist : (M,...) list
+        The test geometries optimally mapped onto each ref geometry with
+        the minimum RMSD. The L test geometries are sorted into to the
+        M reference geometries.
+    """
     geomlist = [[] for i in range(len(reflist))]
     for test in testlist:
         geom, ind = opt_ref(elem, test, reflist, **kwargs)
@@ -142,13 +271,42 @@ def opt_multi(elem, testlist, reflist, **kwargs):
 
 
 def _tuple2list(tupl):
-    """Iteratively converts nested tuple to nested list."""
+    """Iteratively converts nested tuple to nested list.
+
+    Parameters
+    ----------
+    tupl : tuple
+        The tuple to be converted.
+
+    Returns
+    -------
+    list
+        The converted list of lists.
+    """
     return list((_tuple2list(x) if isinstance(x, tuple) else x for x in tupl))
 
 
 def _permute_elmnt(plist):
     """Generates an array of permutations of a list of lists of permutable
-    indices and a list of permutable groups of indices."""
+    indices and a list of permutable groups of indices.
+
+    Parameters
+    ----------
+    plist : list
+        A list of lists of indices that can be permuted.
+
+    Returns
+    -------
+    list
+        A list of each possible permutation of the indices.
+
+    Examples
+    --------
+    >>> print(_permute_elmnt([0, 2]))
+    [[0, 2], [2, 0]]
+    >>> print(_permute_elmnt([[0, 2], [1, 4]]))
+    [[0, 2, 1, 4], [0, 2, 4, 1], [2, 0, 1, 4], [2, 0, 4, 1]]
+    """
     if plist is None:
         return [0]
     elif isinstance(plist[0], int):
@@ -160,7 +318,25 @@ def _permute_elmnt(plist):
 
 
 def _permute_group(plist):
-    """Generates an array of permutations of groups of indices."""
+    """Generates an array of permutations of groups of indices.
+
+    Parameters
+    ----------
+    plist : list
+        A list of lists of indices that are symmetry equivalent.
+
+    Returns
+    -------
+    list
+        A list of each possible permutation of the indices.
+
+    Examples
+    --------
+    >>> print(_permute_group([0, 2]))
+    [[0, 2]]
+    >>> print(_permute_group([[0, 2], [1, 4]]))
+    [[0, 2, 1, 4], [1, 4, 0, 2]]
+    """
     if plist is None:
         return [0]
     elif isinstance(plist[0], int):

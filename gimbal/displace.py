@@ -21,10 +21,27 @@ import numpy as np
 import gimbal.constants as con
 
 
-def translate(xyz, amp, axis, ind=None, origin=np.zeros(3), units='ang'):
+def translate(xyz, amp, axis, ind=None, units='ang'):
     """Translates a set of atoms along a given vector.
 
-    If no indices are specified, all atoms are displaced.
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    amp : float
+        The distance for translation.
+    axis : array_like or str
+        The axis of translation, parsed by :func:`_parse_axis`.
+    ind : array_like, optional
+        List of atomic indices to specify which atoms are displaced. If
+        `ind == None` (default) then all atoms are displaced.
+    units : str, optional
+        The units of length for displacement. Default is angstroms.
+
+    Returns
+    -------
+    (N, 3) ndarray
+        The atomic cartesian coordinates of the displaced molecule.
     """
     if ind is None:
         ind = range(len(xyz))
@@ -50,6 +67,28 @@ def rotmat(ang, ax, det=1, units='rad'):
     is a reflection along the axis. Action of the rotational matrix occurs
     about the origin. See en.wikipedia.org/wiki/Rotation_matrix
     and http://scipp.ucsc.edu/~haber/ph251/rotreflect_17.pdf
+
+    Parameters
+    ----------
+    ang : float
+        The angle of rotation.
+    ax : array_like or str
+        The axis of rotation, parsed by :func:`_parse_axis`.
+    det : int, optional
+        The determinant of the matrix (1 or -1) used to specify proper
+        and improper rotations. Default is 1.
+    units : str, optional
+        The units of angle for the rotation. Default is radians.
+
+    Returns
+    -------
+    (3, 3) ndarray
+        The rotational matrix of the given angle and axis.
+
+    Raises
+    ------
+    ValueError
+        When the absolute value of the determinant is not equal to 1.
     """
     if not np.isclose(np.abs(det), 1):
         raise ValueError('Determinant of a rotational matrix must be +/- 1')
@@ -95,6 +134,27 @@ def angax(rotmat, units='rad'):
     The signs can then be found by letting sign(u_3) = +1, since a rotation
     of pi or a reflection are equivalent for antiparallel axes. See
     http://scipp.ucsc.edu/~haber/ph251/rotreflect_17.pdf
+
+    Parameters
+    ----------
+    rotmat : (3, 3) array_like
+        The rotational matrix.
+    units : str, optional
+        The output units for the angle. Default is radians.
+
+    Returns
+    -------
+    ang : float
+        The angle of rotation.
+    u : (3,) ndarray
+        The axis of rotation as a 3D vector.
+    det : int
+        The determinant of the rotation matrix.
+
+    Raises
+    ------
+    ValueError
+        When the absolute value of the determinant is not equal to 1.
     """
     det = np.linalg.det(rotmat)
     if not np.isclose(np.abs(det), 1):
@@ -125,6 +185,30 @@ def rotate(xyz, ang, axis, ind=None, origin=np.zeros(3), det=1, units='rad'):
     An origin can be specified for rotation about a specific point. If
     no indices are specified, all atoms are displaced. Setting det=-1
     leads to an improper rotation.
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    ang : float
+        The angle of rotation.
+    axis : array_like or str
+        The axis of rotation, parsed by :func:`_parse_axis`.
+    ind : array_like, optional
+        List of atomic indices to specify which atoms are displaced. If
+        `ind == None` (default) then all atoms are displaced.
+    origin : (3,) array_like, optional
+        The origin of rotation. Default is the cartesian origin.
+    det : float, optional
+        The determinant of the rotation. 1 (default) is a proper rotation
+        and -1 is an improper rotation (rotation + reflection).
+    units : str, optional
+        The units of length for displacement. Default is angstroms.
+
+    Returns
+    -------
+    (N, 3) ndarray
+        The atomic cartesian coordinates of the displaced molecule.
     """
     if ind is None:
         ind = range(len(xyz))
@@ -135,14 +219,52 @@ def rotate(xyz, ang, axis, ind=None, origin=np.zeros(3), det=1, units='rad'):
 
 
 def align_pos(xyz, test_crd, ref_crd, ind=None):
-    """Translates a set of atoms such that two positions are coincident."""
+    """Translates a set of atoms such that two positions are coincident.
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    test_crd : (3,) array_like
+        Cartesian coordinates of the original position.
+    test_crd : (3,) array_like
+        Cartesian coordinates of the final position.
+    ind : array_like, optional
+        List of atomic indices to specify which atoms are displaced. If
+        `ind == None` (default) then all atoms are displaced.
+
+    Returns
+    -------
+    (N, 3) ndarray
+        The atomic cartesian coordinates of the displaced molecule.
+    """
     transax = ref_crd - test_crd
     dist = np.linalg.norm(transax)
     return translate(xyz, dist, transax, ind=ind)
 
 
 def align_axis(xyz, test_ax, ref_ax, ind=None, origin=np.zeros(3)):
-    """Rotates a set of atoms such that two axes are parallel."""
+    """Rotates a set of atoms such that two axes are parallel.
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    test_crd : (3,) array_like
+        Cartesian coordinates of the original axis.
+    test_crd : (3,) array_like
+        Cartesian coordinates of the final axis.
+    ind : array_like, optional
+        List of atomic indices to specify which atoms are displaced. If
+        `ind == None` (default) then all atoms are displaced.
+    origin : (3,) array_like, optional
+        The origin of rotation. Default is the cartesian origin.
+
+    Returns
+    -------
+    (N, 3) ndarray
+        The atomic cartesian coordinates of the displaced molecule.
+    """
     test = _parse_axis(test_ax)
     ref = _parse_axis(ref_ax)
     if np.allclose(test, ref):
@@ -160,7 +282,20 @@ def align_axis(xyz, test_ax, ref_ax, ind=None, origin=np.zeros(3)):
 
 
 def get_centremass(elem, xyz):
-    """Returns centre of mass of a set of atoms."""
+    """Returns centre of mass of a set of atoms.
+
+    Parameters
+    ----------
+    elem : (N,) array_like
+        The atomic symbols.
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+
+    Returns
+    -------
+    (3,) ndarray
+        The position of the centre of mass.
+    """
     mass = con.get_mass(elem)
     if isinstance(mass, float):
         # Centre of mass of one atom is its position
@@ -177,6 +312,18 @@ def centre_mass(elem, xyz):
 
     If an index list is provided to inds, only the centre of mass of
     atoms at those indices will be used.
+
+    Parameters
+    ----------
+    elem : (N,) array_like
+        The atomic symbols.
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+
+    Returns
+    -------
+    (N, 3) ndarray
+        The atomic cartesian coordinates of the displaced molecule.
     """
     return xyz - get_centremass(elem, xyz)
 
@@ -190,6 +337,16 @@ def _parse_axis(inp):
 
     For instance, 'x', 'yz', [1, 0, 0] and [[0, 1, 0], [0, 0, 0], [0, 0, 1]]
     will all return [1, 0, 0].
+
+    Parameters
+    ----------
+    inp : array_like or str
+        The axis specification to be parsed.
+
+    Returns
+    -------
+    (3,) ndarray
+        The axis given as a 3D cartesian vector.
     """
     if isinstance(inp, str):
         if inp in ['x', 'yz', 'zy']:
@@ -216,7 +373,18 @@ def _parse_axis(inp):
 
 
 def _nonzero_sign(x):
-    """Returns the sign of a nonzero number, otherwise returns 1."""
+    """Returns the sign of a nonzero number, otherwise returns 1.
+
+    Parameters
+    ----------
+    x : float or int
+        The input number.
+
+    Returns
+    -------
+    float
+        The sign of x, i.e. +1 or -1.
+    """
     if np.isclose(x, 0.):
         return 1.
     else:

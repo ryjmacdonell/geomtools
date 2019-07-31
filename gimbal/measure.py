@@ -6,14 +6,44 @@ import numpy as np
 import gimbal.constants as con
 
 
-def stre(xyz, *inds, units='ang', absv=False):
-    """Returns bond length based on index."""
+def stre(xyz, *inds, units='ang'):
+    """Returns bond length based on index.
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    inds : list
+        The indices for which the bond distance is measured.
+    units : str, optional
+        The units of length for the output. Default is Angstroms.
+
+    Returns
+    -------
+    float
+        The bond length.
+    """
     coord = np.linalg.norm(xyz[inds[0]] - xyz[inds[1]])
     return coord * con.conv('ang', units)
 
 
-def bend(xyz, *inds, units='rad', absv=False):
-    """Returns bending angle for 3 atoms in a chain based on index."""
+def bend(xyz, *inds, units='rad'):
+    """Returns bending angle for 3 atoms in a chain based on index.
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    inds : list
+        The indices for which the bond angle is measured.
+    units : str, optional
+        The units of angle for the output. Default is radians.
+
+    Returns
+    -------
+    float
+        The bond angle.
+    """
     e1 = con.unit_vec(xyz[inds[0]] - xyz[inds[1]])
     e2 = con.unit_vec(xyz[inds[2]] - xyz[inds[1]])
 
@@ -22,7 +52,24 @@ def bend(xyz, *inds, units='rad', absv=False):
 
 
 def tors(xyz, *inds, units='rad', absv=False):
-    """Returns dihedral angle for 4 atoms in a chain based on index."""
+    """Returns dihedral angle for 4 atoms in a chain based on index.
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    inds : list
+        The indices for which the dihedral angle is measured.
+    units : str, optional
+        The units of angle for the output. Default is radians.
+    absv : bool, optional
+        Specifies if the absolute value is returned.
+
+    Returns
+    -------
+    float
+        The dihedral angle.
+    """
     e1 = xyz[inds[0]] - xyz[inds[1]]
     e2 = xyz[inds[2]] - xyz[inds[1]]
     e3 = xyz[inds[2]] - xyz[inds[3]]
@@ -48,6 +95,22 @@ def oop(xyz, *inds, units='rad', absv=False):
     Contains an additional sign convention such that rotation of the
     out-of-plane atom over (under) the central plane atom gives an angle
     greater than pi/2 (less than -pi/2).
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    inds : list
+        The indices for which the out-of-plane angle is measured.
+    units : str, optional
+        The units of angle for the output. Default is radians.
+    absv : bool, optional
+        Specifies if the absolute value is returned.
+
+    Returns
+    -------
+    float
+        The out-of-plane angle.
     """
     e1 = con.unit_vec(xyz[inds[0]] - xyz[inds[3]])
     e2 = con.unit_vec(xyz[inds[1]] - xyz[inds[3]])
@@ -65,7 +128,24 @@ def oop(xyz, *inds, units='rad', absv=False):
 
 
 def planeang(xyz, *inds, units='rad', absv=False):
-    """Returns the angle between the 1-2-3 and 4-5-6 planes."""
+    """Returns the angle between the 1-2-3 and 4-5-6 planes.
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    inds : list
+        The indices for which the plane angle is measured.
+    units : str, optional
+        The units of angle for the output. Default is radians.
+    absv : bool, optional
+        Specifies if the absolute value is returned.
+
+    Returns
+    -------
+    float
+        The plane angle.
+    """
     e1 = xyz[inds[0]] - xyz[inds[2]]
     e2 = xyz[inds[1]] - xyz[inds[2]]
     e3 = xyz[inds[3]] - xyz[inds[2]]
@@ -87,7 +167,24 @@ def planeang(xyz, *inds, units='rad', absv=False):
 
 
 def planetors(xyz, *inds, units='rad', absv=False):
-    """Returns the plane angle with the central bond projected out."""
+    """Returns the plane angle with the central bond projected out.
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    inds : list
+        The indices for which the plane dihedral angle is measured.
+    units : str, optional
+        The units of angle for the output. Default is radians.
+    absv : bool, optional
+        Specifies if the absolute value is returned.
+
+    Returns
+    -------
+    float
+        The plane dihedral angle.
+    """
     e1 = xyz[inds[0]] - xyz[inds[2]]
     e2 = xyz[inds[1]] - xyz[inds[2]]
     e3 = con.unit_vec(xyz[inds[3]] - xyz[inds[2]])
@@ -114,7 +211,24 @@ def planetors(xyz, *inds, units='rad', absv=False):
 
 def edgetors(xyz, *inds, units='rad', absv=False):
     """Returns the torsional angle based on the vector difference of the
-    two external atoms (1-2 and 5-6) to the central 3-4 bond."""
+    two external atoms (1-2 and 5-6) to the central 3-4 bond.
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    inds : list
+        The indices for which the edge dihedral angle is measured.
+    units : str, optional
+        The units of angle for the output. Default is radians.
+    absv : bool, optional
+        Specifies if the absolute value is returned.
+
+    Returns
+    -------
+    float
+        The edge dihedral angle.
+    """
     e1 = con.unit_vec(xyz[inds[0]] - xyz[inds[2]])
     e2 = con.unit_vec(xyz[inds[1]] - xyz[inds[2]])
     e3 = con.unit_vec(xyz[inds[3]] - xyz[inds[2]])

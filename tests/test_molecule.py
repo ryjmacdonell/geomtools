@@ -239,6 +239,16 @@ def test_Molecule_copy():
     assert np.allclose(mol2.xyz[1:], eg.c2h4[1])
 
 
+def test_Molecule_rearrange_all():
+    mol = molecule.Molecule(*eg.ch4)
+    ind = [5, 3, 4, 1, 2]
+    oind = [i-1 for i in ind]
+    mol.rearrange(ind)
+    assert np.all(mol.elem[1:] == eg.ch4[0][oind])
+    assert np.allclose(mol.xyz[1:], eg.ch4[1][oind])
+    assert not mol.saved
+
+
 def test_Molecule_read_filename(tmpdir):
     f = tmpdir.join('tmp.xyz')
     f.write(ef.xyz_novec)
@@ -534,6 +544,15 @@ def test_MoleculeBundle_write_openfile(tmpdir):
     bund = molecule.MoleculeBundle([mol, mol])
     bund.write(f.open(mode='w'))
     assert f.read() == 2*ef.xyz_novec
+
+
+def test_MoleculeBundle_write_vec(tmpdir):
+    f = tmpdir.join('tmp.xyz')
+    vec = np.ones((5, 3))
+    mol = molecule.Molecule(*eg.ch4, vec=vec, comment='comment line')
+    bund = molecule.MoleculeBundle([mol, mol])
+    bund.write(f.open(mode='w'))
+    assert f.read() == 2*ef.xyz_vec
 
 
 def test_MoleculeBundle_measure():

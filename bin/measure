@@ -37,8 +37,11 @@ def main():
     vfmt = get_optarg(argv, '-v', '--val-format', default='{:10.4f}\n')
     kwargs = dict(
         units = get_optarg(argv, '-u', '--units', default='auto'),
-        absv = get_optarg(argv, '-a', '--absolute')
                   )
+    absv = get_optarg(argv, '-a', '--absolute')
+    if absv:
+        kwargs['absv'] = absv
+
     meas_func = getattr(measure, argv[2])
     inds = np.array(argv[3:], dtype=int) - 1
     moldat = read_multiple(argv[1], fmt=fmt)
