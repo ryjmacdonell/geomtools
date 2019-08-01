@@ -72,6 +72,8 @@ def read_xyz(infile, units='ang', hasvec=False, hascom=False):
     xyz = data[:, 1:4].astype(float) * con.conv(units, 'ang')
     if hasvec:
         vec = data[:, 4:7].astype(float)
+        if vec.size == 0:
+            vec = np.zeros_like(xyz)
     else:
         vec = None
     return elem, xyz, vec, comment

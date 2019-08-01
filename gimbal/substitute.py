@@ -348,8 +348,7 @@ def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
     new_elem = np.hstack((elem[ind1], sub_el, elem[ind2]))
     new_xyz = np.vstack((xyz[ind1], sub_xyz, xyz[ind2]))
     if vec is None:
-        new_vec = np.zeros((len(new_elem), 3))
+        return new_elem, new_xyz, None
     else:
         new_vec = np.vstack((vec[ind1], np.zeros((len(sub_el), 3)), vec[ind2]))
-
-    return new_elem, new_xyz, new_vec
+        return new_elem, new_xyz, new_vec

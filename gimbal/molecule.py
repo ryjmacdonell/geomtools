@@ -626,7 +626,11 @@ class Molecule(BaseMolecule):
         """
         args = (self._elem, self._xyz, lbl, isub)
         kwargs = dict(ibond=ibond, pl=pl, vec=self._vec)
-        self._elem, self._xyz, self._vec = substitute.subst(*args, **kwargs)
+        self._elem, self._xyz, vec = substitute.subst(*args, **kwargs)
+        if self.print_vec:
+            self._vec = vec
+        else:
+            self._vec = np.zeros_like(self._xyz)
         self._check()
 
 
