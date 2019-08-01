@@ -34,7 +34,7 @@ def translate(xyz, amp, axis, ind=None, units='ang'):
         The axis of translation, parsed by :func:`_parse_axis`.
     ind : array_like, optional
         List of atomic indices to specify which atoms are displaced. If
-        `ind == None` (default) then all atoms are displaced.
+        ind is None (default) then all atoms are displaced.
     units : str, optional
         The units of length for displacement. Default is angstroms.
 
@@ -196,7 +196,7 @@ def rotate(xyz, ang, axis, ind=None, origin=np.zeros(3), det=1, units='rad'):
         The axis of rotation, parsed by :func:`_parse_axis`.
     ind : array_like, optional
         List of atomic indices to specify which atoms are displaced. If
-        `ind == None` (default) then all atoms are displaced.
+        ind is None (default) then all atoms are displaced.
     origin : (3,) array_like, optional
         The origin of rotation. Default is the cartesian origin.
     det : float, optional
