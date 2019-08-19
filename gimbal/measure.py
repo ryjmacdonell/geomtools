@@ -47,7 +47,7 @@ def bend(xyz, *inds, units='rad'):
     e1 = con.unit_vec(xyz[inds[0]] - xyz[inds[1]])
     e2 = con.unit_vec(xyz[inds[2]] - xyz[inds[1]])
 
-    coord = np.arccos(np.dot(e1, e2))
+    coord = _arccos(np.dot(e1, e2))
     return coord * con.conv('rad', units)
 
 
@@ -79,11 +79,11 @@ def tors(xyz, *inds, units='rad', absv=False):
     cp2 = con.unit_vec(np.cross(e2, e3))
 
     if absv:
-        coord = np.arccos(np.dot(cp1, cp2))
+        coord = _arccos(np.dot(cp1, cp2))
     else:
         # get cross product of plane normals for signed dihedral angle
         cp3 = np.cross(cp1, cp2)
-        coord = np.sign(np.dot(cp3, e2)) * np.arccos(np.dot(cp1, cp2))
+        coord = np.sign(np.dot(cp3, e2)) * _arccos(np.dot(cp1, cp2))
 
     return coord * con.conv('rad', units)
 
@@ -117,7 +117,7 @@ def oop(xyz, *inds, units='rad', absv=False):
     e3 = con.unit_vec(xyz[inds[2]] - xyz[inds[3]])
 
     sintau = np.dot(np.cross(e2, e3) / np.sqrt(1 - np.dot(e2, e3) ** 2), e1)
-    coord = np.sign(np.dot(e2+e3, e1)) * np.arccos(sintau) + np.pi/2
+    coord = np.sign(np.dot(e2+e3, e1)) * _arccos(sintau) + np.pi/2
     # sign convention to keep |oop| < pi
     if coord > np.pi:
         coord -= 2 * np.pi
@@ -157,11 +157,11 @@ def planeang(xyz, *inds, units='rad', absv=False):
     cp2 = con.unit_vec(np.cross(e4, e5))
 
     if absv:
-        coord = np.arccos(np.dot(cp1, cp2))
+        coord = _arccos(np.dot(cp1, cp2))
     else:
         # get cross product of plane norms for signed dihedral angle
         cp3 = np.cross(cp1, cp2)
-        coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(cp1, cp2))
+        coord = np.sign(np.dot(cp3, e3)) * _arccos(np.dot(cp1, cp2))
 
     return coord * con.conv('rad', units)
 
@@ -200,11 +200,11 @@ def planetors(xyz, *inds, units='rad', absv=False):
     pj2 = con.unit_vec(cp2 - np.dot(cp2, e3) * e3)
 
     if absv:
-        coord = np.arccos(np.dot(pj1, pj2))
+        coord = _arccos(np.dot(pj1, pj2))
     else:
         # get cross product of vectors for signed dihedral angle
         cp3 = np.cross(pj1, pj2)
-        coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(pj1, pj2))
+        coord = np.sign(np.dot(cp3, e3)) * _arccos(np.dot(pj1, pj2))
 
     return coord * con.conv('rad', units)
 
@@ -244,10 +244,35 @@ def edgetors(xyz, *inds, units='rad', absv=False):
     cp2 = con.unit_vec(np.cross(e3, e5))
 
     if absv:
-        coord = np.arccos(np.dot(cp1, cp2))
+        coord = _arccos(np.dot(cp1, cp2))
     else:
         # get cross product of vectors for signed dihedral angle
         cp3 = np.cross(cp1, cp2)
-        coord = np.sign(np.dot(cp3, e3)) * np.arccos(np.dot(cp1, cp2))
+        coord = np.sign(np.dot(cp3, e3)) * _arccos(np.dot(cp1, cp2))
 
     return coord * con.conv('rad', units)
+
+
+def _arccos(val):
+    """Returns the arccosine of an angle allowing for numerical errors.
+    
+    NumPy's arccos function is defined for the range [-1, 1], but
+    returns NaN for |x| = 1 + delta, where delta is small. This can be
+    avoided by checking for limiting cases with np.isclose.
+    
+    Parameters
+    ----------
+    val : float
+        The x-coordinate on the unit circle.
+    
+    Returns
+    -------
+    float
+        The angle intersecting the unit circle at x = val.
+    """
+    if np.isclose(val, -1):
+        return np.pi
+    elif np.isclose(val, 1):
+        return 0.
+    else:
+        return np.arccos(val)
