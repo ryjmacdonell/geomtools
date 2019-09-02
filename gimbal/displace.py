@@ -17,8 +17,208 @@ Example axes for displacements:
 Each internal coordinate measurement has the option of changing the units
 (see the constants module) or taking the absolute value.
 """
+import operator as op
+import pyparsing as pp
 import numpy as np
 import gimbal.constants as con
+
+
+class VectorParser(object):
+    """An object for defining and evaluating vector operations on
+    a cartesian geometry.
+
+    A new VectorParser instance takes a cartesian geometry as an
+    optional input. The instance can be called with a vector (no
+    action), 3x3 array (cross product) or string, parsed according
+    to the syntax in :func:`~VectorParser.generate_parser`.
+
+    Attributes
+    ----------
+    xyz : (N, 3) array_like, optional
+        The cartesian geometry which defines the indices in parsed
+        expressions. If None, only expressions without indices can
+        be parsed.
+    unop : dict
+        A dictionary which defines unary operations.
+    bnadd : dict
+        A dictionary which defines binary addition operations.
+    bnmul : dict
+        A dictionary which defines binary multiplication operations.
+    bnop : dict
+        A dictionary which defines all binary operations.
+    axes : dict
+        A dictionary which defines cartesian axis labels.
+    expr : pyparsing.Forward
+        A pyparsing grammar used to evaluate expressions. Automatically
+        generated when xyz is set.
+    """
+    def __init__(self, xyz=None):
+        self.unop = {'+': op.pos, '-': op.neg}
+        self.bnadd = {'+': op.add, '-': op.sub}
+        self.bnmul = {'*': op.mul, '/': op.truediv, 'o': np.dot, 'x': np.cross}
+        self.bnop = dict(**self.bnadd, **self.bnmul)
+        self.axes = dict(X = np.array([1., 0., 0.]),
+                         Y = np.array([0., 1., 0.]),
+                         Z = np.array([0., 0., 1.]))
+        self.xyz = xyz
+
+    def __call__(self, inp, unit=False):
+        """Evaluates an expression based on a string.
+
+        Parameters
+        ----------
+        inp : str or array_like
+            A string or array used to specify an axis.
+        unit : bool, optional
+            Specifies if the axis is converted to a unit vector.
+
+        Returns
+        -------
+        float or ndarray
+            The result of the vector operation.
+
+        Raises
+        ------
+        ValueError
+            If input is not a string, 3-vector or 3x3 array.
+        """
+        if isinstance(inp, str):
+            u = self.expr.parseString(inp, parseAll=True)[0]
+        elif len(inp) == 3:
+            u = np.array(inp, dtype=float)
+            if u.size == 9:
+                u = np.cross(u[0] - u[1], u[2] - u[1])
+        else:
+            raise ValueError('Axis specification not recognized')
+
+        if unit:
+            return con.unit_vec(u)
+        else:
+            return u
+
+    @property
+    def xyz(self):
+        """Gets the value of xyz."""
+        return self._xyz
+
+    @xyz.setter
+    def xyz(self, val):
+        """Sets the value of xyz and generates the parser."""
+        self.expr = self.generate_parser(val)
+        self._xyz = val
+
+    def _eval_unary(self, tokens):
+        """Evaluates unary operations.
+
+        Parameters
+        ----------
+        tokens : list
+            A list of pyparsing tokens from a matching unary expression.
+
+        Returns
+        -------
+        float or ndarray
+            The expression after unary operation.
+        """
+        vals = tokens[0]
+        return self.unop[vals[0]](vals[1])
+
+    def _eval_binary(self, tokens):
+        """Evaluates binary operations.
+
+        Parameters
+        ----------
+        tokens : list
+            A list of pyparsing tokens from a matching binary expression.
+
+        Returns
+        -------
+        float or ndarray
+            The expression after binary operation.
+        """
+        vals = tokens[0]
+        newval = vals[0]
+        it = iter(vals[1:])
+        for oper in it:
+            newval = self.bnop[oper](newval, next(it))
+
+        return newval
+
+    def _eval_power(self, tokens):
+        """Evaluates power operations.
+
+        Parameters
+        ----------
+        tokens : list
+            A list of pyparsing tokens from a matching power expression.
+
+        Returns
+        -------
+        float or ndarray
+            The expression after power operation.
+        """
+        vals = tokens[0]
+        newval = vals[-1]
+        for v in vals[-3::-2]:
+            newval = v**newval
+
+        return newval
+
+    def generate_parser(self, xyz=None):
+        """Creates the pyparsing expression based on geometry.
+
+        The syntax is as follows:
+        i+ are indices of xyz and return vectors.
+        i+.j are floating point numbers (j optional).
+        i[j] is the j-th (scalar) element of xyz[i].
+        X, Y, Z are unit vectors along x, y and z axes (uppercase only).
+        + and - are addition/subtraction of vectors or scalars.
+        * and / are multiplication/division of vectors and scalars
+            (elementwise).
+        o and x are scalar/vector products of vectors only.
+        ^ is the power of a vector/scalar by a scalar (elementwise).
+        ( and ) specify order of operation.
+        [i, j, k] gives a vector with scalar elements i, j and k.
+
+        Parameters
+        ----------
+        xyz : (N, 3), array_like, optional
+            The cartesian geometry used in index expressions. If not
+            provided, strings containing indices will raise an error.
+
+        Returns
+        -------
+        pyparsing.Forward
+            A pyparsing grammar definition.
+        """
+        expr = pp.Forward()
+
+        # operand types: int, int with index, float, axis or delimited list
+        intnum = pp.Word(pp.nums)
+        fltind = pp.Word(pp.nums) + '[' + pp.Word(pp.nums) + ']'
+        fltnum = pp.Combine(pp.Word(pp.nums) + '.' + pp.Optional(pp.Word(pp.nums)))
+        alphax = pp.oneOf(' '.join(self.axes))
+        dllist = pp.Suppress('[') + pp.delimitedList(expr) + pp.Suppress(']')
+        intnum.setParseAction(lambda t: xyz[int(t[0])])
+        fltind.setParseAction(lambda t: xyz[int(t[0])][int(t[2])])
+        fltnum.setParseAction(lambda t: float(t[0]))
+        alphax.setParseAction(lambda t: self.axes[t[0]])
+        dllist.setParseAction(lambda t: np.array(t[:]))
+        operand = dllist | alphax | fltnum | fltind | intnum
+
+        # operators: unary, power, binary multiplication/division,
+        #    binary addition/subtraction
+        sgnop = pp.oneOf(' '.join(self.unop))
+        expop = pp.Literal('^')
+        mulop = pp.oneOf(' '.join(self.bnmul))
+        addop = pp.oneOf(' '.join(self.bnadd))
+
+        # set operator precedence
+        prec = [(sgnop, 1, pp.opAssoc.RIGHT, self._eval_unary),
+                (expop, 2, pp.opAssoc.LEFT, self._eval_power),
+                (mulop, 2, pp.opAssoc.LEFT, self._eval_binary),
+                (addop, 2, pp.opAssoc.LEFT, self._eval_binary)]
+        return expr << pp.infixNotation(operand, prec)
 
 
 def translate(xyz, amp, axis, ind=None, units='ang'):
@@ -31,7 +231,7 @@ def translate(xyz, amp, axis, ind=None, units='ang'):
     amp : float
         The distance for translation.
     axis : array_like or str
-        The axis of translation, parsed by :func:`_parse_axis`.
+        The axis of translation, parsed by :class:`VectorParser`.
     ind : array_like, optional
         List of atomic indices to specify which atoms are displaced. If
         ind is None (default) then all atoms are displaced.
@@ -45,7 +245,8 @@ def translate(xyz, amp, axis, ind=None, units='ang'):
     """
     if ind is None:
         ind = range(len(xyz))
-    u = _parse_axis(axis)
+    vp = VectorParser(xyz)
+    u = vp(axis, unit=True)
     amp *= con.conv(units, 'ang')
 
     newxyz = np.copy(xyz)
@@ -53,7 +254,7 @@ def translate(xyz, amp, axis, ind=None, units='ang'):
     return newxyz
 
 
-def rotmat(ang, ax, det=1, units='rad'):
+def rotmat(ang, u, det=1, units='rad', xyz=None):
     """Returns the rotational matrix based on an angle and axis.
 
     A general rotational matrix in 3D can be formed given an angle and
@@ -72,13 +273,15 @@ def rotmat(ang, ax, det=1, units='rad'):
     ----------
     ang : float
         The angle of rotation.
-    ax : array_like or str
-        The axis of rotation, parsed by :func:`_parse_axis`.
+    u : array_like or str
+        The axis of rotation, converted to a unit vector.
     det : int, optional
         The determinant of the matrix (1 or -1) used to specify proper
         and improper rotations. Default is 1.
     units : str, optional
         The units of angle for the rotation. Default is radians.
+    xyz : (N, 3) array_like, optional
+        The cartesian coordinates used in axis specification.
 
     Returns
     -------
@@ -93,7 +296,7 @@ def rotmat(ang, ax, det=1, units='rad'):
     if not np.isclose(np.abs(det), 1):
         raise ValueError('Determinant of a rotational matrix must be +/- 1')
 
-    u = _parse_axis(ax)
+    u /= np.linalg.norm(u)
     amp = ang * con.conv(units, 'rad')
     ucross = np.array([[0, u[2], -u[1]], [-u[2], 0, u[0]], [u[1], -u[0], 0]])
     return (np.cos(amp) * np.eye(3) + np.sin(amp) * ucross +
@@ -161,7 +364,7 @@ def angax(rotmat, units='rad'):
         raise ValueError('Determinant of a rotational matrix must be +/- 1')
 
     tr = np.trace(rotmat)
-    ang = np.arccos((tr - det) / 2) * con.conv('rad', units)
+    ang = con.arccos((tr - det) / 2) * con.conv('rad', units)
     if np.isclose(det*tr, 3):
         u = np.array([0, 0, 1])
     else:
@@ -193,12 +396,13 @@ def rotate(xyz, ang, axis, ind=None, origin=np.zeros(3), det=1, units='rad'):
     ang : float
         The angle of rotation.
     axis : array_like or str
-        The axis of rotation, parsed by :func:`_parse_axis`.
+        The axis of rotation, parsed by :class:`VectorParser`.
     ind : array_like, optional
         List of atomic indices to specify which atoms are displaced. If
         ind is None (default) then all atoms are displaced.
     origin : (3,) array_like, optional
-        The origin of rotation. Default is the cartesian origin.
+        The origin of rotation, parsed by :class:`VectorParser`. Default
+        is the cartesian origin.
     det : float, optional
         The determinant of the rotation. 1 (default) is a proper rotation
         and -1 is an improper rotation (rotation + reflection).
@@ -212,10 +416,13 @@ def rotate(xyz, ang, axis, ind=None, origin=np.zeros(3), det=1, units='rad'):
     """
     if ind is None:
         ind = range(len(xyz))
-    origin = np.array(origin, dtype=float)
-    newxyz = xyz - origin
-    newxyz[ind] = newxyz[ind].dot(rotmat(ang, axis, det=det, units=units))
-    return newxyz + origin
+
+    vp = VectorParser(xyz)
+    ax = vp(axis, unit=True)
+    org = vp(origin)
+    newxyz = xyz - org
+    newxyz[ind] = newxyz[ind].dot(rotmat(ang, ax, det=det, units=units))
+    return newxyz + org
 
 
 def align_pos(xyz, test_crd, ref_crd, ind=None):
@@ -265,8 +472,9 @@ def align_axis(xyz, test_ax, ref_ax, ind=None, origin=np.zeros(3)):
     (N, 3) ndarray
         The atomic cartesian coordinates of the displaced molecule.
     """
-    test = _parse_axis(test_ax)
-    ref = _parse_axis(ref_ax)
+    vp = VectorParser(xyz)
+    test = vp(test_ax, unit=True)
+    ref = vp(ref_ax, unit=True)
     if np.allclose(test, ref):
         return xyz
     elif np.allclose(test, -ref):
@@ -276,7 +484,7 @@ def align_axis(xyz, test_ax, ref_ax, ind=None, origin=np.zeros(3)):
         rotax -= np.dot(rotax, test) * test
         return rotate(xyz, np.pi, rotax, ind=ind, origin=origin)
     else:
-        angle = np.arccos(np.dot(test, ref))
+        angle = con.arccos(np.dot(test, ref))
         rotax = np.cross(test, ref)
         return rotate(xyz, angle, rotax, ind=ind, origin=origin)
 
@@ -326,50 +534,6 @@ def centre_mass(elem, xyz):
         The atomic cartesian coordinates of the displaced molecule.
     """
     return xyz - get_centremass(elem, xyz)
-
-
-def _parse_axis(inp):
-    """Returns a numpy array based on a specified axis.
-
-    Axis can be given as a string (e.g. 'x' or 'xy'), a vector
-    or a set of 3 vectors. If the input defines a plane, the plane
-    normal is returned.
-
-    For instance, 'x', 'yz', [1, 0, 0] and [[0, 1, 0], [0, 0, 0], [0, 0, 1]]
-    will all return [1, 0, 0].
-
-    Parameters
-    ----------
-    inp : array_like or str
-        The axis specification to be parsed.
-
-    Returns
-    -------
-    (3,) ndarray
-        The axis given as a 3D cartesian vector.
-    """
-    if isinstance(inp, str):
-        if inp in ['x', 'yz', 'zy']:
-            return np.array([1., 0., 0.])
-        elif inp in ['y', 'xz', 'zx']:
-            return np.array([0., 1., 0.])
-        elif inp in ['z', 'xy', 'yx']:
-            return np.array([0., 0., 1.])
-        elif inp == '-x':
-            return np.array([-1., 0., 0.])
-        elif inp == '-y':
-            return np.array([0., -1., 0.])
-        elif inp == '-z':
-            return np.array([0., 0., -1.])
-    elif len(inp) == 3:
-        u = np.array(inp, dtype=float)
-        if u.size == 9:
-            unew = np.cross(u[0] - u[1], u[2] - u[1])
-            return con.unit_vec(unew)
-        else:
-            return con.unit_vec(u)
-    else:
-        raise ValueError('Axis specification not recognized')
 
 
 def _nonzero_sign(x):

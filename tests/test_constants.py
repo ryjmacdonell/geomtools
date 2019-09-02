@@ -73,6 +73,16 @@ def test_unit_vec_fails():
         uvec = con.unit_vec(np.zeros(3))
 
 
+def test_arccos_plusone():
+    ang = con.arccos(1 + 1e-10)
+    assert np.isclose(ang, 0)
+
+
+def test_arccos_minusone():
+    ang = con.arccos(-1 - 1e-10)
+    assert np.isclose(ang, np.pi)
+
+
 def test_conv_unit():
     assert np.isclose(con.conv('auto', 'auto'), 1.)
 

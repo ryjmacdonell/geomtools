@@ -226,8 +226,8 @@ class SubLib(object):
             ax = con.unit_vec(xyz[i] - xyz[ibond])
             lbl = self.syn[label.lower()]
             new_elem = self.elem[lbl]
-            new_xyz = displace.rotate(self.xyz[lbl], rot*np.pi, 'z')
-            new_xyz = displace.align_axis(new_xyz, 'z', ax)
+            new_xyz = displace.rotate(self.xyz[lbl], rot*np.pi, 'Z')
+            new_xyz = displace.align_axis(new_xyz, 'Z', ax)
             blen = con.get_covrad(elem[ibond]) + con.get_covrad(new_elem[0])
             new_xyz += xyz[ibond] + blen * ax
             elem = np.hstack((np.delete(elem, i), new_elem))
@@ -337,8 +337,8 @@ def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
         blen = con.get_covrad(elem[ibond]) + con.get_covrad(sub_el[0])
 
     # rotate to correct orientation and displace to correct position
-    sub_xyz = displace.align_axis(sub_xyz, 'z', ax)
-    sub_pl = displace.align_axis([0., 1., 0.], 'z', ax)
+    sub_xyz = displace.align_axis(sub_xyz, 'Z', ax)
+    sub_pl = displace.align_axis([0., 1., 0.], 'Z', ax)
     sub_xyz = displace.align_axis(sub_xyz, sub_pl, pl)
     sub_xyz += xyz[ibond] + blen * ax
 

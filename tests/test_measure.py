@@ -109,13 +109,3 @@ def test_edgetors_degrees():
 def test_edgetors_absv():
     edgetors = measure.edgetors(eg.c2h4_ms[1], 2, 3, 0, 1, 4, 5, absv=True)
     assert np.isclose(edgetors, 2.48199179)
-
-
-def test_arccos_plusone():
-    ang = measure._arccos(1 + 1e-10)
-    assert np.isclose(ang, 0)
-
-
-def test_arccos_minusone():
-    ang = measure._arccos(-1 - 1e-10)
-    assert np.isclose(ang, np.pi)

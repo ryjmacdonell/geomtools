@@ -26,7 +26,7 @@ setup(
     author_email='rmacd054@uottawa.ca',
     license='MIT',
     packages=find_packages(),
-    scripts=['bin/convgeom', 'bin/displace', 'bin/measure', 'bin/subst'],
+    scripts=['bin/convgeom', 'bin/measure', 'bin/nudge', 'bin/subst'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',
@@ -34,6 +34,7 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Scientific/Engineering :: Chemistry'
                  ],
     install_requires=['numpy>=1.6.0', 'scipy>=0.9.0']

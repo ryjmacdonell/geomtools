@@ -6,13 +6,15 @@ Usage
 -----
 To add a substituent to all geometries in an input file:
 
-    subst input output sublbl {inds} [options]
+    subst input_file sublbl {inds} [options]
 
 The inds mark which position is substituted. If multiple indices are
 given, the first will be the position of the substituent.
 
 Options
 -------
+-i, --in-place
+    Boolean argument, whether or not the geometry file is overwritten.
 -b, --bond-ind
     The index of the atom bound to the substituent. If not specified,
     the nearest atom is used.
@@ -26,13 +28,14 @@ Options
 -v, --has-vector
     Boolean argument, whether or not vector is read.
 """
-from sys import argv
+from sys import argv, stdout
 import gimbal.fileio as fileio
 import gimbal.substitute as substitute
 
 
 def main():
     """The main 'subst' routine."""
+    inplace = fileio.get_optarg(argv, '-i', '--in-place')
     kwargs = dict(
         ibond = fileio.get_optarg(argv, '-b', '--bond-ind', default=None),
         pl = fileio.get_optarg(argv, '-p', '--plane-ind', default=None)
@@ -50,15 +53,18 @@ def main():
     moldat = fileio.read_multiple(argv[1], **inpkw)
     subdat = []
 
-    inds = [int(i) - 1 for i in argv[4:]]
+    inds = [int(i) - 1 for i in argv[3:]]
     for dat in moldat:
         if inpkw['hasvec']:
             kwargs.update(vec = dat[2])
 
-        new = substitute.subst(dat[0], dat[1], argv[3], inds, **kwargs)
+        new = substitute.subst(dat[0], dat[1], argv[2], inds, **kwargs)
         subdat.append((*new, dat[3]))
 
-    fileio.write_multiple(argv[2], subdat, fmt=inpkw['fmt'])
+    if inplace:
+        fileio.write_multiple(argv[1], subdat, fmt=inpkw['fmt'])
+    else:
+        fileio.write_multiple(stdout, subdat, fmt=inpkw['fmt'])
 
 
 if __name__ == '__main__':

@@ -325,14 +325,14 @@ def test_Molecule_translate():
 
 def test_Molecule_rotate_no_vec():
     mol = molecule.Molecule(*eg.c2h4)
-    mol.rotate(np.pi/2, 'z')
+    mol.rotate(np.pi/2, 'Z')
     soln = np.array([-eg.c2h4[1][:,1], -eg.c2h4[1][:,0], eg.c2h4[1][:,2]]).T
     assert np.allclose(mol.xyz[1:], soln)
 
 
 def test_Molecule_rotate_vec():
     mol = molecule.Molecule(*eg.c2h4, vec=np.ones((6, 3)))
-    mol.rotate(np.pi/2, 'z')
+    mol.rotate(np.pi/2, 'Z')
     soln = np.ones_like(eg.c2h4[1])
     soln[:,0] = -1
     assert np.allclose(mol.vec[1:], soln)

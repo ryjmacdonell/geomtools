@@ -147,6 +147,31 @@ def unit_vec(v):
         return v / vlen
 
 
+def arccos(val):
+    """Returns the arccosine of an angle allowing for numerical errors.
+
+    NumPy's arccos function is defined for the range [-1, 1], but
+    returns NaN for |x| = 1 + delta, where delta is small. This can be
+    avoided by checking for limiting cases with np.isclose.
+
+    Parameters
+    ----------
+    val : float
+        The x-coordinate on the unit circle.
+
+    Returns
+    -------
+    float
+        The angle intersecting the unit circle at x = val.
+    """
+    if np.isclose(val, -1):
+        return np.pi
+    elif np.isclose(val, 1):
+        return 0.
+    else:
+        return np.arccos(val)
+
+
 def conv(old='auto', new='auto'):
     """Returns conversion factor from old units to new units.
 
