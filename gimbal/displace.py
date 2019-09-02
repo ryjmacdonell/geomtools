@@ -56,7 +56,8 @@ class VectorParser(object):
         self.unop = {'+': op.pos, '-': op.neg}
         self.bnadd = {'+': op.add, '-': op.sub}
         self.bnmul = {'*': op.mul, '/': op.truediv, 'o': np.dot, 'x': np.cross}
-        self.bnop = dict(**self.bnadd, **self.bnmul)
+        self.bnop = self.bnadd.copy()
+        self.bnop.update(self.bnmul)
         self.axes = dict(X = np.array([1., 0., 0.]),
                          Y = np.array([0., 1., 0.]),
                          Z = np.array([0., 0., 1.]))

@@ -6,8 +6,15 @@ from setuptools import find_packages
 
 
 def readme():
-    with open('README.rst') as f:
+    """Returns the contents of the README."""
+    with open('README.rst', 'r') as f:
         return f.read()
+
+
+def requirements():
+    """Returns the requirement list."""
+    with open('requirements.txt', 'r') as f:
+        return [line.strip() for line in f.readlines()]
 
 
 # read the current version number
@@ -37,5 +44,5 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Topic :: Scientific/Engineering :: Chemistry'
                  ],
-    install_requires=['numpy>=1.6.0', 'scipy>=0.9.0']
+    install_requires=requirements()
       )
