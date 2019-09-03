@@ -198,7 +198,7 @@ class SubLib(object):
             A list of substituent labels to be combined.
         inds : int or array_like, optional
             The indices for substitution between substituents. Setting
-            inds = -1 (default) makes the last atom the subtituted atom.
+            inds=-1 (default) makes the last atom the subtituted atom.
             Otherwise a list of indices can be given for the first of
             each pair of substituents.
 

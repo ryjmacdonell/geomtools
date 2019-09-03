@@ -6,9 +6,11 @@ from setuptools import find_packages
 
 
 def readme():
-    """Returns the contents of the README."""
+    """Returns the contents of the README without the header image."""
+    header = '======\nGimbal\n======\n'
     with open('README.rst', 'r') as f:
-        return f.read()
+        f.readline()
+        return header + f.read()
 
 
 def requirements():
@@ -27,6 +29,7 @@ setup(
     description=('Tools for importing, creating, editing and querying ' +
                  'molecular geometries'),
     long_description=readme(),
+    long_description_content_type='text/x-rst',
     keywords='gimbal molecule geometry displacement transformation 3D',
     url='https://github.com/ryjmacdonell/gimbal',
     author='Ryan J. MacDonell',

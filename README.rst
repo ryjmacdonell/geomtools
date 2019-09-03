@@ -28,16 +28,17 @@ Alternatively, clone the repository and use setup.py to install via::
     $ cd gimbal/
     $ python setup.py install
 
-This will also add several executables from `bin/` to your path for easily
-editing recognized file formats.
+Installation will also add several executables from `bin/` to your path for
+easily editing recognized file formats.
 
 Requirements
 ------------
-Requires at least Python 3.4, NumPy v1.6.0, SciPy v0.9.0 and Pyparsing v2.2.0
+Requires at least Python 3.4, NumPy v1.6.0, SciPy v0.9.0 and PyParsing v2.2.0
 
 Documentation
 -------------
-For additional documentation, see the `documentation page <https://gimbal-editor.readthedocs.io/en/latest>`_.
+For additional documentation, see the
+`documentation page <https://gimbal-editor.readthedocs.io/en/latest>`_.
 
 Author
 ------

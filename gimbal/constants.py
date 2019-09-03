@@ -20,7 +20,7 @@ Attributes
 sym : ndarray
     List of atomic symbols up to Krypton. The ordering (with the
     exception of deuterium) yields the correct atomic number from
-    `sym.index(elem)`.
+    ``sym.index(elem)``.
 mass : ndarray
     List of atomic masses corresponding to the elements in `sym`.
 covrad : ndarray
@@ -151,8 +151,9 @@ def arccos(val):
     """Returns the arccosine of an angle allowing for numerical errors.
 
     NumPy's arccos function is defined for the range [-1, 1], but
-    returns NaN for |x| = 1 + delta, where delta is small. This can be
-    avoided by checking for limiting cases with np.isclose.
+    returns NaN for :math:`|x| = 1 + \delta`, where :math:`\delta` is
+    small.  This can be avoided by checking for limiting cases with
+    ``numpy.isclose``.
 
     Parameters
     ----------

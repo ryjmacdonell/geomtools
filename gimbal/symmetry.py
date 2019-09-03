@@ -16,11 +16,27 @@ def principal_axes(elem, xyz):
 
     The moments of inertia are found by diagonalizing the inertia tensor,
 
-    A = r . r I - r (x) r
+    .. math::
 
-    where I is the identity, . is a dot product and (x) is an open product.
-    The coordinates r are mass weighted cartesian coordinates,
-    r_i = sqrt(m_i) q_i
+        \mathbf{A} = (r \cdot r) I - r \otimes r
+
+    where *I* is the identity and (x) is an open product.
+    The coordinates *r* are mass weighted cartesian coordinates,
+    :math:`r_i = \sqrt(m_i) q_i`
+
+    Parameters
+    ----------
+    elem : (N,) array_like
+        The atomic element list.
+    xyz : (N, 3) array_like
+        The cartesian coordinates of each atom.
+
+    Returns
+    -------
+    (3,) ndarray
+        The magnitudes of principal moments of inertia.
+    (3, 3) ndarray
+        The principal axes of inertia.
     """
     rxyz = np.sqrt(con.get_mass(elem))[:,np.newaxis] * xyz
     inert = np.sum(rxyz**2) * np.eye(3) - rxyz.T.dot(rxyz)
@@ -38,6 +54,20 @@ def symmetrize(elem, xyz, thresh=1e-3):
 
     The output geometry is rotated to have symmetry elements along
     cartesian axes if possible.
+
+    Parameters
+    ----------
+    elem : (N,) array_like
+        The atomic element list.
+    xyz : (N, 3) array_like
+        The cartesian coordinates of each atom.
+    thresh : float, optional
+        The tolerance threshold for symmetry recognition.
+
+    Returns
+    -------
+    (N, 3) ndarray
+        The cartesian coordinates of the symmetrized molecule.
     """
     # centre and align
     new_xyz = displace.centre_mass(elem, xyz)
@@ -53,5 +83,18 @@ def symmetrize(elem, xyz, thresh=1e-3):
 
 def cart_jumble(xyz, thresh=1e-3):
     """Moves cartesian coordinates by random amounts up to a given
-    threshold."""
+    threshold.
+
+    Parameters
+    ----------
+    xyz : (N, 3) array_like
+        The set of atomic cartesian coordinates.
+    thresh : float, optional
+        The maximum random cartesian displacement.
+
+    Returns
+    -------
+    (N, 3) ndarray
+        The randomly displaced cartesian coordinates.
+    """
     return xyz + thresh*np.random.rand(*xyz.shape)

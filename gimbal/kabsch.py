@@ -5,15 +5,18 @@ For a reference and test set of three dimensional vectors, the Kabsch
 algorithm determines the optimal rotation matrix to minimize the RMSD
 between each vector pair.
 
-After translating the vector sets of centroids, the covariance matrix A
-is calculated by A = P^T Q. Then, using singular value decomposition,
-V S W^T = A. The scaling component S is discarded. The handedness of the
-coordinate system is determined by d = sgn(det(W V^T)). The rotation
+After translating the vector sets of centroids, the covariance matrix **A**
+is calculated by :math:`\mathbf{A} = \mathbf{P}^T \mathbf{Q}`. Then, using
+singular value decomposition,:math:`\mathbf{V S W}^T = \mathbf{A}`. The
+scaling component **S** is discarded. The handedness of the coordinate
+system is determined by :math:`d = \sign(\det(\mathbf{W V}^T))`. The rotation
 matrix is then found by
-       _       _
-      |  1 0 0  |
-U = W |  0 1 0  | V^T
-      |_ 0 0 d _|
+
+.. math::
+
+    \mathbf{U} = \mathbf{W} \begin{bmatrix} 1 & 0 & 0 \\
+                                            0 & 1 & 0 \\
+                                            0 & 0 & d \end{bmatrix} \mathbf{V}^T
 
 (See en.wikipedia.org/wiki/Kabsch_algorithm)
 

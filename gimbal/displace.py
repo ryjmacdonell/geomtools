@@ -261,11 +261,14 @@ def rotmat(ang, u, det=1, units='rad', xyz=None):
     A general rotational matrix in 3D can be formed given an angle and
     an axis by
 
-    R = cos(a) I + (det(R) - cos(a)) u (x) u + sin(a) [u]_x
+    .. math::
 
-    for identity matrix I, angle a, axis u, outer product (x) and
-    cross-product matrix [u]_x. Determinants of +1 and -1 give proper
-    and improper rotation, respectively. Thus, det(R) = -1 and a = 0
+        R = \cos(a) I + (\det(R) - \cos(a)) u \otimes u + \sin(a) [u]_x
+
+    for identity matrix :math:`I`, angle :math:`a`, axis :math:`u`,
+    outer product :math:`\otimes` and cross-product matrix :math:`[u]_x`.
+    Determinants of +1 and -1 give proper and improper rotation,
+    respectively. Thus, :math:`det(R) = -1` and :math:`a = 0`
     is a reflection along the axis. Action of the rotational matrix occurs
     about the origin. See en.wikipedia.org/wiki/Rotation_matrix
     and http://scipp.ucsc.edu/~haber/ph251/rotreflect_17.pdf
@@ -309,34 +312,45 @@ def angax(rotmat, units='rad'):
     rotational matrix.
 
     Based on the form of R, it can be separated into symmetric
-    and antisymmetric components with (r_ij + r_ji)/2 and
-    (r_ij - r_ji)/2, respectively. Then,
+    and antisymmetric components with :math:`(r_{ij} + r_{ji})/2` and
+    :math:`(r_{ij} - r_{ji})/2`, respectively. Then,
 
-    r_ii = cos(a) + u_i^2 (det(R) - cos(a)),
-    cos(a) = (-det(R) + sum_j r_jj) / 2 = (tr(R) - det(R)) / 2.
+    .. math::
 
-    From the expression for r_ii, the magnitude of u_i can be found
+        r_{ii} = \cos(a) + u_i^2 (\det(R) - \cos(a)),
+        \cos(a) = (-\det(R) + \sum_j r_{jj}) / 2 = (\tr(R) - \det(R)) / 2.
 
-    |u_i| = sqrt((1 + det(R) [2 r_ii - tr(R)]) / 2),
+    From the expression for :math:`r_{ii}`, the magnitude of :math:`u_i`
+    can be found
 
-    which satisfies u.u = 1. Note that if det(R) tr(R) = 3, the axis
-    is arbitrary (identity or inversion). Otherwise, the sign can be found
-    from the antisymmetric component of R
+    .. math::
 
-    u_i sin(a) = (r_jk - r_kj) / 2, i != j != k,
-    sign(u_i) = sign(r_jk - r_kj),
+        |u_i| = \sqrt((1 + \det(R) [2 r_{ii} - \tr(R)]) / 2),
 
-    since sin(a) is positive in the range 0 to pi. i, j and k obey the
-    cyclic relation 3 -> 2 -> 1 -> 3 -> ...
+    which satisfies :math:`u \cdot u = 1`. Note that if
+    :math:`\det(R) \tr(R) = 3`, the axis is arbitrary (identity or
+    inversion). Otherwise, the sign can be found from the antisymmetric
+    component of :math:`R`.
 
-    This fails when det(R) tr(R) = -1, in which case the symmetric
+    .. math::
+
+        u_i \sin(a) = (r_{jk} - r_{kj}) / 2, i != j != k,
+        \sign(u_i) = \sign(r_{jk} - r_{kj}),
+
+    since :math:`sin(a)` is positive in the range 0 to :math:`pi`. :math:`i`,
+    :math:`j` and :math:`k` obey the cyclic relation 3 -> 2 -> 1 -> 3 -> ...
+
+    This fails when :math:`det(R) tr(R) = -1`, in which case the symmetric
     component of R is used
 
-    u_i u_j (det(R) - cos(a)) = (r_ij + r_ji) / 2,
-    sign(u_i) sign(u_j) = det(R) sign(r_ij + r_ji).
+    .. math::
 
-    The signs can then be found by letting sign(u_3) = +1, since a rotation
-    of pi or a reflection are equivalent for antiparallel axes. See
+        u_i u_j (\det(R) - \cos(a)) = (r_{ij} + r_{ji}) / 2,
+        \sign(u_i) \sign(u_j) = \det(R) \sign(r_{ij} + r_{ji}).
+
+    The signs can then be found by letting :math:`\sign(u_3) = +1`, since
+    a rotation of :math:`pi` or a reflection are equivalent for antiparallel
+    axes. See
     http://scipp.ucsc.edu/~haber/ph251/rotreflect_17.pdf
 
     Parameters
