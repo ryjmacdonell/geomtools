@@ -356,6 +356,17 @@ def test_Molecule_subst():
     assert np.allclose(mol.xyz[1:], eg.c2h3me[1])
 
 
+def test_Molecule_subst_vec():
+    mol = molecule.Molecule(*eg.c2h4)
+    mol.print_vec = True
+    mol.vec = np.ones_like(mol.xyz)
+    mol.subst('ch3', 3, pl=2)
+    newvec = np.vstack((np.ones((2, 3)), np.zeros((4, 3)), np.ones((3, 3))))
+    assert np.all(mol.elem[1:] == eg.c2h3me[0])
+    assert np.allclose(mol.xyz[1:], eg.c2h3me[1])
+    assert np.allclose(mol.vec[1:], newvec)
+
+
 def test_empty_MoleculeBundle():
     bund = molecule.MoleculeBundle()
     assert len(bund.molecules) == 0

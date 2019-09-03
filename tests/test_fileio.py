@@ -31,6 +31,14 @@ def test_read_xyz_vector(tmpdir):
     assert np.allclose(vec, np.ones((5, 3)))
 
 
+def test_read_xyz_vector_empty(tmpdir):
+    f = ef.tmpf(tmpdir, ef.xyz_novec)
+    elem, xyz, vec, com = fileio.read_xyz(f, hasvec=True)
+    assert np.all(elem == eg.ch4[0])
+    assert np.allclose(xyz, eg.ch4[1])
+    assert np.allclose(vec, np.zeros((5, 3)))
+
+
 def test_read_xyz_wrong_format(tmpdir):
     f = ef.tmpf(tmpdir, ef.col_nocom)
     with pytest.raises(IOError, match=r'geometry not in XYZ format.'):

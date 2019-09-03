@@ -24,6 +24,12 @@ def test_VectorParser_cross_unit():
     assert np.allclose(vp(ax, unit=True), ax2 / np.linalg.norm(ax2))
 
 
+def test_VectorParser_xyz_getter():
+    xyz = eg.c2h4[1]
+    vp = displace.VectorParser(xyz)
+    assert np.allclose(vp.xyz, xyz)
+
+
 def test_VectorParser_xyz_unary():
     xyz = eg.c2h4[1]
     vp = displace.VectorParser(xyz)
