@@ -18,11 +18,12 @@ def principal_axes(elem, xyz):
 
     .. math::
 
-        \mathbf{A} = (r \cdot r) I - r \otimes r
+        \mathbf{A} = (\mathbf{r} \cdot \mathbf{r}) \mathbf{I} -
+        \mathbf{r} \otimes \mathbf{r}
 
-    where *I* is the identity and (x) is an open product.
-    The coordinates *r* are mass weighted cartesian coordinates,
-    :math:`r_i = \sqrt(m_i) q_i`
+    where **I** is the identity and :math:`\otimes` is an open product.
+    The coordinates **r** are mass weighted cartesian coordinates,
+    :math:`r_i = m_i^{1/2} q_i`
 
     Parameters
     ----------

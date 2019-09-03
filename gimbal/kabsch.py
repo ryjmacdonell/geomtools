@@ -1,4 +1,4 @@
-"""
+r"""
 Module for aligning similar molecular geometries using the Kabsch algorithm.
 
 For a reference and test set of three dimensional vectors, the Kabsch
@@ -7,10 +7,10 @@ between each vector pair.
 
 After translating the vector sets of centroids, the covariance matrix **A**
 is calculated by :math:`\mathbf{A} = \mathbf{P}^T \mathbf{Q}`. Then, using
-singular value decomposition,:math:`\mathbf{V S W}^T = \mathbf{A}`. The
+singular value decomposition, :math:`\mathbf{V S W}^T = \mathbf{A}`. The
 scaling component **S** is discarded. The handedness of the coordinate
-system is determined by :math:`d = \sign(\det(\mathbf{W V}^T))`. The rotation
-matrix is then found by
+system is determined by :math:`d = \mathrm{sign}(\det(\mathbf{W V}^T))`. The
+rotation matrix is then found by
 
 .. math::
 

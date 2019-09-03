@@ -14,12 +14,14 @@ import gimbal.measure as measure
 def read_xyz(infile, units='ang', hasvec=False, hascom=False):
     """Reads input file in XYZ format.
 
-    XYZ files are in the format:
-    natm
-    comment
-    A X1 Y1 Z1 [Vx1 Vy1 Vz1]
-    B X2 Y2 Z2 [Vx2 Vy2 Vz2]
-    ...
+    XYZ files are in the format::
+
+        natm
+        comment
+        A X1 Y1 Z1 [Vx1 Vy1 Vz1]
+        B X2 Y2 Z2 [Vx2 Vy2 Vz2]
+        ...
+
     where natm is the number of atoms, comment is a comment line, A and B
     are atomic labels and X, Y and Z are cartesian coordinates (in
     Angstroms). The vectors Vx, Vy and Vz are optional and will only be
@@ -82,10 +84,12 @@ def read_xyz(infile, units='ang', hasvec=False, hascom=False):
 def read_col(infile, units='bohr', hasvec=False, hascom=False):
     """Reads input file in COLUMBUS format.
 
-    COLUMBUS geometry files are in the format:
-    A nA X1 Y1 Z1 mA
-    B nB X2 Y2 Z2 mB
-    ...
+    COLUMBUS geometry files are in the format::
+
+        A nA X1 Y1 Z1 mA
+        B nB X2 Y2 Z2 mB
+        ...
+
     where A and B are atomic labels, nA and nB are corresponding atomic
     numbers, mA and mB are corresponding atomic masses and X, Y and Z
     are cartesian coordinates (in Bohrs).
@@ -153,15 +157,17 @@ def read_col(infile, units='bohr', hasvec=False, hascom=False):
 def read_gdat(infile, units='bohr', hasvec=False, hascom=False):
     """Reads input file in FMS90 Geometry.dat format.
 
-    Geometry.dat files are in the format:
-    comment
-    natm
-    A X1 Y1 Z1
-    B X2 Y2 Z2
-    ...
-    Vx1 Vy1 Vz1
-    Vx2 Vy2 Vz2
-    ...
+    Geometry.dat files are in the format::
+
+        comment
+        natm
+        A X1 Y1 Z1
+        B X2 Y2 Z2
+        ...
+        Vx1 Vy1 Vz1
+        Vx2 Vy2 Vz2
+        ...
+
     where comment is a comment line, natm is the number of atoms, A and B
     are atomic labels, X, Y and Z are cartesian coordinates and Vq are
     vectors for cartesian coordinates q. The vectors are only read if
@@ -220,13 +226,15 @@ def read_gdat(infile, units='bohr', hasvec=False, hascom=False):
 def read_zmt(infile, units='ang', hasvec=False, hascom=False):
     """Reads input file in Z-matrix format.
 
-    Z-matrix files are in the format:
-    A
-    B 1 R1
-    C indR2 R2 indA2 A2
-    D indR3 R3 indA3 A3 indT3 T3
-    E indR4 R4 indA4 A4 indT4 T4
-    ...
+    Z-matrix files are in the format::
+
+        A
+        B 1 R1
+        C indR2 R2 indA2 A2
+        D indR3 R3 indA3 A3 indT3 T3
+        E indR4 R4 indA4 A4 indT4 T4
+        ...
+
     where A, B, C, D, E are atomic labels, indR, indA, indT are reference
     atom indices, R are bond lengths (in Angstroms), A are bond angles (in
     degrees) and T are dihedral angles (in degrees). For example, E is a
@@ -354,10 +362,12 @@ def read_traj(infile, units='bohr', hasvec=False, hascom=False,
               elem=None, time=None, autocom=False):
     """Reads input file in FMS/nomad trajectory format
 
-    trajectory files are in the format:
-    T1 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
-    T2 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
-    ...
+    trajectory files are in the format::
+
+        T1 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
+        T2 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
+        ...
+
     where T is the time, Vq are the vectors (momenta) for cartesian
     coordinates q, G is the phase, A is the amplitude and S is the state
     label. The vectors are only read if hasvec = True.
@@ -530,7 +540,7 @@ def read_auto(infile, hasvec=False, hascom=False, **kwargs):
 def read_single(infile, fmt='auto', **kwargs):
     """Reads a single geometry from an input file.
 
-    Unlike read_auto, infile can be a string or open file.
+    Unlike :func:`read_auto`, infile can be a string or open file.
 
     Parameters
     ----------
@@ -894,7 +904,7 @@ def write_auto(outfile, elem, xyz, vec=None, comment='', **kwargs):
 def write_single(outfile, moldat, fmt='auto', **kwargs):
     """Writes a single geometry to an output file.
 
-    Unlike write_auto, outfile can be a string or open file.
+    Unlike :func:`write_auto`, outfile can be a string or open file.
 
     Parameters
     ----------

@@ -12,8 +12,8 @@ can be used to find all sets of bonds (:math:`k = 1`), angles (:math:`k = 2`)
 and dihedral angles (:math:`k = 3`).
 
 Small rings can be measured from the eigenvectors of **A**. For example, if
-:math:`\mathbf{B} = eig(\mathbf{A})`, the number of three-membered rings is
-given by :math:`\sum_{ij} \mathbf{B}_{ij}^3 / 6`.
+:math:`\mathbf{B} = \mathrm{eig}(\mathbf{A})`, the number of three-membered
+rings is given by :math:`\sum_{ij} \mathbf{B}_{ij}^3 / 6`.
 """
 import numpy as np
 from scipy import linalg

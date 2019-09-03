@@ -1,6 +1,7 @@
-"""
+r"""
 Routines for displacing a molecular geometry by translation or
 proper/improper rotation.
+::
 
         1
         |
@@ -9,10 +10,12 @@ proper/improper rotation.
       2   3
 
 Example axes for displacements:
-1. X1X4 stretch: r14
-2. X1X4 torsion: r14 (for motion of 2, 3)
-3. X1X4X2 bend: r14 x r24
-4. X1 out-of-plane: r24 - r34 or (r24 x r34) x r14
+
+    1. X1X4 stretch: :math:`r_{14}`
+    2. X1X4 torsion: :math:`r_{14}` (for motion of 2, 3)
+    3. X1X4X2 bend: :math:`r_{14} \times r_{24}`
+    4. X1 out-of-plane: :math:`r_{24} - r_{34}` or
+       :math:`(r_{24} \times r_{34}) \times r_{14}`
 
 Each internal coordinate measurement has the option of changing the units
 (see the constants module) or taking the absolute value.
@@ -169,17 +172,18 @@ class VectorParser(object):
         """Creates the pyparsing expression based on geometry.
 
         The syntax is as follows:
-        i+ are indices of xyz and return vectors.
-        i+.j are floating point numbers (j optional).
-        i[j] is the j-th (scalar) element of xyz[i].
-        X, Y, Z are unit vectors along x, y and z axes (uppercase only).
-        + and - are addition/subtraction of vectors or scalars.
-        * and / are multiplication/division of vectors and scalars
-            (elementwise).
-        o and x are scalar/vector products of vectors only.
-        ^ is the power of a vector/scalar by a scalar (elementwise).
-        ( and ) specify order of operation.
-        [i, j, k] gives a vector with scalar elements i, j and k.
+
+            - ``i+`` are indices of xyz and return vectors.
+            - ``i+.j`` are floating point numbers (j optional).
+            - ``i[j]`` is the j-th (scalar) element of xyz[i].
+            - ``X, Y, Z`` are unit vectors along x, y and z axes (uppercase only).
+            - ``+`` and ``-`` are addition/subtraction of vectors or scalars.
+            - ``*`` and ``/`` are multiplication/division of vectors and scalars
+              (elementwise).
+            - ``o`` and ``x`` are scalar/vector products of vectors only.
+            - ``^`` is the power of a vector/scalar by a scalar (elementwise).
+            - ``(`` and ``)`` specify order of operation.
+            - ``[i, j, k]`` gives a vector with scalar elements i, j and k.
 
         Parameters
         ----------
@@ -256,21 +260,22 @@ def translate(xyz, amp, axis, ind=None, units='ang'):
 
 
 def rotmat(ang, u, det=1, units='rad', xyz=None):
-    """Returns the rotational matrix based on an angle and axis.
+    r"""Returns the rotational matrix based on an angle and axis.
 
     A general rotational matrix in 3D can be formed given an angle and
     an axis by
 
     .. math::
 
-        R = \cos(a) I + (\det(R) - \cos(a)) u \otimes u + \sin(a) [u]_x
+        \mathbf{R} = \cos(a) \mathbf{I} + (\det(\mathbf{R}) -
+        \cos(a)) \mathbf{u} \otimes \mathbf{u} + \sin(a) [\mathbf{u}]_\times
 
-    for identity matrix :math:`I`, angle :math:`a`, axis :math:`u`,
-    outer product :math:`\otimes` and cross-product matrix :math:`[u]_x`.
-    Determinants of +1 and -1 give proper and improper rotation,
-    respectively. Thus, :math:`det(R) = -1` and :math:`a = 0`
-    is a reflection along the axis. Action of the rotational matrix occurs
-    about the origin. See en.wikipedia.org/wiki/Rotation_matrix
+    for identity matrix **I**, angle *a*, axis **u**,
+    outer product :math:`\otimes` and cross-product matrix
+    :math:`[\mathbf{u}]_\times`.  Determinants of +1 and -1 give proper and
+    improper rotation, respectively. Thus, :math:`\det(\mathbf{R}) = -1` and
+    :math:`a = 0` is a reflection along the axis. Action of the rotational
+    matrix occurs about the origin. See en.wikipedia.org/wiki/Rotation_matrix
     and http://scipp.ucsc.edu/~haber/ph251/rotreflect_17.pdf
 
     Parameters
@@ -308,49 +313,54 @@ def rotmat(ang, u, det=1, units='rad', xyz=None):
 
 
 def angax(rotmat, units='rad'):
-    """Returns the angle, axis of rotation and determinant of a
+    r"""Returns the angle, axis of rotation and determinant of a
     rotational matrix.
 
-    Based on the form of R, it can be separated into symmetric
+    Based on the form of **R**, it can be separated into symmetric
     and antisymmetric components with :math:`(r_{ij} + r_{ji})/2` and
     :math:`(r_{ij} - r_{ji})/2`, respectively. Then,
 
     .. math::
 
-        r_{ii} = \cos(a) + u_i^2 (\det(R) - \cos(a)),
-        \cos(a) = (-\det(R) + \sum_j r_{jj}) / 2 = (\tr(R) - \det(R)) / 2.
+        r_{ii} = \cos(a) + u_i^2 (\det(\mathbf{R}) - \cos(a)),
+
+        \cos(a) = (-\det(\mathbf{R}) + \sum_j r_{jj}) / 2 = 
+        (\mathrm{tr}(\mathbf{R}) - \det(\mathbf{R})) / 2.
 
     From the expression for :math:`r_{ii}`, the magnitude of :math:`u_i`
     can be found
 
     .. math::
 
-        |u_i| = \sqrt((1 + \det(R) [2 r_{ii} - \tr(R)]) / 2),
+        |u_i| = \sqrt{\frac{1 + \det(\mathbf{R}) [2 r_{ii} -
+        \mathrm{tr}(\mathbf{R})])}{3 - \det(\mathbf{R}) \mathrm{tr}(\mathbf{R})}},
 
     which satisfies :math:`u \cdot u = 1`. Note that if
-    :math:`\det(R) \tr(R) = 3`, the axis is arbitrary (identity or
-    inversion). Otherwise, the sign can be found from the antisymmetric
-    component of :math:`R`.
+    :math:`\det(\mathbf{R}) \mathrm{tr}(\mathbf{R}) = 3`, the axis is arbitrary
+    (identity or inversion). Otherwise, the sign can be found from the
+    antisymmetric component of **R**.
 
     .. math::
 
-        u_i \sin(a) = (r_{jk} - r_{kj}) / 2, i != j != k,
-        \sign(u_i) = \sign(r_{jk} - r_{kj}),
+        u_i \sin(a) = (r_{jk} - r_{kj}) / 2, \quad i \neq j \neq k,
 
-    since :math:`sin(a)` is positive in the range 0 to :math:`pi`. :math:`i`,
+        \mathrm{sign}(u_i) = \mathrm{sign}(r_{jk} - r_{kj}),
+
+    since :math:`\sin(a)` is positive in the range 0 to :math:`\pi`. :math:`i`,
     :math:`j` and :math:`k` obey the cyclic relation 3 -> 2 -> 1 -> 3 -> ...
 
-    This fails when :math:`det(R) tr(R) = -1`, in which case the symmetric
-    component of R is used
+    This fails when :math:`det(\mathbf{R}) \mathrm{tr}(\mathbf{R}) = -1`, in
+    which case the symmetric component of **R** is used
 
     .. math::
 
-        u_i u_j (\det(R) - \cos(a)) = (r_{ij} + r_{ji}) / 2,
-        \sign(u_i) \sign(u_j) = \det(R) \sign(r_{ij} + r_{ji}).
+        u_i u_j (\det(\mathbf{R}) - \cos(a)) = (r_{ij} + r_{ji}) / 2,
 
-    The signs can then be found by letting :math:`\sign(u_3) = +1`, since
-    a rotation of :math:`pi` or a reflection are equivalent for antiparallel
-    axes. See
+        \mathrm{sign}(u_i) \mathrm{sign}(u_j) = \det(\mathbf{R}) \mathrm{sign}(r_{ij} + r_{ji}).
+
+    The signs can then be found by letting :math:`\mathrm{sign}(u_3) = +1`,
+    since a rotation of :math:`pi` or a reflection are equivalent for
+    antiparallel axes. See
     http://scipp.ucsc.edu/~haber/ph251/rotreflect_17.pdf
 
     Parameters

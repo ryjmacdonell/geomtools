@@ -94,7 +94,7 @@ def oop(xyz, *inds, units='rad', absv=False):
 
     Contains an additional sign convention such that rotation of the
     out-of-plane atom over (under) the central plane atom gives an angle
-    greater than :math:`\pi/2` (less than -:math:`\pi/2`).
+    greater than :math:`\pi/2` (less than :math:`-\pi/2`).
 
     Parameters
     ----------

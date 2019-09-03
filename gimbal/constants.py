@@ -7,12 +7,17 @@ sensitive. This module should not depend on other modules.
 Unit types
 ----------
 Length: Angstrom (ang), Bohr (bohr), picometre (pm), nanometre (nm)
+
 Angle: radian (rad), degree (deg)
+
 Time: femtosecond (fs), picosecond (ps), atomic unit (au)
+
 Mass: atomic mass unit (amu), electron mass (me), proton mass (mp),
-      kilogram (kg)
+kilogram (kg)
+
 Energy: electron volt (ev), Hartree (har), kilocalorie per mole (kcm),
-        kilojoule per mole (kjm), reciprocal centimetre (cm)
+kilojoule per mole (kjm), reciprocal centimetre (cm)
+
 For all types, 'auto' will give the default unit.
 
 Attributes

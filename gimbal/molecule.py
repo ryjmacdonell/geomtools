@@ -53,7 +53,7 @@ class BaseMolecule(object):
         Specifies if the vectors should be printed/written. Automatically
         set to False if vec is None (default).
     saved : bool
-        Specifies if the save_... values are up to date.
+        Specifies if the ``save_...`` values are up to date.
     """
     def __init__(self, elem=[], xyz=np.empty((0, 3)), vec=None, comment=''):
         self._elem = np.atleast_1d(np.array(elem, dtype=str))
@@ -245,7 +245,7 @@ class BaseMolecule(object):
                             np.copy(self._vec), comment)
 
     def save(self):
-        """Saves molecular properties to 'save_' variables."""
+        """Saves molecular properties to ``save_`` variables."""
         self._check()
         self.save_elem = np.copy(self._elem)
         self.save_xyz = np.copy(self._xyz)
@@ -255,7 +255,7 @@ class BaseMolecule(object):
         self.saved = True
 
     def revert(self):
-        """Reverts properties to 'save_' variables."""
+        """Reverts properties to ``save_`` variables."""
         if not self.saved:
             self._elem = np.copy(self.save_elem)
             self._xyz = np.copy(self.save_xyz)
