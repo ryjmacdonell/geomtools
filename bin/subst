@@ -4,7 +4,7 @@ Command line script for adding substituents to a geometry file.
 
 Usage
 -----
-To add a substituent to all geometries in an input file:
+To add a substituent to all geometries in an input file::
 
     subst input_file sublbl {inds} [options]
 
@@ -13,19 +13,19 @@ given, the first will be the position of the substituent.
 
 Options
 -------
--i, --in-place
+``-i, --in-place``
     Boolean argument, whether or not the geometry file is overwritten.
--b, --bond-ind
+``-b, --bond-ind``
     The index of the atom bound to the substituent. If not specified,
     the nearest atom is used.
--p, --plane-ind
+``-p, --plane-ind``
     The index of the atom used to specify the xz-plane of the substituent.
     The substituent index, bonding index and plane index make up the plane.
--f, --format
+``-f, --format``
     The input/output format (xyz, col, gdat, ...)
--c, --has-comment
+``-c, --has-comment``
     Boolean argument, whether or not comment is read.
--v, --has-vector
+``-v, --has-vector``
     Boolean argument, whether or not vector is read.
 """
 from sys import argv, stdout

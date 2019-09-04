@@ -4,26 +4,26 @@ Command line script for converting geometries between formats.
 
 Usage
 -----
-To convert from one format to another:
+To convert from one format to another::
 
-    convgeom input output [options]
+    convgeom input_file output_file [options]
 
 By default, the input format is determined from the file structure and the
 output format is set by the file extension.
 
 Options
 -------
--i, --in-format
+``-i, --in-format``
     The input format (xyz, col, gdat, ...)
--o, --out-format
+``-o, --out-format``
     The output format (xyz, col, gdat, ...)
--iu, --in-units
+``-iu, --in-units``
     The input distance units (ang, bohr, ...)
--ou, --out-units
+``-ou, --out-units``
     The output distance units (ang, bohr, ...)
--c, --has-comment
+``-c, --has-comment``
     Boolean argument, whether or not comment is read
--v, --has-vector
+``-v, --has-vector``
     Boolean argument, whether or not vector is read
 """
 from sys import argv

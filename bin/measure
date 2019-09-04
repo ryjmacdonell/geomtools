@@ -4,24 +4,24 @@ Command line script for measuring internal coordinates from a geometry file.
 
 Usage
 -----
-To measure a coordinate for one or multiple geometries in an input file:
+To measure a coordinate for one or multiple geometries in an input file::
 
-    measure input coord_type {inds} [options]
+    measure input_file coord_type {inds} [options]
 
 The number of indices must match the coordinate type (e.g. 2 for stre,
 3 for bend, ...).
 
 Options
 -------
--f, --format
+``-f, --format``
     The input file format (xyz, col, gdat, ...)
--u, --units
+``-u, --units``
     The output units (auto, ang, rad, ...)
--a, --absolute
+``-a, --absolute``
     Boolean argument, if present returns absolute values
--o, --output
+``-o, --output``
     The output filename. Defaults to writing to stdout
--v, --val-format
+``-v, --val-format``
     The format of an output value, given as a format string
 """
 import numpy as np

@@ -14,6 +14,7 @@ still under development.
 
    installation
    getting_started
+   _command_line
 
 
 Indices and tables
