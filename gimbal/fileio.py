@@ -4,7 +4,6 @@ File input/output functions for molecular geometry files.
 Can support XYZ, COLUMBUS and Z-matrix formats. Input and output both
 require an open file to support multiple geometries. Only 3D geometries
 are currently supported.
-TODO: Add custom formats.
 """
 import numpy as np
 import gimbal.constants as con
@@ -15,12 +14,14 @@ import gimbal.measure as measure
 def read_xyz(infile, units='ang', hasvec=False, hascom=False):
     """Reads input file in XYZ format.
 
-    XYZ files are in the format:
-    natm
-    comment
-    A X1 Y1 Z1 [Vx1 Vy1 Vz1]
-    B X2 Y2 Z2 [Vx2 Vy2 Vz2]
-    ...
+    XYZ files are in the format::
+
+        natm
+        comment
+        A X1 Y1 Z1 [Vx1 Vy1 Vz1]
+        B X2 Y2 Z2 [Vx2 Vy2 Vz2]
+        ...
+
     where natm is the number of atoms, comment is a comment line, A and B
     are atomic labels and X, Y and Z are cartesian coordinates (in
     Angstroms). The vectors Vx, Vy and Vz are optional and will only be
@@ -28,6 +29,36 @@ def read_xyz(infile, units='ang', hasvec=False, hascom=False):
 
     Due to the preceding number of atoms, multiple XYZ format geometries
     can easily be read from a single file.
+
+    Parameters
+    ----------
+    infile : file
+        The open input file.
+    units : str, optional
+        The units of length of the cartesian coordinates. Default is
+        Angstroms.
+    hasvec : bool, optional
+        Specifies if a vector should be read from the input file. If
+        False (default), vec is a zero array.
+    hascom : bool, optional
+        Specifies if a comment line should be read from the input file. If
+        False (default), comment is a blank string.
+
+    Returns
+    -------
+    elem : (N,) ndarray
+        The atomic symbols.
+    xyz : (N, 3) ndarray
+        The atomic cartesian coordinates.
+    vec : (N, 3) ndarray
+        The vector cartesian coordinates.
+    comment : str
+        The comment line.
+
+    Raises
+    ------
+    IOError
+        When geometry is not in the correct format (natm can't be read).
     """
     try:
         natm = int(infile.readline())
@@ -43,6 +74,8 @@ def read_xyz(infile, units='ang', hasvec=False, hascom=False):
     xyz = data[:, 1:4].astype(float) * con.conv(units, 'ang')
     if hasvec:
         vec = data[:, 4:7].astype(float)
+        if vec.size == 0:
+            vec = np.zeros_like(xyz)
     else:
         vec = None
     return elem, xyz, vec, comment
@@ -51,10 +84,12 @@ def read_xyz(infile, units='ang', hasvec=False, hascom=False):
 def read_col(infile, units='bohr', hasvec=False, hascom=False):
     """Reads input file in COLUMBUS format.
 
-    COLUMBUS geometry files are in the format:
-    A nA X1 Y1 Z1 mA
-    B nB X2 Y2 Z2 mB
-    ...
+    COLUMBUS geometry files are in the format::
+
+        A nA X1 Y1 Z1 mA
+        B nB X2 Y2 Z2 mB
+        ...
+
     where A and B are atomic labels, nA and nB are corresponding atomic
     numbers, mA and mB are corresponding atomic masses and X, Y and Z
     are cartesian coordinates (in Bohrs).
@@ -65,6 +100,31 @@ def read_col(infile, units='bohr', hasvec=False, hascom=False):
 
     For the time being, vector input is not supported for the
     COLUMBUS file format.
+
+    Parameters
+    ----------
+    infile : file
+        The open input file.
+    units : str, optional
+        The units of length of the cartesian coordinates. Default is
+        Bohr.
+    hasvec : bool, optional
+        Specifies if a vector should be read from the input file. If
+        False (default), vec is a zero array.
+    hascom : bool, optional
+        Specifies if a comment line should be read from the input file. If
+        False (default), comment is a blank string.
+
+    Returns
+    -------
+    elem : (N,) ndarray
+        The atomic symbols.
+    xyz : (N, 3) ndarray
+        The atomic cartesian coordinates.
+    vec : (N, 3) ndarray
+        The vector cartesian coordinates.
+    comment : str
+        The comment line.
     """
     if hascom:
         comment = infile.readline().strip()
@@ -97,19 +157,51 @@ def read_col(infile, units='bohr', hasvec=False, hascom=False):
 def read_gdat(infile, units='bohr', hasvec=False, hascom=False):
     """Reads input file in FMS90 Geometry.dat format.
 
-    Geometry.dat files are in the format:
-    comment
-    natm
-    A X1 Y1 Z1
-    B X2 Y2 Z2
-    ...
-    Vx1 Vy1 Vz1
-    Vx2 Vy2 Vz2
-    ...
+    Geometry.dat files are in the format::
+
+        comment
+        natm
+        A X1 Y1 Z1
+        B X2 Y2 Z2
+        ...
+        Vx1 Vy1 Vz1
+        Vx2 Vy2 Vz2
+        ...
+
     where comment is a comment line, natm is the number of atoms, A and B
     are atomic labels, X, Y and Z are cartesian coordinates and Vq are
     vectors for cartesian coordinates q. The vectors are only read if
     hasvec = True.
+
+    Parameters
+    ----------
+    infile : file
+        The open input file.
+    units : str, optional
+        The units of length of the cartesian coordinates. Default is
+        Bohr.
+    hasvec : bool, optional
+        Specifies if a vector should be read from the input file. If
+        False (default), vec is a zero array.
+    hascom : bool, optional
+        Specifies if a comment line should be read from the input file. If
+        False (default), comment is a blank string.
+
+    Returns
+    -------
+    elem : (N,) ndarray
+        The atomic symbols.
+    xyz : (N, 3) ndarray
+        The atomic cartesian coordinates.
+    vec : (N, 3) ndarray
+        The vector cartesian coordinates.
+    comment : str
+        The comment line.
+
+    Raises
+    ------
+    IOError
+        When geometry is not in the correct format (natm can't be read).
     """
     if hascom:
         comment = infile.readline().strip()
@@ -134,13 +226,15 @@ def read_gdat(infile, units='bohr', hasvec=False, hascom=False):
 def read_zmt(infile, units='ang', hasvec=False, hascom=False):
     """Reads input file in Z-matrix format.
 
-    Z-matrix files are in the format:
-    A
-    B 1 R1
-    C indR2 R2 indA2 A2
-    D indR3 R3 indA3 A3 indT3 T3
-    E indR4 R4 indA4 A4 indT4 T4
-    ...
+    Z-matrix files are in the format::
+
+        A
+        B 1 R1
+        C indR2 R2 indA2 A2
+        D indR3 R3 indA3 A3 indT3 T3
+        E indR4 R4 indA4 A4 indT4 T4
+        ...
+
     where A, B, C, D, E are atomic labels, indR, indA, indT are reference
     atom indices, R are bond lengths (in Angstroms), A are bond angles (in
     degrees) and T are dihedral angles (in degrees). For example, E is a
@@ -155,6 +249,36 @@ def read_zmt(infile, units='ang', hasvec=False, hascom=False):
 
     For the time being, vector input is not supported for the
     Z-matrix file format.
+
+    Parameters
+    ----------
+    infile : file
+        The open input file.
+    units : str, optional
+        The units of length of the cartesian coordinates. Default is
+        Angstroms.
+    hasvec : bool, optional
+        Specifies if a vector should be read from the input file. If
+        False (default), vec is a zero array.
+    hascom : bool, optional
+        Specifies if a comment line should be read from the input file. If
+        False (default), comment is a blank string.
+
+    Returns
+    -------
+    elem : (N,) ndarray
+        The atomic symbols.
+    xyz : (N, 3) ndarray
+        The atomic cartesian coordinates.
+    vec : (N, 3) ndarray
+        The vector cartesian coordinates.
+    comment : str
+        The comment line.
+
+    Raises
+    ------
+    IOError
+        When geometry is not in the correct format (no atoms found).
     """
     if hascom:
         comment = infile.readline().strip()
@@ -238,10 +362,12 @@ def read_traj(infile, units='bohr', hasvec=False, hascom=False,
               elem=None, time=None, autocom=False):
     """Reads input file in FMS/nomad trajectory format
 
-    trajectory files are in the format:
-    T1 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
-    T2 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
-    ...
+    trajectory files are in the format::
+
+        T1 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
+        T2 X1 Y1 Z1 X2 Y2 ... Vx1 Vy1 Vz1 Vx2 Vy2 ... G Re(A) Im(A) |A| S
+        ...
+
     where T is the time, Vq are the vectors (momenta) for cartesian
     coordinates q, G is the phase, A is the amplitude and S is the state
     label. The vectors are only read if hasvec = True.
@@ -250,6 +376,47 @@ def read_traj(infile, units='bohr', hasvec=False, hascom=False,
     set to dummy atoms which may affect calculations involving atomic
     properties. A time should be provided, otherwise the first geometry
     in the file is used.
+
+    Parameters
+    ----------
+    infile : file
+        The open input file.
+    units : str, optional
+        The units of length of the cartesian coordinates. Default is
+        Bohr.
+    hasvec : bool, optional
+        Specifies if a vector should be read from the input file. If
+        False (default), vec is a zero array.
+    hascom : bool, optional
+        Specifies if a comment line should be read from the input file. If
+        False (default), comment is a blank string.
+    elem : (N,) array_like, optional
+        A list of the atomic symbols. If elem is None (default), the
+        symbols will all be set to 'X'.
+    time : float, optional
+        The desired time of the trajectory. If time is None (default), the
+        first geometry in the buffer is parsed. Otherwise, the file is
+        read until the specified time is found.
+    autocom : bool, optional
+        Specifies if a comment line should be automatically generated with
+        time, state and squared amplitude. Default is False.
+
+    Returns
+    -------
+    elem : (N,) ndarray
+        The atomic symbols.
+    xyz : (N, 3) ndarray
+        The atomic cartesian coordinates.
+    vec : (N, 3) ndarray
+        The vector cartesian coordinates.
+    comment : str
+        The comment line.
+
+    Raises
+    ------
+    IOError
+        When the geometry is not in the correct format (empty line or
+        incorrect number of columns).
     """
     if hascom:
         comment = infile.readline().strip()
@@ -283,12 +450,37 @@ def read_traj(infile, units='bohr', hasvec=False, hascom=False,
     return elem, xyz, vec, comment
 
 
-def read_auto(infile, **kwargs):
-    """Reads a molecular geometry file and determines the format."""
-    if 'hascom' in kwargs:
-        hascom = kwargs['hascom']
-    else:
-        hascom = False
+def read_auto(infile, hasvec=False, hascom=False, **kwargs):
+    """Reads a molecular geometry file and determines the format.
+
+    Parameters
+    ----------
+    infile : file
+        The open input file.
+    hasvec : bool, optional
+        Specifies if a vector should be read from the input file.
+    hascom : bool, optional
+        Specifies if a comment line should be read from the input file.
+    kwargs : dict, optional
+        Additional keyword arguments for the read functions.
+
+    Returns
+    -------
+    elem : (N,) ndarray
+        The atomic symbols.
+    xyz : (N, 3) ndarray
+        The atomic cartesian coordinates.
+    vec : (N, 3) ndarray
+        The vector cartesian coordinates.
+    comment : str
+        The comment line.
+
+    Raises
+    ------
+    IOError
+        When the geometry format is not recognized by the input parser.
+    """
+    kwargs.update(dict(hascom=hascom, hasvec=hasvec))
     pos = infile.tell()
     contents = infile.readlines()
     infile.seek(pos)
@@ -345,8 +537,96 @@ def read_auto(infile, **kwargs):
     raise IOError('unrecognized file format')
 
 
+def read_single(infile, fmt='auto', **kwargs):
+    """Reads a single geometry from an input file.
+
+    Unlike :func:`read_auto`, infile can be a string or open file.
+
+    Parameters
+    ----------
+    infile : file or str
+        The open input file or filename.
+    fmt : str, optional
+        The file format. Default is auto (i.e. :func:`read_auto`).
+    kwargs : dict, optional
+        Additional keyword arguments for the read function.
+
+    Returns
+    -------
+    tuple
+        The output of the read function (elem, xyz, vec, comment).
+    """
+    read_func = globals()['read_' + fmt]
+    close = False
+    infile, close = _open_file(infile, 'r')
+    moldat = read_func(infile, **kwargs)
+    if close:
+        infile.close()
+
+    return moldat
+
+
+def read_multiple(inflist, fmt='auto', **kwargs):
+    """Reads multiple files or multiple geometries into lists of data.
+
+    Parameters
+    ----------
+    inflist : array_like
+        The open input files or filenames.
+    fmt : str, optional
+        The file format. Default is auto (i.e. :func:`read_auto`).
+    kwargs : dict, optional
+        Additional keyword arguments for the read functions.
+
+    Returns
+    -------
+    list
+        The outputs of the read function for each file in inflist.
+
+    Raises
+    ------
+    IOError
+        When no geometries are found in the input file list.
+    """
+    read_func = globals()['read_' + fmt]
+    inflist = np.atleast_1d(inflist)
+    moldat = []
+    for infile in inflist:
+        infile, close = _open_file(infile, 'r')
+        while True:
+            try:
+                moldat.append(read_func(infile, **kwargs))
+            except IOError:
+                break
+
+        if close:
+            infile.close()
+
+    if len(moldat) == 0:
+        raise IOError('no geometries read from input files')
+
+    return moldat
+
+
 def write_xyz(outfile, elem, xyz, vec=None, comment='', units='ang'):
-    """Writes geometry to an output file in XYZ format."""
+    """Writes geometry to an output file in XYZ format.
+
+    Parameters
+    ----------
+    outfile : file
+        The open output file.
+    elem : (N,) array_like
+        The atomic symbols.
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    vec : (N, 3) array_like, optional
+        The atomic cartesian vectors. If vec is None (default), it is not
+        written to the output file.
+    comment : str, optional
+        The comment line. Default is a blank string.
+    units : str, optional
+        The units of the cartesian coordinates. Default is Angstroms.
+    """
     natm = len(elem)
     write_xyz = xyz * con.conv('ang', units)
     outfile.write(' {}\n{}\n'.format(natm, comment))
@@ -364,6 +644,22 @@ def write_col(outfile, elem, xyz, vec=None, comment='', units='bohr'):
 
     For the time being, vector output is not supported for the
     COLUMBUS file format.
+
+    Parameters
+    ----------
+    outfile : file
+        The open output file.
+    elem : (N,) array_like
+        The atomic symbols.
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    vec : (N, 3) array_like, optional
+        The atomic cartesian vectors. If vec is None (default), it is not
+        written to the output file.
+    comment : str, optional
+        The comment line. Default is a blank string.
+    units : str, optional
+        The units of the cartesian coordinates. Default is Bohr.
     """
     write_xyz = xyz * con.conv('ang', units)
     if comment != '':
@@ -375,7 +671,24 @@ def write_col(outfile, elem, xyz, vec=None, comment='', units='bohr'):
 
 
 def write_gdat(outfile, elem, xyz, vec=None, comment='', units='bohr'):
-    """Writes geometry to an output file in Geometry.dat format."""
+    """Writes geometry to an output file in Geometry.dat format.
+
+    Parameters
+    ----------
+    outfile : file
+        The open output file.
+    elem : (N,) array_like
+        The atomic symbols.
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    vec : (N, 3) array_like, optional
+        The atomic cartesian vectors. If vec is None (default), the
+        vectors are replaced by zeros.
+    comment : str, optional
+        The comment line. Default is a blank string.
+    units : str, optional
+        The units of the cartesian coordinates. Default is Bohr.
+    """
     natm = len(elem)
     write_xyz = xyz * con.conv('ang', units)
     outfile.write('{}\n{}\n'.format(comment, natm))
@@ -392,11 +705,27 @@ def write_gdat(outfile, elem, xyz, vec=None, comment='', units='bohr'):
 def write_zmt(outfile, elem, xyz, vec=None, comment='', units='ang'):
     """Writes geometry to an output file in Z-matrix format.
 
-    TODO: At present, each atom uses the previous atoms in order as
+    At present, each atom uses the previous atoms in order as
     references. This could be made 'smarter' using the bonding module.
 
     For the time being, vector output is not supported for the
     Z-matrix file format.
+
+    Parameters
+    ----------
+    outfile : file
+        The open output file.
+    elem : (N,) array_like
+        The atomic symbols.
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    vec : (N, 3) array_like, optional
+        The atomic cartesian vectors. If vec is None (default), it is not
+        written to the output file.
+    comment : str, optional
+        The comment line. Default is a blank string.
+    units : str, optional
+        The units of the bond distances. Default is Angstroms.
     """
     natm = len(elem)
     if comment != '':
@@ -435,6 +764,22 @@ def write_zmtvar(outfile, elem, xyz, vec=None, comment='', units='ang'):
 
     For the time being, vector output is not supported for the
     Z-matrix file format.
+
+    Parameters
+    ----------
+    outfile : file
+        The open output file.
+    elem : (N,) array_like
+        The atomic symbols.
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    vec : (N, 3) array_like, optional
+        The atomic cartesian vectors. If vec is None (default), it is not
+        written to the output file.
+    comment : str, optional
+        The comment line. Default is a blank string.
+    units : str, optional
+        The units of the bond distances. Default is Angstroms.
     """
     natm = len(elem)
     if comment != '':
@@ -476,7 +821,34 @@ def write_zmtvar(outfile, elem, xyz, vec=None, comment='', units='ang'):
 
 def write_traj(outfile, elem, xyz, vec=None, comment='', units='bohr',
                time=0., phase=0., ramp=0., iamp=0., state=0.):
-    """Writes geometry to an output file in FMS/nomad trajectory format."""
+    """Writes geometry to an output file in FMS/nomad trajectory format.
+
+    Parameters
+    ----------
+    outfile : file
+        The open output file.
+    elem : (N,) array_like
+        The atomic symbols.
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    vec : (N, 3) array_like, optional
+        The atomic cartesian vectors. If vec is None (default), the
+        vectors are written as zeros.
+    comment : str, optional
+        The comment line. Default is a blank string.
+    units : str, optional
+        The units of the cartesian coordinates. Default is Bohr.
+    time : float, optional
+        The time of the trajectory. Default is zero.
+    phase : float, optional
+        The phase of the trajectory. Default is zero.
+    ramp : float, optional
+        The real amplitude of the trajectory. Default is zero.
+    iamp : float, optional
+        The imaginary amplitude of the trajectory. Default is zero.
+    state : float, optional
+        The state of the trajectory. Default is zero.
+    """
     natm = len(elem)
     write_xyz = xyz.flatten() * con.conv('ang', units)
     if comment != '':
@@ -491,12 +863,28 @@ def write_traj(outfile, elem, xyz, vec=None, comment='', units='bohr',
     outfile.write(fmt.format(time, *args))
 
 
-def write_auto(outfile, elem, xyz, **kwargs):
+def write_auto(outfile, elem, xyz, vec=None, comment='', **kwargs):
     """Writes geometry to an output file based on the filename extension.
 
     Extensions are not case sensitive. If the extension is not recognized,
     the default format is XYZ.
+
+    Parameters
+    ----------
+    outfile : file
+        The open output file.
+    elem : (N,) array_like
+        The atomic symbols.
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates.
+    vec : (N, 3) array_like, optional
+        The atomic cartesian vectors. Default is None.
+    comment : str, optional
+        The comment line. Default is a blank string.
+    kwargs : dict, optional
+        Additional keyword arguments for the write functions.
     """
+    kwargs.update(dict(vec=vec, comment=comment))
     fname = outfile.name.lower()
     ext = fname.split('.')[-1]
     if ext in ['col', 'columbus']:
@@ -513,40 +901,140 @@ def write_auto(outfile, elem, xyz, **kwargs):
         write_xyz(outfile, elem, xyz, **kwargs)
 
 
-def convert(infname, outfname, infmt='auto', outfmt='auto',
+def write_single(outfile, moldat, fmt='auto', **kwargs):
+    """Writes a single geometry to an output file.
+
+    Unlike :func:`write_auto`, outfile can be a string or open file.
+
+    Parameters
+    ----------
+    outfile : file or str
+        The open output file or filename.
+    moldat : tuple
+        The inputs of the write function.
+    fmt : str, optional
+        The file format. Default is auto (i.e. :func:`write_auto`).
+    kwargs : dict, optional
+        Additional keyword arguments for the write functions.
+    """
+    write_func = globals()['write_' + fmt]
+    outfile, close = _open_file(outfile, 'w')
+    write_func(outfile, *moldat, **kwargs)
+    if close:
+        outfile.close()
+
+
+def write_multiple(outfile, moldat, fmt='auto', **kwargs):
+    """Writes multiple geometries into a single output file.
+
+    Parameters
+    ----------
+    outfile : file or str
+        The open output file or filename.
+    moldat : list
+        A list of the inputs of the write function for each molecule.
+    fmt : str, optional
+        The file format. Default is auto (i.e. :func:`write_auto`).
+    kwargs : dict, optional
+        Additional keyword arguments for the write functions.
+    """
+    moldat = np.atleast_1d(moldat)
+    write_func = globals()['write_' + fmt]
+    outfile, close = _open_file(outfile, 'w')
+    for dat in moldat:
+        write_func(outfile, *dat, **kwargs)
+
+    if close:
+        outfile.close()
+
+
+def convert(inflist, outfile, infmt='auto', outfmt='auto',
             inunits=None, outunits=None, hasvec=False, hascom=False):
     """Reads a file in format infmt and writes to a file in format
     outfmt.
 
     Input (and output) may have multiple geometries. Z-matrix index
     ordering is not conserved.
-    """
-    if inunits is None:
-        inkw = dict(hasvec=hasvec, hascom=hascom)
-    else:
-        inkw = dict(hasvec=hasvec, hascom=hascom, units=inunits)
-    if outunits is None:
-        outkw = dict()
-    else:
-        outkw = dict(units=outunits)
 
-    read_func = globals()['read_' + infmt]
-    write_func = globals()['write_' + outfmt]
-    with open(infname, 'r') as infile, open(outfname, 'w') as outfile:
-        while True:
-            try:
-                elem, xyz, vec, comment = read_func(infile, **inkw)
-                if hasvec:
-                    outkw.update(vec=vec)
-                if hascom:
-                    outkw.update(comment=comment)
-                write_func(outfile, elem, xyz, **outkw)
-            except IOError:
-                break
+    Parameters
+    ----------
+    inflist : array_like
+        The open input files or filenames.
+    outfile : file or str
+        The open output file or filename.
+    infmt : str, optional
+        The input file format. Default is auto (i.e. :func:`read_auto`).
+    outfmt : str, optional
+        The input file format. Default is auto (i.e. :func:`write_auto`).
+    inunits : str, optional
+        The input distance units. If None (default), the default units
+        of the read function are used.
+    outunits : str, optional
+        The output distance units. If None (default), the default units
+        of the write function are used.
+    hasvec : bool, optional
+        Specifies if a vector should be read from the input file.
+    hascom : bool, optional
+        Specifies if a comment line should be read from the input file.
+    """
+    inpkw = dict(hasvec=hasvec, hascom=hascom)
+    outkw = dict()
+    if inunits is not None:
+        inpkw.update(units=inunits)
+    if outunits is not None:
+        outkw.update(units=outunits)
+
+    moldat = read_multiple(inflist, fmt=infmt, **inpkw)
+    write_multiple(outfile, moldat, fmt=outfmt, **outkw)
+
+
+def get_optarg(arglist, *opts, default=False):
+    """Gets an optional command line argument and returns its value.
+
+    If default is not set, the flag is treated as boolean. Note that
+    that setting default to None or '' will still take an argument
+    after the flag.
+
+    Parameters
+    ----------
+    arglist : array_like
+        The command line argument list to be parsed.
+    opts : list
+        The arguments searched for in arglist.
+    default : str or bool
+        The default value if opts are not found in arglist. If default
+        is False (default), then True is returned if opts are found.
+
+    Returns
+    -------
+    str or bool
+        The argument value in arglist or its default value.
+    """
+    for op in opts:
+        if op in arglist:
+            ind = arglist.index(op)
+            arglist.remove(op)
+            if default is False:
+                return True
+            else:
+                return arglist.pop(ind)
+
+    return default
 
 
 def _get_type(s):
-    """Reads a string to see if it can be converted into int or float."""
+    """Reads a string to see if it can be converted into int or float.
+
+    Parameters
+    ----------
+    s : str
+        A string to be parsed.
+
+    Returns
+    -------
+    str, int or float
+        The parsed value.
+    """
     try:
         float(s)
         if '.' not in s:
@@ -558,7 +1046,25 @@ def _get_type(s):
 
 
 def _valvar(unk, vardict):
-    """Determines if an unknown string is a value or a dict variable."""
+    """Determines if an unknown string is a value or a dict variable.
+
+    Parameters
+    ----------
+    unk : float or str
+        The unknown value, either a float or a dictionary key.
+    vardict : dict
+        The dictionary to be searched if unk is not a float.
+
+    Returns
+    -------
+    float
+        The desired value for unk.
+
+    Raises
+    ------
+    ValueError
+        When unk is not a float and not a key in vardict.
+    """
     try:
         return float(unk)
     except ValueError:
@@ -566,3 +1072,24 @@ def _valvar(unk, vardict):
             return vardict[unk]
         else:
             raise KeyError('\'{}\' not found in variable list'.format(unk))
+
+
+def _open_file(f, mode):
+    """Opens a file if a string is provided, otherwise leaves the file open.
+
+    Parameters
+    ----------
+    f : str or file
+        The open file or filename.
+    mode : str
+        The file mode for builtin function `open` (r, w, ...).
+
+    Returns
+    -------
+    file
+        The desired open file.
+    """
+    if isinstance(f, str):
+        return open(f, mode), True
+    else:
+        return f, False

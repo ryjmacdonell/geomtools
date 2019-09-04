@@ -18,6 +18,17 @@ import gimbal.constants as con
 class SubLib(object):
     """
     Object containing a library of substituent geometries.
+
+    Attributes
+    ----------
+    syn : dict
+        A dictionary of synonyms used to find the appropriate
+        substituents.
+    elem : dict
+        A dictionary of atomic symbols for each substituent.
+    xyz : dict
+        A dictionary of atomic cartesian coordinates for each
+        substituent.
     """
     def __init__(self):
         self.syn = dict()
@@ -30,7 +41,9 @@ class SubLib(object):
 
     def _populate_syn(self):
         """Adds a dictionary of synonyms for labels."""
-        synlist = [['me', 'ch3', 'h3c'],
+        synlist = [['h'],
+                   ['d'],
+                   ['me', 'ch3', 'h3c'],
                    ['et', 'ch2ch3', 'c2h5', 'ch3ch2'],
                    ['npr', 'ch2ch2ch3', 'c3h7', 'ch3ch2ch2'],
                    ['ipr', 'chch3ch3', 'ch(ch3)2', '(ch3)2ch', 'ch3chch3'],
@@ -61,6 +74,8 @@ class SubLib(object):
 
     def _populate_elem(self):
         """Adds element labels to self.elem."""
+        self.elem['h'] = np.array(['H'])
+        self.elem['d'] = np.array(['D'])
         self.elem['me'] = np.array(['C', 'H', 'H', 'H'])
         self.elem['vi'] = np.array(['C', 'C', 'H', 'H', 'H'])
         self.elem['ey'] = np.array(['C', 'C', 'H'])
@@ -84,6 +99,8 @@ class SubLib(object):
         the bonding axis is the z-axis and the plane axis
         is the y-axis.
         """
+        self.xyz['h'] = np.array([[ 0.000,  0.000,  0.000]])
+        self.xyz['d'] = np.array([[ 0.000,  0.000,  0.000]])
         self.xyz['me'] = np.array([[ 0.000,  0.000,  0.000],
                                    [ 0.511, -0.886,  0.377],
                                    [ 0.511,  0.886,  0.377],
@@ -154,7 +171,20 @@ class SubLib(object):
 
     def get_sub(self, label):
         """Returns the element list and cartesian geometry of a
-        substituent."""
+        substituent.
+
+        Parameters
+        ----------
+        label : str
+            The substituent label of the desired substituent.
+
+        Returns
+        -------
+        elem : (N,) ndarray
+            The atomic symbols of the substituent.
+        xyz : (N, 3) ndarray
+            The atomic cartesian coordinates of the substituent.
+        """
         lbl = self.syn[label.lower()]
         return self.elem[lbl], self.xyz[lbl]
 
@@ -162,9 +192,22 @@ class SubLib(object):
         """Returns the element list and cartesian geometry from a
         combination of substituents.
 
-        By default, the last atom becomes the substituted atom and the
-        new substituent is added at the final indices. Setting inds will
-        substitute the element at that index or list of indices.
+        Parameters
+        ----------
+        lbls : list
+            A list of substituent labels to be combined.
+        inds : int or array_like, optional
+            The indices for substitution between substituents. Setting
+            inds=-1 (default) makes the last atom the subtituted atom.
+            Otherwise a list of indices can be given for the first of
+            each pair of substituents.
+
+        Returns
+        -------
+        elem : (N,) ndarray
+            The atomic symbols of the combined substituent.
+        xyz : (N, 3) ndarray
+            The atomic cartesian coordinates of the combined substituent.
         """
         if isinstance(inds, int):
             inds = (len(lbls) - 1) * [inds]
@@ -183,8 +226,8 @@ class SubLib(object):
             ax = con.unit_vec(xyz[i] - xyz[ibond])
             lbl = self.syn[label.lower()]
             new_elem = self.elem[lbl]
-            new_xyz = displace.rotate(self.xyz[lbl], rot*np.pi, 'z')
-            new_xyz = displace.align_axis(new_xyz, 'z', ax)
+            new_xyz = displace.rotate(self.xyz[lbl], rot*np.pi, 'Z')
+            new_xyz = displace.align_axis(new_xyz, 'Z', ax)
             blen = con.get_covrad(elem[ibond]) + con.get_covrad(new_elem[0])
             new_xyz += xyz[ibond] + blen * ax
             elem = np.hstack((np.delete(elem, i), new_elem))
@@ -195,7 +238,20 @@ class SubLib(object):
 
 def import_sub(label):
     """Returns the element list and cartesian geometry of a substituent
-    given its label."""
+    given its label.
+
+    Parameters
+    ----------
+    label : str
+        The substituent label.
+
+    Returns
+    -------
+    elem : (N,) ndarray
+        The atomic symbols of the substituent.
+    xyz : (N, 3) ndarray
+        The atomic cartesian coordinates of the substituent.
+    """
     lib = SubLib()
     return lib.get_sub(label)
 
@@ -212,6 +268,40 @@ def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
 
     If isub is given as a list, the entire list of atoms is removed
     and the first index is treated as the position of the substituent.
+
+    Parameters
+    ----------
+    elem : (N,) array_like
+        The atomic symbols of the unsubstituted molecule.
+    xyz : (N, 3) array_like
+        The atomic cartesian coordinates of the unsubstituted molecule.
+    sublbl : str
+        The substituent label.
+    isub : int or list
+        The atomic index (or indices) to be replaced by the substituent.
+    ibond : int, optional
+        The atomic index of the atom bonded to position isub. If None
+        (default), the nearest atom is chosen.
+    pl : int or array_like, optional
+        The atomic index or vector defining the xz-plane of the
+        substituent. If an index is given, the plane normal to the
+        isub-ibond-pl plane is used. If None (default), the plane
+        is arbitrarily set to [1, 1, 1] and the bond axis is projected
+        out.
+    vec : (N, 3) array_like, optional
+        The atomic cartesian vectors of the unsubstitued molecule. Default
+        is None.
+
+    Returns
+    -------
+    new_elem : (N,) ndarray
+        The atomic symbols of the substituted molecule.
+    new_xyz : (N, 3) ndarray
+        The atomic cartesian coordinates of the substituted molecule.
+    new_vec : (N, 3) ndarray
+        The atomic cartesian vectors of the substituted molecule.
+        Substituent atoms are all set of zero. If vec is None, new_vec
+        is all zeros.
     """
     elem = np.array(elem)
     xyz = np.atleast_2d(xyz)
@@ -247,8 +337,8 @@ def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
         blen = con.get_covrad(elem[ibond]) + con.get_covrad(sub_el[0])
 
     # rotate to correct orientation and displace to correct position
-    sub_xyz = displace.align_axis(sub_xyz, 'z', ax)
-    sub_pl = displace.align_axis([0., 1., 0.], 'z', ax)
+    sub_xyz = displace.align_axis(sub_xyz, 'Z', ax)
+    sub_pl = displace.align_axis([0., 1., 0.], 'Z', ax)
     sub_xyz = displace.align_axis(sub_xyz, sub_pl, pl)
     sub_xyz += xyz[ibond] + blen * ax
 
@@ -258,8 +348,7 @@ def subst(elem, xyz, sublbl, isub, ibond=None, pl=None, vec=None):
     new_elem = np.hstack((elem[ind1], sub_el, elem[ind2]))
     new_xyz = np.vstack((xyz[ind1], sub_xyz, xyz[ind2]))
     if vec is None:
-        new_vec = np.zeros((len(new_elem), 3))
+        return new_elem, new_xyz, None
     else:
         new_vec = np.vstack((vec[ind1], np.zeros((len(sub_el), 3)), vec[ind2]))
-
-    return new_elem, new_xyz, new_vec
+        return new_elem, new_xyz, new_vec

@@ -1,0 +1,62 @@
+#!/usr/bin/env python
+"""
+Command line script for measuring internal coordinates from a geometry file.
+
+Usage
+-----
+To measure a coordinate for one or multiple geometries in an input file::
+
+    measure input_file coord_type {inds} [options]
+
+The number of indices must match the coordinate type (e.g. 2 for stre,
+3 for bend, ...).
+
+Options
+-------
+``-f, --format``
+    The input file format (xyz, col, gdat, ...)
+``-u, --units``
+    The output units (auto, ang, rad, ...)
+``-a, --absolute``
+    Boolean argument, if present returns absolute values
+``-o, --output``
+    The output filename. Defaults to writing to stdout
+``-v, --val-format``
+    The format of an output value, given as a format string
+"""
+import numpy as np
+from sys import argv, stdout
+from gimbal.fileio import get_optarg, read_multiple
+import gimbal.measure as measure
+
+
+def main():
+    """The main 'measure' routine."""
+    fmt = get_optarg(argv, '-f', '--format', default='auto')
+    outf = get_optarg(argv, '-o', '--output', default=stdout)
+    vfmt = get_optarg(argv, '-v', '--val-format', default='{:10.4f}\n')
+    kwargs = dict(
+        units = get_optarg(argv, '-u', '--units', default='auto'),
+                  )
+    absv = get_optarg(argv, '-a', '--absolute')
+    if absv:
+        kwargs['absv'] = absv
+
+    meas_func = getattr(measure, argv[2])
+    inds = np.array(argv[3:], dtype=int) - 1
+    moldat = read_multiple(argv[1], fmt=fmt)
+    if outf != stdout:
+        outf = open(outf, 'w')
+
+    for dat in moldat:
+        val = meas_func(dat[1], *inds, **kwargs)
+        outf.write(vfmt.format(val))
+
+    if vfmt[-1] != '\n':
+        outf.write('\n')
+    if outf != stdout:
+        outf.close()
+
+
+if __name__ == '__main__':
+    main()

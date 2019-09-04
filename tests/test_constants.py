@@ -42,6 +42,10 @@ def test_get_num_single():
     assert con.get_num('H') == 1
 
 
+def test_get_num_deuterium():
+    assert con.get_num('D') == 1
+
+
 def test_get_num_list():
     assert np.all(con.get_num(['H', 'He', 'Li']) == np.array([1, 2, 3]))
 
@@ -67,6 +71,16 @@ def test_unit_vec():
 def test_unit_vec_fails():
     with pytest.raises(ValueError, match=r'Cannot make unit vector from .*'):
         uvec = con.unit_vec(np.zeros(3))
+
+
+def test_arccos_plusone():
+    ang = con.arccos(1 + 1e-10)
+    assert np.isclose(ang, 0)
+
+
+def test_arccos_minusone():
+    ang = con.arccos(-1 - 1e-10)
+    assert np.isclose(ang, np.pi)
 
 
 def test_conv_unit():

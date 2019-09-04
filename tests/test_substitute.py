@@ -31,7 +31,7 @@ def test_subst_fluoro_default():
     elem, xyz, vec = substitute.subst(eg.c2h4[0], eg.c2h4[1], 'f', 2)
     assert np.all(elem == eg.c2h3f[0])
     assert np.allclose(xyz, eg.c2h3f[1])
-    assert np.allclose(vec, np.zeros_like(xyz))
+    assert vec is None
 
 
 def test_subst_fluoro_multisub():

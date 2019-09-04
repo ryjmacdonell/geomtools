@@ -1,6 +1,7 @@
 """
 Tests for the measure module.
 """
+import pytest
 import numpy as np
 import gimbal.measure as measure
 from examples import Geometries as eg

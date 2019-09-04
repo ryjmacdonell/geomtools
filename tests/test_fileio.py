@@ -31,6 +31,14 @@ def test_read_xyz_vector(tmpdir):
     assert np.allclose(vec, np.ones((5, 3)))
 
 
+def test_read_xyz_vector_empty(tmpdir):
+    f = ef.tmpf(tmpdir, ef.xyz_novec)
+    elem, xyz, vec, com = fileio.read_xyz(f, hasvec=True)
+    assert np.all(elem == eg.ch4[0])
+    assert np.allclose(xyz, eg.ch4[1])
+    assert np.allclose(vec, np.zeros((5, 3)))
+
+
 def test_read_xyz_wrong_format(tmpdir):
     f = ef.tmpf(tmpdir, ef.col_nocom)
     with pytest.raises(IOError, match=r'geometry not in XYZ format.'):
@@ -292,6 +300,12 @@ def test_read_auto_unrecognized_multi_lines(tmpdir):
         elem, xyz, vec, com = fileio.read_auto(f)
 
 
+def test_read_multiple_no_geoms(tmpdir):
+    f = ef.tmpf(tmpdir, '\n')
+    with pytest.raises(IOError, match=r'no geometries read from input files'):
+        moldat = fileio.read_multiple(f)
+
+
 def test_write_xyz_vec(tmpdir):
     f = tmpdir.join('tmp.geom')
     fileio.write_xyz(f.open(mode='w'), eg.ch4[0], eg.ch4[1],
@@ -432,6 +446,33 @@ def test_convert_xyz_to_traj_hasvec(tmpdir):
     soln = ef.traj_nocom.replace('0.4000    0.3000    0.2500    2.0000',
                                  '0.0000    0.0000    0.0000    0.0000')
     assert f2.read() == soln
+
+
+def test_get_optargs_no_default():
+    args = ['-u', 'arg1', 'arg2', '-v']
+    val1 = fileio.get_optarg(args, '-u')
+    val2 = fileio.get_optarg(args, '-v')
+    assert val1 is True
+    assert val2 is True
+    assert args == ['arg1', 'arg2']
+
+
+def test_get_optargs_set_default():
+    args = ['-u', 'optarg1', 'arg1', 'arg2', '-v', 'optarg2']
+    val1 = fileio.get_optarg(args, '-u', default=None)
+    val2 = fileio.get_optarg(args, '-v', default=None)
+    assert val1 == 'optarg1'
+    assert val2 == 'optarg2'
+    assert args == ['arg1', 'arg2']
+
+
+def test_get_optargs_not_found():
+    args = ['arg1', 'arg2']
+    val1 = fileio.get_optarg(args, '-u')
+    val2 = fileio.get_optarg(args, '-v', default=None)
+    assert val1 is False
+    assert val2 is None
+    assert args == ['arg1', 'arg2']
 
 
 def test_valvar_fails(tmpdir):

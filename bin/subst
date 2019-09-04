@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+"""
+Command line script for adding substituents to a geometry file.
+
+Usage
+-----
+To add a substituent to all geometries in an input file::
+
+    subst input_file sublbl {inds} [options]
+
+The inds mark which position is substituted. If multiple indices are
+given, the first will be the position of the substituent.
+
+Options
+-------
+``-i, --in-place``
+    Boolean argument, whether or not the geometry file is overwritten.
+``-b, --bond-ind``
+    The index of the atom bound to the substituent. If not specified,
+    the nearest atom is used.
+``-p, --plane-ind``
+    The index of the atom used to specify the xz-plane of the substituent.
+    The substituent index, bonding index and plane index make up the plane.
+``-f, --format``
+    The input/output format (xyz, col, gdat, ...)
+``-c, --has-comment``
+    Boolean argument, whether or not comment is read.
+``-v, --has-vector``
+    Boolean argument, whether or not vector is read.
+"""
+from sys import argv, stdout
+import gimbal.fileio as fileio
+import gimbal.substitute as substitute
+
+
+def main():
+    """The main 'subst' routine."""
+    inplace = fileio.get_optarg(argv, '-i', '--in-place')
+    kwargs = dict(
+        ibond = fileio.get_optarg(argv, '-b', '--bond-ind', default=None),
+        pl = fileio.get_optarg(argv, '-p', '--plane-ind', default=None)
+                  )
+    for key, val in kwargs.items():
+        if val is not None:
+            kwargs[key] = int(val) - 1
+
+    inpkw = dict(
+        fmt = fileio.get_optarg(argv, '-f', '--format', default='auto'),
+        hascom = fileio.get_optarg(argv, '-c', '--has-comment'),
+        hasvec = fileio.get_optarg(argv, '-v', '--has-vector')
+                 )
+
+    moldat = fileio.read_multiple(argv[1], **inpkw)
+    subdat = []
+
+    inds = [int(i) - 1 for i in argv[3:]]
+    for dat in moldat:
+        if inpkw['hasvec']:
+            kwargs.update(vec = dat[2])
+
+        new = substitute.subst(dat[0], dat[1], argv[2], inds, **kwargs)
+        subdat.append((*new, dat[3]))
+
+    if inplace:
+        fileio.write_multiple(argv[1], subdat, fmt=inpkw['fmt'])
+    else:
+        fileio.write_multiple(stdout, subdat, fmt=inpkw['fmt'])
+
+
+if __name__ == '__main__':
+    main()

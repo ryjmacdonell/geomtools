@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+"""
+Command line script for translating/rotating/reflecting a geometry file.
+
+Usage
+-----
+To displace a molecule about/along a given axis::
+
+    nudge input_file amp axis_string [options]
+
+The axis (and origin, if given) is parsed based on
+:class:`displace.VectorParser`, which interprets integers as indices of
+the cartesian coordinates and includes scalar and vector operations.
+
+Options
+-------
+``-i, --in-place``
+    Boolean argument, whether or not the geometry file is overwritten.
+``-t, --translate``
+    Boolean argument, whether or not translate is used instead of rotate.
+``-n, --indices``
+    Indices to displace, given as a string of integers separated by spaces.
+``-u, --units``
+    Units for displacement amplitude.
+``-r, --reflect``
+    Boolean argument, whether rotation is proper or improper.
+``-o, --origin``
+    String defining the origin of rotation.
+``-f, --format``
+    The input/output format (xyz, col, gdat, ...)
+``-c, --has_comment``
+    Boolean argument, whether or not comment is read.
+``-v, --has-vector``
+    Boolean argument, whether or not vector is read.
+"""
+import numpy as np
+from sys import argv, stdout
+import gimbal.fileio as fileio
+import gimbal.displace as displace
+
+
+def main():
+    """The main 'nudge' routine."""
+    zeros = np.zeros(3)
+    inplace = fileio.get_optarg(argv, '-i', '--in-place')
+    trans = fileio.get_optarg(argv, '-t', '--translate')
+    inds = fileio.get_optarg(argv, '-n', '--indices', default=None)
+    if inds is not None:
+        inds = [int(i) for i in inds.split()]
+
+    kwargs = dict(
+        ind = inds,
+        units = fileio.get_optarg(argv, '-u', '--units', default='auto')
+                  )
+    rotkw = dict(
+        det = 1 - 2*fileio.get_optarg(argv, '-r', '--reflect'),
+        origin = fileio.get_optarg(argv, '-o', '--origin', default=zeros)
+                 )
+    inpkw = dict(
+        fmt = fileio.get_optarg(argv, '-f', '--format', default='auto'),
+        hascom = fileio.get_optarg(argv, '-c', '--has-comment'),
+        hasvec = fileio.get_optarg(argv, '-v', '--has-vector')
+                 )
+
+    moldat = fileio.read_multiple(argv[1], **inpkw)
+    newdat = []
+    amp = float(argv[2])
+    axis = argv[3]
+    for dat in moldat:
+        xyz = np.vstack((zeros, dat[1]))
+        if trans:
+            new = displace.translate(xyz, amp, axis, **kwargs)
+        else:
+            new = displace.rotate(xyz, amp, axis, **kwargs, **rotkw)
+
+        newdat.append((dat[0], new[1:], *dat[2:]))
+
+    if inplace:
+        fileio.write_multiple(argv[1], newdat, fmt=inpkw['fmt'])
+    else:
+        fileio.write_multiple(stdout, newdat, fmt=inpkw['fmt'])
+
+
+if __name__ == '__main__':
+    main()

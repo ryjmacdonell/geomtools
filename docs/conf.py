@@ -12,7 +12,8 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
+import os
+from gimbal._version import __version__
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
@@ -24,9 +25,9 @@ copyright = '2019, Ryan J. MacDonell'
 author = 'Ryan J. MacDonell'
 
 # The short X.Y version
-version = ''
+version = '.'.join(__version__.split('.')[:2])
 # The full version, including alpha/beta/rc tags
-release = '0.1'
+release = __version__
 
 
 # -- General configuration ---------------------------------------------------
@@ -181,3 +182,25 @@ epub_exclude_files = ['search.html']
 
 
 # -- Extension configuration -------------------------------------------------
+# get documentation for command line scripts
+bin_path = os.path.abspath('../bin')
+scripts = os.listdir(bin_path)
+docs = '====================\nCommand line scripts\n====================\n\n'
+for fn in scripts:
+    docs += fn + '\n' + len(fn)*'=' + '\n'
+    with open(os.path.join(bin_path, fn), 'r') as f:
+        read = False
+        line = f.readline()
+        while line != '':
+            line = f.readline()
+            if '"""' in line and read:
+                break
+            elif '"""' in line:
+                read = True
+            elif read:
+                docs += line
+
+    docs += '\n\n'
+
+with open('_command_line.rst', 'w') as f:
+    f.write(docs)

@@ -239,6 +239,16 @@ def test_Molecule_copy():
     assert np.allclose(mol2.xyz[1:], eg.c2h4[1])
 
 
+def test_Molecule_rearrange_all():
+    mol = molecule.Molecule(*eg.ch4)
+    ind = [5, 3, 4, 1, 2]
+    oind = [i-1 for i in ind]
+    mol.rearrange(ind)
+    assert np.all(mol.elem[1:] == eg.ch4[0][oind])
+    assert np.allclose(mol.xyz[1:], eg.ch4[1][oind])
+    assert not mol.saved
+
+
 def test_Molecule_read_filename(tmpdir):
     f = tmpdir.join('tmp.xyz')
     f.write(ef.xyz_novec)
@@ -315,14 +325,14 @@ def test_Molecule_translate():
 
 def test_Molecule_rotate_no_vec():
     mol = molecule.Molecule(*eg.c2h4)
-    mol.rotate(np.pi/2, 'z')
+    mol.rotate(np.pi/2, 'Z')
     soln = np.array([-eg.c2h4[1][:,1], -eg.c2h4[1][:,0], eg.c2h4[1][:,2]]).T
     assert np.allclose(mol.xyz[1:], soln)
 
 
 def test_Molecule_rotate_vec():
     mol = molecule.Molecule(*eg.c2h4, vec=np.ones((6, 3)))
-    mol.rotate(np.pi/2, 'z')
+    mol.rotate(np.pi/2, 'Z')
     soln = np.ones_like(eg.c2h4[1])
     soln[:,0] = -1
     assert np.allclose(mol.vec[1:], soln)
@@ -344,6 +354,17 @@ def test_Molecule_subst():
     mol.subst('ch3', 3, pl=2)
     assert np.all(mol.elem[1:] == eg.c2h3me[0])
     assert np.allclose(mol.xyz[1:], eg.c2h3me[1])
+
+
+def test_Molecule_subst_vec():
+    mol = molecule.Molecule(*eg.c2h4)
+    mol.print_vec = True
+    mol.vec = np.ones_like(mol.xyz)
+    mol.subst('ch3', 3, pl=2)
+    newvec = np.vstack((np.ones((2, 3)), np.zeros((4, 3)), np.ones((3, 3))))
+    assert np.all(mol.elem[1:] == eg.c2h3me[0])
+    assert np.allclose(mol.xyz[1:], eg.c2h3me[1])
+    assert np.allclose(mol.vec[1:], newvec)
 
 
 def test_empty_MoleculeBundle():
@@ -534,6 +555,15 @@ def test_MoleculeBundle_write_openfile(tmpdir):
     bund = molecule.MoleculeBundle([mol, mol])
     bund.write(f.open(mode='w'))
     assert f.read() == 2*ef.xyz_novec
+
+
+def test_MoleculeBundle_write_vec(tmpdir):
+    f = tmpdir.join('tmp.xyz')
+    vec = np.ones((5, 3))
+    mol = molecule.Molecule(*eg.ch4, vec=vec, comment='comment line')
+    bund = molecule.MoleculeBundle([mol, mol])
+    bund.write(f.open(mode='w'))
+    assert f.read() == 2*ef.xyz_vec
 
 
 def test_MoleculeBundle_measure():

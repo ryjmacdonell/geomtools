@@ -7,13 +7,44 @@ sensitive. This module should not depend on other modules.
 Unit types
 ----------
 Length: Angstrom (ang), Bohr (bohr), picometre (pm), nanometre (nm)
+
 Angle: radian (rad), degree (deg)
+
 Time: femtosecond (fs), picosecond (ps), atomic unit (au)
+
 Mass: atomic mass unit (amu), electron mass (me), proton mass (mp),
-      kilogram (kg)
+kilogram (kg)
+
 Energy: electron volt (ev), Hartree (har), kilocalorie per mole (kcm),
-        kilojoule per mole (kjm), reciprocal centimetre (cm)
+kilojoule per mole (kjm), reciprocal centimetre (cm)
+
 For all types, 'auto' will give the default unit.
+
+Attributes
+----------
+sym : ndarray
+    List of atomic symbols up to Krypton. The ordering (with the
+    exception of deuterium) yields the correct atomic number from
+    ``sym.index(elem)``.
+mass : ndarray
+    List of atomic masses corresponding to the elements in `sym`.
+covrad : ndarray
+    List of covalent radii corresponding to the elements in `sym`.
+lenunits : dict
+    Dictionary of units of length and their conversions from the
+    default (angstroms).
+angunits : dict
+    Dictionary of units of angle and their conversions from the
+    default (radians).
+timunits : dict
+    Dictionary of units of time and their conversions from the
+    default (femtoseconds).
+masunits : dict
+    Dictionary of units of mass and their conversions from the
+    default (atomic mass units).
+eneunits : dict
+    Dictionary of units of energy and their conversion from the
+    default (electron volts).
 """
 import numpy as np
 
@@ -48,31 +79,72 @@ eneunits = dict(auto=1., ev=1., har=1./27.21138505, kcm=23.061, kjm=96.485,
 def get_num(elem):
     """Returns atomic number from atomic symbol.
 
-    Takes advantage of the fact that sym indices match atomic numbers. Input
-    can be a single atom or a list of atoms.
+    Takes advantage of the fact that sym indices match atomic numbers.
+
+    Parameters
+    ----------
+    elem : str or array_like
+        The atomic symbol(s) to be parsed.
+
+    Returns
+    -------
+    int or ndarray
+        The atomic numbers corresponding to each symbol.
     """
     if isinstance(elem, str):
         return _find_index(elem)
     else:
         for atm in elem:
-            if atm not in sym and 'X' not in atm:
+            if atm not in sym and atm[0] not in ['X', 'D']:
                 raise ValueError('Unrecognized atomic symbol \'' + atm +
                                  '\'. Use X prefix for dummy atoms.')
         return np.array([_find_index(atm) for atm in elem])
 
 
 def get_mass(elem):
-    """Returns atomic mass from atomic symbol."""
+    """Returns atomic mass from atomic symbol.
+
+    Parameters
+    ----------
+    elem : str of array_like
+        The atomic symbol(s) to be parsed.
+
+    Returns
+    -------
+    float or ndarray
+        The atomic masses corresponding to each symbol.
+    """
     return mass[get_num(elem)]
 
 
 def get_covrad(elem):
-    """Returns covalent radius from atomic symbol."""
+    """Returns covalent radius from atomic symbol.
+
+    Parameters
+    ----------
+    elem : str of array_like
+        The atomic symbol(s) to be parsed.
+
+    Returns
+    -------
+    float or ndarray
+        The atomic covalent radii corresponding to each symbol.
+    """
     return covrad[get_num(elem)]
 
 
 def unit_vec(v):
-    """Returns a unit vector aligned with a given vector."""
+    """Returns a unit vector aligned with a given vector.
+
+    Parameters
+    ---------
+    v : array_like
+        The input, un-normalized vector.
+
+    Returns
+    -------
+    ndarray
+        The normalized (unit) vector."""
     vlen = np.linalg.norm(v)
     if np.isclose(vlen, 0):
         raise ValueError('Cannot make unit vector from zero vector.')
@@ -80,8 +152,49 @@ def unit_vec(v):
         return v / vlen
 
 
+def arccos(val):
+    """Returns the arccosine of an angle allowing for numerical errors.
+
+    NumPy's arccos function is defined for the range [-1, 1], but
+    returns NaN for :math:`|x| = 1 + \delta`, where :math:`\delta` is
+    small.  This can be avoided by checking for limiting cases with
+    ``numpy.isclose``.
+
+    Parameters
+    ----------
+    val : float
+        The x-coordinate on the unit circle.
+
+    Returns
+    -------
+    float
+        The angle intersecting the unit circle at x = val.
+    """
+    if np.isclose(val, -1):
+        return np.pi
+    elif np.isclose(val, 1):
+        return 0.
+    else:
+        return np.arccos(val)
+
+
 def conv(old='auto', new='auto'):
-    """Returns conversion factor from old units to new units."""
+    """Returns conversion factor from old units to new units.
+
+    Parameters
+    ----------
+    old : str, optional
+        The units to be converted from. See different units types for
+        defaults.
+    new : str, optional
+        The units to be converted to. See different units types for
+        defaults.
+
+    Returns
+    -------
+    float
+        The conversion factor, new_units / old_units.
+    """
     if old == new:
         return 1.
     for unittype in [lenunits, angunits, timunits, masunits, eneunits]:
@@ -93,6 +206,21 @@ def conv(old='auto', new='auto'):
 
 
 def _find_index(string):
-    """Determines if dummy or regular atom and returns index."""
-    elem = 'X' if string[0] == 'X' else string
-    return np.where(sym == elem)[0][0]
+    """Determines if dummy or regular atom and returns index.
+
+    Parameters
+    ----------
+    string : str
+        The atomic symbol.
+
+    Returns
+    -------
+    int
+        The atomic number of the given atomic symbol.
+    """
+    if string[0] == 'X':
+        return 0
+    elif string  == 'D':
+        return 1
+    else:
+        return np.where(sym == string)[0][0]

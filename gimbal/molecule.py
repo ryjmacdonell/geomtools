@@ -25,6 +25,35 @@ class BaseMolecule(object):
 
     All methods of BaseMolecule involve setting and saving the molecular
     geometry. There are no dependencies to other modules.
+
+    Attributes
+    ----------
+    elem : (N,) ndarray
+        The atomic symbols.
+    xyz : (N, 3) ndarray
+        The atomic cartesian coordinates.
+    vec : (N, 3) ndarray
+        The atomic cartesian vectors.
+    comment : str
+        The comment line.
+    natm : int
+        The number of atoms N. Automatically set during initialization.
+    print_vec : bool
+        Specifies if the vectors should be printed/written. Automatically
+        set to False if vec is None (default).
+    save_elem : (N,) ndarray
+        The saved atomic symbols.
+    save_xyz : (N, 3) ndarray
+        The saved atomic cartesian coordinates.
+    save_vec : (N, 3) ndarray
+        The saved atomic cartesian vectors.
+    save_comment : str
+        The saved comment line.
+    save_print_vec : bool
+        Specifies if the vectors should be printed/written. Automatically
+        set to False if vec is None (default).
+    saved : bool
+        Specifies if the ``save_...`` values are up to date.
     """
     def __init__(self, elem=[], xyz=np.empty((0, 3)), vec=None, comment=''):
         self._elem = np.atleast_1d(np.array(elem, dtype=str))
@@ -99,7 +128,26 @@ class BaseMolecule(object):
         return fstr
 
     def _check(self, ielem=None, ixyz=None, ivec=None):
-        """Checks that xyz is 3D and len(elem) = len(xyz)."""
+        """Checks that xyz is 3D and len(elem) = len(xyz).
+
+        Parameters
+        ----------
+        ielem : (N,) array_like, optional
+            The new atomic symbols to be checked. If None (default), the
+            values of self._elem are checked instead.
+        ixyz : (N, 3) array_like, optional
+            The new atomic cartesian coordiantes to be checked. If None
+            (default), the values of self._xyz are checked instead.
+        ivec : (N, 3) array_like, optional
+            The new atomic cartesian vectors to be checked. If None
+            (default), the values of self._vec are checked instead.
+
+        Raises
+        ------
+        ValueError
+            When the shapes of ixyz, elem and vec don't match or ixyz
+            and ivec aren't 3D.
+        """
         if ielem is None:
             ielem = self._elem
         if ixyz is None:
@@ -177,7 +225,19 @@ class BaseMolecule(object):
         self.saved = False
 
     def copy(self, comment=None):
-        """Creates a copy of the BaseMolecule object."""
+        """Creates a copy of the BaseMolecule object.
+
+        Parameters
+        ----------
+        comment : str
+            A comment line for the copied BaseMolecule. If None (default),
+            self._comment is used.
+
+        Returns
+        -------
+        BaseMolecule
+            A copy of the BaseMolecule instance.
+        """
         self._check()
         if comment is None:
             comment = self._comment
@@ -185,7 +245,7 @@ class BaseMolecule(object):
                             np.copy(self._vec), comment)
 
     def save(self):
-        """Saves molecular properties to 'save' variables."""
+        """Saves molecular properties to ``save_`` variables."""
         self._check()
         self.save_elem = np.copy(self._elem)
         self.save_xyz = np.copy(self._xyz)
@@ -195,7 +255,7 @@ class BaseMolecule(object):
         self.saved = True
 
     def revert(self):
-        """Reverts properties to 'save' variables."""
+        """Reverts properties to ``save_`` variables."""
         if not self.saved:
             self._elem = np.copy(self.save_elem)
             self._xyz = np.copy(self.save_xyz)
@@ -205,7 +265,21 @@ class BaseMolecule(object):
         self.saved = True
 
     def add_atoms(self, new_elem, new_xyz, new_vec=None):
-        """Adds atoms(s) to molecule."""
+        """Adds atoms(s) to molecule.
+
+        Parameters
+        ----------
+        new_elem : (n,) array_like
+            The new atomic symbols to be added to the current symbol
+            list.
+        new_xyz : (n, 3) array_like
+            The new atomic cartesian coordinates to be added to the
+            current coordinate list.
+        new_vec : (n, 3) array_like, optional
+            The new atomic cartesian vectors to be added to the current
+            vector list. If None (default), zeros are added to match
+            new_xyz.
+        """
         new_xyz = np.atleast_2d(np.array(new_xyz, dtype=float))
         elems = np.hstack((self._elem, new_elem))
         xyzs = np.vstack((self._xyz, new_xyz))
@@ -223,7 +297,13 @@ class BaseMolecule(object):
         self.saved = False
 
     def rm_atoms(self, ind):
-        """Removes atom(s) from molecule by index."""
+        """Removes atom(s) from molecule by index.
+
+        Parameters
+        ----------
+        ind : int or array_like
+            Index or indices of atoms to be removed.
+        """
         self._elem = np.delete(self._elem, ind)
         self._xyz = np.delete(self._xyz, ind, axis=0)
         self._vec = np.delete(self._vec, ind, axis=0)
@@ -231,7 +311,16 @@ class BaseMolecule(object):
         self.saved = False
 
     def rearrange(self, new_ind, old_ind=None):
-        """Moves atom(s) from old_ind to new_ind."""
+        """Moves atom(s) from old_ind to new_ind.
+
+        Parameters
+        ----------
+        new_ind : array_like
+            New indices for the atoms.
+        old_ind : array_like, optional
+            Old indices for the atoms. If None (default), new_ind must
+            include all atoms.
+        """
         if old_ind is None:
             old_ind = range(self.natm)
         new, old = _rearrange_inds(new_ind, old_ind)
@@ -252,6 +341,22 @@ class Molecule(BaseMolecule):
 
     Molecule can also read from and write to input files given by a filename
     or an open file object. Other methods are derived from different modules.
+
+    Attributes
+    ----------
+    elem : (N+1,) ndarray
+        The atomic symbols.
+    xyz : (N+1, 3) ndarray
+        The atomic cartesian coordinates.
+    vec : (N+1, 3) ndarray
+        The atomic cartesian vectors.
+    comment : str
+        The comment line.
+    natm : int
+        The number of atoms N. Automatically set during initialization.
+    print_vec : bool
+        Specifies if the vectors should be printed/written. Automatically
+        set to False if vec is None (default).
     """
     def __repr__(self):
         baserepr = BaseMolecule.__repr__(self)
@@ -278,13 +383,39 @@ class Molecule(BaseMolecule):
 
     def _check(self, ielem=None, ixyz=None, ivec=None):
         """Checks that xyz is 3D and len(elem) = len(xyz) and that dummy
-        atom is at centre of mass."""
+        atom is at centre of mass.
+
+        Parameters
+        ----------
+        ielem : (N,) array_like, optional
+            The new atomic symbols to be checked. If None (default), the
+            values of self._elem are checked instead.
+        ixyz : (N, 3) array_like, optional
+            The new atomic cartesian coordiantes to be checked. If None
+            (default), the values of self._xyz are checked instead.
+        ivec : (N, 3) array_like, optional
+            The new atomic cartesian vectors to be checked. If None
+            (default), the values of self._vec are checked instead.
+        """
         BaseMolecule._check(self, ielem=ielem, ixyz=ixyz, ivec=ivec)
         if self.natm > 0:
             self._add_centre()
+            self.natm = len(self._elem) - 1
 
     def copy(self, comment=None):
-        """Creates a copy of the Molecule object."""
+        """Creates a copy of the Molecule object.
+
+        Parameters
+        ----------
+        comment : str
+            A comment line for the copied Molecule. If None (default),
+            self._comment is used.
+
+        Returns
+        -------
+        Molecule
+            A copy of the Molecule instance.
+        """
         self._check()
         vec = self._vec if self.print_vec else None
         if comment is None:
@@ -292,42 +423,77 @@ class Molecule(BaseMolecule):
         return Molecule(np.copy(self._elem), np.copy(self._xyz),
                         vec, comment)
 
-    def read(self, infile, fmt='auto', **kwargs):
-        """Reads single geometry from input file in provided format."""
-        read_func = getattr(fileio, 'read_' + fmt)
-        if isinstance(infile, str):
-            with open(infile, 'r') as f:
-                (self._elem, self._xyz,
-                 ivec, self._comment) = read_func(f, **kwargs)
-        else:
-            (self._elem, self._xyz,
-             ivec, self._comment) = read_func(infile, **kwargs)
+    def rearrange(self, new_ind, old_ind=None):
+        """Moves atom(s) from old_ind to new_ind.
 
+        Parameters
+        ----------
+        new_ind : array_like
+            New indices for the atoms.
+        old_ind : array_like, optional
+            Old indices for the atoms. If None (default), new_ind must
+            include all atoms except for the dummy atom (index 0).
+        """
+        if old_ind is None:
+            old_ind = range(1, self.natm+1)
+        BaseMolecule.rearrange(self, new_ind, old_ind)
+
+    def read(self, infile, fmt='auto', **kwargs):
+        """Reads single geometry from input file in provided format.
+
+        Parameters
+        ----------
+        infile : file or str
+            The open input file or filename.
+        fmt : str, optional
+            The file format. Default is auto (i.e. :func:`fileio.read_auto`).
+        kwargs : dict, optional
+            Additional keyword arguments for the read function.
+        """
+        (self._elem, self._xyz, ivec,
+         self._comment) = fileio.read_single(infile, fmt=fmt, **kwargs)
         if ivec is None:
             self._vec = np.zeros_like(self._xyz)
         else:
             self._vec = ivec
+
         self._check()
         self.saved = False
 
     def write(self, outfile, fmt='auto', **kwargs):
-        """Writes geometry to an output file in provided format."""
-        write_func = getattr(fileio, 'write_' + fmt)
+        """Writes geometry to an output file in provided format.
+
+        Parameters
+        ----------
+        outfile : file or str
+            The open output file or filename.
+        fmt : str, optional
+            The file format. Default is auto (i.e. :func:`fileio.write_auto`).
+        kwargs : dict, optional
+            Additional keyword arguments for the write function.
+        """
         vec = self._vec[1:] if self.print_vec else None
-        if isinstance(outfile, str):
-            with open(outfile, 'w') as f:
-                write_func(f, self._elem[1:], self._xyz[1:], vec=vec,
-                           comment=self._comment, **kwargs)
-        else:
-            write_func(outfile, self._elem[1:], self._xyz[1:], vec=vec,
-                       comment=self._comment, **kwargs)
+        moldat = (self._elem[1:], self._xyz[1:], vec, self._comment)
+        fileio.write_single(outfile, moldat, fmt=fmt, **kwargs)
 
     def get_mass(self):
-        """Returns atomic masses."""
+        """Returns atomic masses.
+
+        Returns
+        -------
+        ndarray
+            The array of atomic masses.
+        """
         return con.get_mass(self._elem)
 
     def get_formula(self):
-        """Gets the atomic formula based on the element list."""
+        """Gets the atomic formula based on the element list.
+
+        Returns
+        -------
+        str
+            The molecular atomic formula as a string.
+        """
         elem = [sym for sym in self.elem if 'X' not in sym]
         atm, num = np.unique(elem, return_counts=True)
         fstr = ''
@@ -339,11 +505,27 @@ class Molecule(BaseMolecule):
 
         return fstr
 
-    def measure(self, coord, *inds, units='auto', absv=False):
-        """Returns a coordinate based on its indices in the molecule."""
+    def measure(self, coord, *inds, **kwargs):
+        """Returns a coordinate based on its indices in the molecule.
+
+        Parameters
+        ----------
+        coord : str
+            The coordinate specification, given by function names
+            in :mod:`measure`.
+        inds : list
+            The indices used in the coordinate function.
+        kwargs : dict, optional
+            Additional keyword arguments for the measure functions.
+
+        Returns
+        -------
+        float
+            The value of the specified coordinate.
+        """
         self._check()
         coord_func = getattr(measure, coord)
-        return coord_func(self.xyz, *inds, units=units, absv=absv)
+        return coord_func(self.xyz, *inds, **kwargs)
 
     def centre_mass(self):
         """Places the centre of mass at the origin."""
@@ -355,6 +537,18 @@ class Molecule(BaseMolecule):
         """Translates the molecule along a given axis.
 
         Momenta are difference vectors and are not translated.
+
+        Parameters
+        ----------
+        amp : float
+            The distance for translation.
+        axis : array_like or str
+            The axis of translation, parsed by :func:`displace._parse_axis`.
+        ind : array_like, optional
+            List of atomic indices to specify which atoms are displaced.
+            If ind is None (default) then all atoms are displaced.
+        units : str, optional
+            The units of length for displacement. Default is angstroms.
         """
         self.xyz = displace.translate(self._xyz, amp, axis, ind=ind,
                                       units=units)
@@ -367,6 +561,23 @@ class Molecule(BaseMolecule):
         If vectors are non-zero, they will be rotated about the
         same origin. Reflections and improper rotations can be done
         by setting det=-1.
+
+        Parameters
+        ----------
+        amp : float
+            The angle of rotation.
+        axis : array_like or str
+            The axis of rotation, parsed by :func:`displace._parse_axis`.
+        ind : array_like, optional
+            List of atomic indices to specify which atoms are displaced.
+            If ind is None (default) then all atoms are displaced.
+        origin : (3,) array_like, optional
+            The origin of rotation. Default is the cartesian origin.
+        det : float, optional
+            The determinant of the rotation. 1 (default) is a proper rotation
+            and -1 is an improper rotation (rotation + reflection).
+        units : str, optional
+            The units of length for displacement. Default is angstroms.
         """
         kwargs = dict(ind=ind, origin=origin, det=det, units=units)
         self.xyz = displace.rotate(self._xyz, amp, axis, **kwargs)
@@ -374,23 +585,52 @@ class Molecule(BaseMolecule):
             self.vec = displace.rotate(self._vec, amp, axis, **kwargs)
         self.saved = False
 
-    def match_to_ref(self, ref_bundle, plist=None, equiv=None, wgt=None,
-                     ind=None, cent=None):
+    def match_to_ref(self, ref_bundle, **kwargs):
         """Tests the molecule against a set of references in a bundle.
 
-        Note: vectors are not properly rotated.
+        At the moment, vectors are not properly rotated.
+
+        Parameters
+        ----------
+        ref_bundle : MoleculeBundle
+            A molecule bundle object containing the set of reference
+            geometries.
+        kwargs : dict
+            Additional keyword arguments used in :func:`kabsch.opt_permute`.
+
+        Returns
+        -------
+        int
+            The index of the optimal ref geometry.
         """
         vec = self._vec if self.print_vec else None
         reflist = [mol._xyz for mol in ref_bundle.molecules]
-        kwargs = dict(plist=plist, equiv=equiv, wgt=wgt, ind=ind, cent=cent)
         self.xyz, ind = kabsch.opt_ref(self._elem, self._xyz, reflist, **kwargs)
         return ind
 
     def subst(self, lbl, isub, ibond=None, pl=None):
-        """Replaces an atom or set of atoms with a substituent."""
+        """Replaces an atom or set of atoms with a substituent.
+
+        Parameters
+        ----------
+        lbl : str
+            The substituent label.
+        isub : int or list
+            The atomic index (or indices) to be replaced by the substituent.
+        ibond : int, optional
+            The atomic index of the atom bonded to position isub. If None
+            (default), the nearest atom is chosen.
+        pl : int or array_like, optional
+            The atomic index or vector defining the xz-plane of the
+            substituent. See :func:`substitute.subst` for more details.
+        """
         args = (self._elem, self._xyz, lbl, isub)
         kwargs = dict(ibond=ibond, pl=pl, vec=self._vec)
-        self._elem, self._xyz, self._vec = substitute.subst(*args, **kwargs)
+        self._elem, self._xyz, vec = substitute.subst(*args, **kwargs)
+        if self.print_vec:
+            self._vec = vec
+        else:
+            self._vec = np.zeros_like(self._xyz)
         self._check()
 
 
@@ -398,6 +638,17 @@ class MoleculeBundle(object):
     """
     Object containing a set of molecules in the form of Molecule
     objects.
+
+    Attributes
+    ----------
+    molecules : ndarray
+        The array of Molecule objects.
+    nmol : int
+        The number of molecules, set automatically during initialization.
+    save_molecules : ndarray
+        The saved array of Molecule objects.
+    saved : bool
+        Specifies if the save_molecules value is up to date.
     """
     def __init__(self, molecules=[]):
         self._molecules = np.atleast_1d(np.array(molecules, dtype=object,
@@ -446,7 +697,19 @@ class MoleculeBundle(object):
         return MoleculeBundle(_add_type(self, other))
 
     def _check(self, imol=None):
-        """Check that all bundle objects are Molecule type."""
+        """Check that all bundle objects are Molecule type.
+
+        Parameters
+        ----------
+        imol : ndarray, optional
+            The new array of Molecule objects to be checked. If None
+            (default), self._molecules is checked instead.
+
+        Raises
+        ------
+        TypeError
+            When the type of elements of imol aren't Molecule.
+        """
         if imol is None:
             imol = self._molecules
         for mol in imol:
@@ -470,11 +733,17 @@ class MoleculeBundle(object):
         self.saved = False
 
     def copy(self):
-        """Returns a copy of the MoleculeBundle object."""
+        """Returns a copy of the MoleculeBundle object.
+
+        Returns
+        -------
+        MoleculeBundle
+            A copy of the MoleculeBundle instance.
+        """
         return MoleculeBundle([mol.copy() for mol in self._molecules])
 
     def save(self):
-        """Saves all molecules in the bundle."""
+        """Saves all molecules in the bundle and sets save_molecules."""
         self._check()
         for mol in self._molecules:
             mol.save()
@@ -482,7 +751,7 @@ class MoleculeBundle(object):
         self.saved = True
 
     def revert(self):
-        """Reverts each molecule in the bundle."""
+        """Reverts each molecule in the bundle to the saved variables."""
         if not self.saved:
             self._molecules = np.copy(self.save_molecules)
         for mol in self._molecules:
@@ -490,7 +759,16 @@ class MoleculeBundle(object):
         self.saved = True
 
     def rearrange(self, new_ind, old_ind=None):
-        """Moves molecule(s) from old_ind to new_ind in bundle."""
+        """Moves molecule(s) from old_ind to new_ind in bundle.
+
+        Parameters
+        ----------
+        new_ind : array_like
+            New indices for the molecules.
+        old_ind : array_like, optional
+            Old indices for the molecules. If None (default), new_ind must
+            include all molecules.
+        """
         if old_ind is None:
             old_ind = range(self.nmol)
         new, old = _rearrange_inds(new_ind, old_ind)
@@ -498,47 +776,89 @@ class MoleculeBundle(object):
         self.saved = False
 
     def add_molecules(self, new_molecules):
-        """Adds molecule(s) to the bundle."""
+        """Adds molecule(s) to the bundle.
+
+        Parameters
+        ----------
+        new_molecules : (n,) array_like
+            The new Molecule objects to be added to the current molecule
+            list.
+        """
         mols = np.hstack((self._molecules, new_molecules))
         self._check(imol=mols)
         self._molecules = mols
         self.saved = False
 
     def rm_molecules(self, ind):
-        """Removes molecule(s) from the bundle by index."""
+        """Removes molecule(s) from the bundle by index.
+
+        Parameters
+        ----------
+        ind : int or array_like
+            Index or indices of molecules to be removed.
+        """
         self._molecules = np.delete(self._molecules, ind)
         self._check()
         self.saved = False
 
-    def read(self, infile, fmt='auto', **kwargs):
-        """Reads all geometries from input file in provided format."""
-        read_func = getattr(fileio, 'read_' + fmt)
-        if isinstance(infile, str):
-            infile = open(infile, 'r')
-        while True:
-            try:
-                new_mol = Molecule(*read_func(infile, **kwargs))
-                self._molecules = np.hstack((self.molecules, new_mol))
-            except IOError:
-                break
+    def read(self, inflist, fmt='auto', **kwargs):
+        """Reads all geometries from input file in provided format.
 
+        Parameters
+        ----------
+        infile : array_like
+            The open input files or filenames.
+        fmt : str, optional
+            The file format. Default is auto (i.e. :func:`fileio.read_auto`).
+        kwargs : dict, optional
+            Additional keyword arguments for the read function.
+        """
+        moldat = fileio.read_multiple(inflist, fmt=fmt, **kwargs)
+        new_mol = [Molecule(*dat) for dat in moldat]
+        self._molecules = np.hstack((self.molecules, new_mol))
         self._check()
         self.saved = False
 
     def write(self, outfile, fmt='auto', **kwargs):
-        """Writes geometries to an output file in provided format."""
-        write_func = getattr(fileio, 'write_' + fmt)
-        if isinstance(outfile, str):
-            with open(outfile, 'w') as f:
-                for mol in self.molecules:
-                    mol.write(f, fmt=fmt, **kwargs)
-        else:
-            for mol in self.molecules:
-                mol.write(outfile, fmt=fmt, **kwargs)
+        """Writes geometries to an output file in provided format.
 
-    def measure(self, coord, *inds, units='auto', absv=False):
-        """Returns a list of coordinates based on index in molecules."""
-        kwargs = dict(units=units, absv=absv)
+        Parameters
+        ----------
+        outfile : file or str
+            The open output file or filename.
+        fmt : str, optional
+            The file format. Default is auto (i.e. :func:`fileio.write_auto`).
+        kwargs : dict, optional
+            Additional keyword arguments for the write function.
+        """
+        moldat = np.empty(self.nmol, dtype=object)
+        for i, mol in enumerate(self.molecules):
+            if mol.print_vec:
+                moldat[i] = (mol.elem[1:], mol.xyz[1:], mol.vec[1:],
+                             mol.comment)
+            else:
+                moldat[i] = (mol.elem[1:], mol.xyz[1:], None, mol.comment)
+
+        fileio.write_multiple(outfile, moldat, fmt=fmt, **kwargs)
+
+    def measure(self, coord, *inds, **kwargs):
+        """Returns a list of coordinates based on index in molecules.
+
+        Parameters
+        ----------
+        coord : str
+            The coordinate specification, given by function names
+            in :mod:`measure`.
+        inds : list
+            The indices used in the coordinate function.
+        kwargs : dict, optional
+            Additional keyword arguments for the measure functions.
+
+        Returns
+        -------
+        ndarray
+            The values of the specified coordinate for each molecule.
+        """
         return np.array([mol.measure(coord, *inds, **kwargs)
                          for mol in self.molecules])
 
@@ -548,9 +868,21 @@ class MoleculeBundle(object):
         a set of references in another bundle.
 
         Returns a set of bundles corresponding to the reference indices.
+
+        Parameters
+        ----------
+        ref_bundle : MoleculeBundle
+            A molecule bundle object containing the set of reference
+            geometries.
+        kwargs : dict
+            Additional keyword arguments used in :func:`kabsch.opt_permute`.
+
+        Returns
+        -------
+        ndarray
+            The indices of the optimal ref geometries for each molecule.
         """
         kwargs = dict(plist=plist, equiv=equiv, wgt=wgt, ind=ind, cent=cent)
-        #bundles = [MoleculeBundle() for mol in ref_bundle.molecules]
         inds = np.empty(self.nmol)
         for i, mol in enumerate(self._molecules):
             inds[i] = mol.match_to_ref(ref_bundle, **kwargs)
@@ -558,10 +890,24 @@ class MoleculeBundle(object):
 
 
 def import_molecule(fname, fmt='auto', **kwargs):
-    """Imports geometry in provided format to Molecule object."""
-    read_func = getattr(fileio, 'read_' + fmt)
-    with open(fname, 'r') as infile:
-        return Molecule(*read_func(infile, **kwargs))
+    """Imports geometry in provided format to Molecule object.
+
+    Parameters
+    ----------
+    fname : file or str
+        The open input file or filename.
+    fmt : str, optional
+        The file format. Default is auto (i.e. :func:`fileio.read_auto`).
+    kwargs : dict, optional
+        Additional keyword arguments for the read function.
+
+    Returns
+    -------
+    Molecule
+        The imported Molecule object.
+    """
+    moldat = fileio.read_multiple(fname, fmt=fmt, **kwargs)
+    return Molecule(*moldat[0])
 
 
 def import_bundle(fnamelist, fmt='auto', **kwargs):
@@ -569,26 +915,49 @@ def import_bundle(fnamelist, fmt='auto', **kwargs):
 
     The fnamelist keyword can be a single filename or a list of
     filenames. If fmt='auto', different files may have different formats.
+
+    Parameters
+    ----------
+    fnamelist : array_like
+        The open input files or filenames.
+    fmt : str, optional
+        The file format. Default is auto (i.e. :func:`fileio.read_auto`).
+    kwargs : dict, optional
+        Additional keyword arguments for the read function.
+
+    Returns
+    -------
+    MoleculeBundle
+        The imported MoleculeBundle object.
     """
-    read_func = getattr(fileio, 'read_' + fmt)
-    molecules = []
-    if not isinstance(fnamelist, (list, tuple, np.ndarray)):
-        fnamelist = [fnamelist]
-
-    for fname in fnamelist:
-        with open(fname, 'r') as infile:
-            while True:
-                try:
-                    molecules.append(Molecule(*read_func(infile, **kwargs)))
-                except IOError:
-                    break
-
+    moldat = fileio.read_multiple(fnamelist, fmt=fmt, **kwargs)
+    molecules = [Molecule(*dat) for dat in moldat]
     return MoleculeBundle(molecules)
 
 
 def _rearrange_inds(new_ind, old_ind):
     """Checks indices of rearrangement routines and returns indices in
-    a single format."""
+    a single format.
+
+    Parameters
+    ----------
+    new_ind : array_like
+            New indices for the elements.
+    old_ind : array_like
+            Old indices for the elements.
+
+    Returns
+    -------
+    new : ndarray
+        An array of the new ordering of both old an new indices.
+    old : ndarray
+        An array of the old ordering of both old an new indices.
+
+    Raises
+    ------
+    IndexError
+        When the shape of new_ind and old_ind don't match.
+    """
     new = np.atleast_1d(new_ind)
     old = np.atleast_1d(old_ind)
     if len(new) != len(old):
@@ -597,7 +966,26 @@ def _rearrange_inds(new_ind, old_ind):
 
 
 def _add_type(inp1, inp2):
-    """Checks the type of an object being added to a bundle."""
+    """Checks the type of an object being added to a bundle.
+
+    Parameters
+    ----------
+    inp1 : Molecule or MoleculeBundle
+        The first input for concatenation into a list of molecules.
+    inp2 : Molecule or MoleculeBundle
+        The second input for concatenation into a list of molecules.
+
+    Returns
+    -------
+    ndarray
+        An array of Molecule objects from inp1 and inp2.
+
+    Raises
+    ------
+    TypeError
+        When the different types can't be added to make a MoleculeBundle
+        object.
+    """
     if isinstance(inp1, MoleculeBundle) and isinstance(inp2, MoleculeBundle):
         molecules = np.hstack((inp1.molecules, inp2.molecules))
     elif isinstance(inp1, MoleculeBundle) and isinstance(inp2, Molecule):
