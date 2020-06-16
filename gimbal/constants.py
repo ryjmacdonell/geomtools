@@ -16,7 +16,8 @@ Mass: atomic mass unit (amu), electron mass (me), proton mass (mp),
 kilogram (kg)
 
 Energy: electron volt (ev), Hartree (har), kilocalorie per mole (kcm),
-kilojoule per mole (kjm), reciprocal centimetre (cm)
+kilojoule per mole (kjm), reciprocal centimetre (cm), joule (j),
+terahertz (thz)
 
 For all types, 'auto' will give the default unit.
 
@@ -69,11 +70,11 @@ covrad = np.array([0.000, 0.320, 1.600, 0.680, 0.352, 0.832, 0.720, 0.680,
                    1.168, 1.208, 1.220, 1.208, 1.600])
 lenunits = dict(auto=1., ang=1., bohr=1./0.52917721, pm=100., nm=0.1)
 angunits = dict(auto=1., rad=1., deg=180./np.pi)
-timunits = dict(auto=1., fs=1., ps=0.001, au=0.024188843)
-masunits = dict(auto=1., amu=1., me=5.48579909e-4, mp=1.00727647,
+timunits = dict(auto=1., fs=1., ps=0.001, au=1./0.024188843)
+masunits = dict(auto=1., amu=1., me=1822.888486209, mp=1./1.00727647,
                 kg=1.66053904e-27)
 eneunits = dict(auto=1., ev=1., har=1./27.21138505, kcm=23.061, kjm=96.485,
-                cm=8065.5)
+                cm=8065.5, j=1.602176634e-19, thz=241.8)
 
 
 def get_num(elem):
