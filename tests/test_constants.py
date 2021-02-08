@@ -100,7 +100,7 @@ def test_conv_tim():
 
 
 def test_conv_mas():
-    assert np.isclose(con.conv('me', 'mp'), 1836.15267981)
+    assert np.isclose(con.conv('mp', 'me'), 1836.15267981)
 
 
 def test_conv_ene():
